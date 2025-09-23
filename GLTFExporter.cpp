@@ -96,8 +96,12 @@ bool ExportToTOML(const std::filesystem::path& inputPath,
     std::filesystem::create_directories(out_base_dir, ec);
     const std::string base_name = stem_noext(inputPath);
 
+    // Create target directory: <base_name>.StaticMesh
+    std::filesystem::path target_dir = out_base_dir / (base_name + ".StaticMesh");
+    std::filesystem::create_directories(target_dir, ec);
+
     nlohmann::json root = nlohmann::json::object();
-    root["gltf_source"] = inputPath.filename().string();
+    root["gltf_source"] = std::filesystem::absolute(inputPath).string();
 
     // Scenes
     nlohmann::json scenes = nlohmann::json::array();
@@ -112,6 +116,9 @@ bool ExportToTOML(const std::filesystem::path& inputPath,
     }
     root["scenes"] = std::move(scenes);
 
+    // Global primitives array (flattened)
+    nlohmann::json global_primitives = nlohmann::json::array();
+
     // Meshes
     nlohmann::json meshes = nlohmann::json::array();
     for (size_t mi = 0; mi < asset.meshes.size(); ++mi) {
@@ -119,9 +126,13 @@ bool ExportToTOML(const std::filesystem::path& inputPath,
         nlohmann::json m = nlohmann::json::object();
         if (!mesh.name.empty()) m["name"] = std::string(mesh.name.data(), mesh.name.size());
 
-        nlohmann::json prims = nlohmann::json::array();
+        nlohmann::json prim_indices = nlohmann::json::array();
+
         for (size_t pi = 0; pi < mesh.primitives.size(); ++pi) {
             const auto &prim = mesh.primitives[pi];
+            // compute global primitive index before creating files
+            const int64_t prim_index = static_cast<int64_t>(global_primitives.size());
+
             nlohmann::json p = nlohmann::json::object();
             p["mode"] = static_cast<int64_t>(prim.type);
             if (prim.materialIndex) p["material"] = static_cast<int64_t>(*prim.materialIndex);
@@ -137,15 +148,8 @@ bool ExportToTOML(const std::filesystem::path& inputPath,
                 std::vector<std::byte> bytes;
                 if (!CopyAccessorToBytes(asset, acc, bytes)) continue;
 
-                std::string mesh_name;
-                if (mesh.name.empty()) {
-                    mesh_name = "mesh" + std::to_string(mi);
-                } else {
-                    mesh_name.assign(mesh.name.data(), mesh.name.size());
-                }
-
-                std::filesystem::path bin_name = base_name + ".gltf " + mesh_name + ".primitives" + std::to_string(pi) + "." + attr_name;
-                std::filesystem::path bin_path = out_base_dir / bin_name;
+                std::filesystem::path bin_name = std::to_string(prim_index) + "." + attr_name;
+                std::filesystem::path bin_path = target_dir / bin_name;
 
                 std::ofstream ofs(bin_path, std::ios::binary);
                 if (!ofs) {
@@ -153,6 +157,7 @@ bool ExportToTOML(const std::filesystem::path& inputPath,
                 } else {
                     ofs.write(reinterpret_cast<const char*>(bytes.data()), static_cast<std::streamsize>(bytes.size()));
                     ofs.close();
+                    std::cout << "[Export] Saved: " << bin_path << "\n";
                 }
 
                 nlohmann::json a = nlohmann::json::object();
@@ -170,32 +175,30 @@ bool ExportToTOML(const std::filesystem::path& inputPath,
                 const auto &acc = asset.accessors[*prim.indicesAccessor];
                 std::vector<std::byte> bytes;
                 if (CopyAccessorToBytes(asset, acc, bytes)) {
-                    std::string mesh_name;
-                    if (mesh.name.empty()) {
-                        mesh_name = "mesh" + std::to_string(mi);
-                    } else {
-                        mesh_name.assign(mesh.name.data(), mesh.name.size());
-                    }
-
-                    std::filesystem::path bin_name = base_name + ".gltf " + mesh_name + ".primitives" + std::to_string(pi) + ".indices";
-                    std::filesystem::path bin_path = out_base_dir / bin_name;
+                    std::filesystem::path bin_name = std::to_string(prim_index) + ".indices";
+                    std::filesystem::path bin_path = target_dir / bin_name;
                     std::ofstream ofs(bin_path, std::ios::binary);
                     if (ofs) {
                         ofs.write(reinterpret_cast<const char*>(bytes.data()), static_cast<std::streamsize>(bytes.size()));
                         ofs.close();
+                        std::cout << "[Export] Saved: " << bin_path << "\n";
                         p["indices_file"] = bin_name.string();
                     }
                 }
             }
 
-            prims.push_back(std::move(p));
+            // Append this primitive to global primitives and record its index
+            prim_indices.push_back(prim_index);
+            global_primitives.push_back(std::move(p));
         }
-        m["primitives"] = std::move(prims);
+
+        m["primitives"] = std::move(prim_indices);
         meshes.push_back(std::move(m));
     }
     root["meshes"] = std::move(meshes);
+    root["primitives"] = std::move(global_primitives);
 
-    std::filesystem::path json_path = out_base_dir / (base_name + ".json");
+    std::filesystem::path json_path = target_dir / (base_name + ".json");
     std::ofstream json_out(json_path, std::ios::binary);
     if (!json_out) {
         std::cerr << "[Export] Cannot open: " << json_path << "\n";
@@ -203,6 +206,7 @@ bool ExportToTOML(const std::filesystem::path& inputPath,
     }
     json_out << root.dump(4);
     json_out.close();
+    std::cout << "[Export] Saved: " << json_path << "\n";
 
     std::cout << "[Export] Done: " << json_path << "\n";
     return true;
