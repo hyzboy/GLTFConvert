@@ -11,6 +11,7 @@
 #include <vector>
 #include <string>
 #include <cstring>
+#include <limits>
 
 namespace {
 
@@ -185,6 +186,9 @@ bool ExportToTOML(const std::filesystem::path& inputPath,
 
             nlohmann::json attrs = nlohmann::json::array();
 
+            // remember POSITION accessor index if present
+            size_t position_accessor_index = static_cast<size_t>(-1);
+
             // attributes
             for (const auto &attr : prim.attributes) {
                 const std::string attr_name(attr.name.data(), attr.name.size());
@@ -207,6 +211,10 @@ bool ExportToTOML(const std::filesystem::path& inputPath,
                     std::cerr << "[Export] Write failed: " << bin_path << "\n";
                 }
 
+                if (attr_name == "POSITION") {
+                    position_accessor_index = accessor_index;
+                }
+
                 nlohmann::json attr_j = nlohmann::json::object();
                 attr_j["id"] = static_cast<int64_t>(attrs.size());
                 attr_j["name"] = attr_name;
@@ -217,6 +225,48 @@ bool ExportToTOML(const std::filesystem::path& inputPath,
             }
 
             p["attributes"] = std::move(attrs);
+
+            // compute AABB from POSITION accessor if available
+            if (position_accessor_index != static_cast<size_t>(-1)) {
+                const auto &posAcc = asset.accessors[position_accessor_index];
+                // only handle VEC3 positions with float/double components
+                if (posAcc.type == fastgltf::AccessorType::Vec3) {
+                    double minx = std::numeric_limits<double>::infinity();
+                    double miny = std::numeric_limits<double>::infinity();
+                    double minz = std::numeric_limits<double>::infinity();
+                    double maxx = -std::numeric_limits<double>::infinity();
+                    double maxy = -std::numeric_limits<double>::infinity();
+                    double maxz = -std::numeric_limits<double>::infinity();
+                    bool any = false;
+
+                    if (posAcc.componentType == fastgltf::ComponentType::Float) {
+                        fastgltf::iterateAccessor<fastgltf::math::fvec3>(asset, posAcc, [&](const fastgltf::math::fvec3 &v){
+                            any = true;
+                            double x = static_cast<double>(v.x());
+                            double y = static_cast<double>(v.y());
+                            double z = static_cast<double>(v.z());
+                            minx = std::min(minx, x); miny = std::min(miny, y); minz = std::min(minz, z);
+                            maxx = std::max(maxx, x); maxy = std::max(maxy, y); maxz = std::max(maxz, z);
+                        });
+                    } else if (posAcc.componentType == fastgltf::ComponentType::Double) {
+                        fastgltf::iterateAccessor<fastgltf::math::dvec3>(asset, posAcc, [&](const fastgltf::math::dvec3 &v){
+                            any = true;
+                            double x = v.x();
+                            double y = v.y();
+                            double z = v.z();
+                            minx = std::min(minx, x); miny = std::min(miny, y); minz = std::min(minz, z);
+                            maxx = std::max(maxx, x); maxy = std::max(maxy, y); maxz = std::max(maxz, z);
+                        });
+                    }
+
+                    if (any) {
+                        nlohmann::json aabb = nlohmann::json::object();
+                        aabb["min"] = nlohmann::json::array({minx, miny, minz});
+                        aabb["max"] = nlohmann::json::array({maxx, maxy, maxz});
+                        p["aabb"] = std::move(aabb);
+                    }
+                }
+            }
 
             // indices
             if (prim.indicesAccessor) {
