@@ -12,6 +12,7 @@
 #include <string>
 #include <cstring>
 #include <limits>
+#include <unordered_map>
 
 namespace {
 
@@ -162,7 +163,64 @@ bool ExportToTOML(const std::filesystem::path& inputPath,
         s["nodes"] = std::move(nodes);
         scenes.push_back(std::move(s));
     }
-    root["scenes"] = std::move(scenes);
+    // Don't assign scenes into root yet; we'll add scene AABBs after computing them
+
+    // Prepare world transforms per-node by traversing scenes
+    std::vector<fastgltf::math::fmat4x4> world_mats(asset.nodes.size(), fastgltf::math::fmat4x4());
+    std::unordered_map<const fastgltf::Node*, size_t> node_ptr_to_index;
+    for (size_t i = 0; i < asset.nodes.size(); ++i) node_ptr_to_index[&asset.nodes[i]] = i;
+
+    for (size_t si = 0; si < asset.scenes.size(); ++si) {
+        fastgltf::iterateSceneNodes(asset, si, fastgltf::math::fmat4x4(), [&](fastgltf::Node& node, const fastgltf::math::fmat4x4& nodeMatrix) {
+            auto it = node_ptr_to_index.find(&node);
+            if (it != node_ptr_to_index.end()) {
+                world_mats[it->second] = nodeMatrix;
+            }
+        });
+    }
+
+    // Nodes
+    nlohmann::json nodes_json = nlohmann::json::array();
+    for (size_t ni = 0; ni < asset.nodes.size(); ++ni) {
+        const auto &node = asset.nodes[ni];
+        nlohmann::json nj = nlohmann::json::object();
+        if (!node.name.empty()) nj["name"] = std::string(node.name.data(), node.name.size());
+        if (node.meshIndex) nj["mesh"] = static_cast<int64_t>(*node.meshIndex);
+        if (node.skinIndex) nj["skin"] = static_cast<int64_t>(*node.skinIndex);
+        if (node.cameraIndex) nj["camera"] = static_cast<int64_t>(*node.cameraIndex);
+
+        // children
+        nlohmann::json child_arr = nlohmann::json::array();
+        for (auto c : node.children) child_arr.push_back(static_cast<int64_t>(c));
+        nj["children"] = std::move(child_arr);
+
+        // transform: either TRS or matrix (local)
+        std::visit(fastgltf::visitor{
+            [&](const fastgltf::TRS &trs) {
+                nlohmann::json t = nlohmann::json::object();
+                t["translation"] = nlohmann::json::array({ static_cast<double>(trs.translation.x()), static_cast<double>(trs.translation.y()), static_cast<double>(trs.translation.z()) });
+                t["rotation"] = nlohmann::json::array({ static_cast<double>(trs.rotation.x()), static_cast<double>(trs.rotation.y()), static_cast<double>(trs.rotation.z()), static_cast<double>(trs.rotation.w()) });
+                t["scale"] = nlohmann::json::array({ static_cast<double>(trs.scale.x()), static_cast<double>(trs.scale.y()), static_cast<double>(trs.scale.z()) });
+                nj["transform"] = std::move(t);
+            },
+            [&](const fastgltf::math::fmat4x4 &mat) {
+                const float* d = mat.data();
+                nlohmann::json arr = nlohmann::json::array();
+                for (size_t i = 0; i < 16; ++i) arr.push_back(static_cast<double>(d[i]));
+                nj["matrix"] = std::move(arr);
+            }
+        }, node.transform);
+
+        // world matrix (computed from scene traversal)
+        const auto &wm = world_mats[ni];
+        const float* wd = wm.data();
+        nlohmann::json warr = nlohmann::json::array();
+        for (size_t i = 0; i < 16; ++i) warr.push_back(static_cast<double>(wd[i]));
+        nj["world_matrix"] = std::move(warr);
+
+        nodes_json.push_back(std::move(nj));
+    }
+    root["nodes"] = std::move(nodes_json);
 
     // Global primitives array (flattened)
     nlohmann::json global_primitives = nlohmann::json::array();
@@ -170,7 +228,12 @@ bool ExportToTOML(const std::filesystem::path& inputPath,
     // Meshes: will reference global primitive indices
     nlohmann::json meshes = nlohmann::json::array();
 
-    for (const auto &mesh : asset.meshes) {
+    // map from mesh index -> list of global primitive indices
+    std::vector<std::vector<int64_t>> mesh_prim_map;
+    mesh_prim_map.resize(asset.meshes.size());
+
+    for (size_t mi = 0; mi < asset.meshes.size(); ++mi) {
+        const auto &mesh = asset.meshes[mi];
         nlohmann::json m = nlohmann::json::object();
         if (!mesh.name.empty()) m["name"] = std::string(mesh.name.data(), mesh.name.size());
 
@@ -291,10 +354,81 @@ bool ExportToTOML(const std::filesystem::path& inputPath,
             global_primitives.push_back(std::move(p));
         }
 
+        // store mapping for this mesh
+        for (auto &v : prim_indices) mesh_prim_map[mi].push_back(static_cast<int64_t>(v));
+
         m["primitives"] = std::move(prim_indices);
         meshes.push_back(std::move(m));
     }
 
+    // Compute scene world AABBs and store them directly into the scenes JSON objects
+    for (size_t si = 0; si < asset.scenes.size(); ++si) {
+        double sminx = std::numeric_limits<double>::infinity();
+        double sminy = std::numeric_limits<double>::infinity();
+        double sminz = std::numeric_limits<double>::infinity();
+        double smaxx = -std::numeric_limits<double>::infinity();
+        double smaxy = -std::numeric_limits<double>::infinity();
+        double smaxz = -std::numeric_limits<double>::infinity();
+        bool sany = false;
+
+        fastgltf::iterateSceneNodes(asset, si, fastgltf::math::fmat4x4(), [&](fastgltf::Node& node, const fastgltf::math::fmat4x4& nodeMatrix) {
+            if (!node.meshIndex) return;
+            size_t meshIndex = *node.meshIndex;
+            if (meshIndex >= mesh_prim_map.size()) return;
+
+            for (size_t localPrimIdx = 0; localPrimIdx < asset.meshes[meshIndex].primitives.size(); ++localPrimIdx) {
+                if (localPrimIdx >= mesh_prim_map[meshIndex].size()) continue;
+                int64_t globalPrimIdx = mesh_prim_map[meshIndex][localPrimIdx];
+                if (globalPrimIdx < 0 || static_cast<size_t>(globalPrimIdx) >= global_primitives.size()) continue;
+
+                const auto &primJson = global_primitives[static_cast<size_t>(globalPrimIdx)];
+                if (!primJson.contains("aabb")) continue;
+                const auto &aabb = primJson["aabb"];
+                if (!aabb.contains("min") || !aabb.contains("max")) continue;
+                auto minArr = aabb["min"];
+                auto maxArr = aabb["max"];
+                if (minArr.size() < 3 || maxArr.size() < 3) continue;
+
+                double lx = minArr[0].get<double>();
+                double ly = minArr[1].get<double>();
+                double lz = minArr[2].get<double>();
+                double hx = maxArr[0].get<double>();
+                double hy = maxArr[1].get<double>();
+                double hz = maxArr[2].get<double>();
+
+                fastgltf::math::fmat4x4 wm = nodeMatrix;
+                auto transform_point = [&](double px, double py, double pz) {
+                    fastgltf::math::fvec4 p(static_cast<float>(px), static_cast<float>(py), static_cast<float>(pz), 1.f);
+                    auto tp = wm * p;
+                    return std::array<double,3>{static_cast<double>(tp.x()), static_cast<double>(tp.y()), static_cast<double>(tp.z())};
+                };
+
+                std::array<double,3> corners[8] = {
+                    transform_point(lx, ly, lz), transform_point(hx, ly, lz), transform_point(lx, hy, lz), transform_point(lx, ly, hz),
+                    transform_point(hx, hy, lz), transform_point(hx, ly, hz), transform_point(lx, hy, hz), transform_point(hx, hy, hz)
+                };
+
+                for (auto &c : corners) {
+                    sany = true;
+                    sminx = std::min(sminx, c[0]); sminy = std::min(sminy, c[1]); sminz = std::min(sminz, c[2]);
+                    smaxx = std::max(smaxx, c[0]); smaxy = std::max(smaxy, c[1]); smaxz = std::max(smaxz, c[2]);
+                }
+            }
+        });
+
+        if (sany) {
+            nlohmann::json sa = nlohmann::json::object();
+            sa["min"] = nlohmann::json::array({sminx, sminy, sminz});
+            sa["max"] = nlohmann::json::array({smaxx, smaxy, smaxz});
+            // attach to scenes[si]
+            if (si < scenes.size()) scenes[si]["aabb"] = std::move(sa);
+        } else {
+            if (si < scenes.size()) scenes[si]["aabb"] = nullptr;
+        }
+    }
+
+    // Now that scene AABBs are attached, move scenes into root
+    root["scenes"] = std::move(scenes);
     root["meshes"] = std::move(meshes);
     root["primitives"] = std::move(global_primitives);
 
