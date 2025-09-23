@@ -11,7 +11,7 @@ find_package(fastgltf REQUIRED)
 find_package(nlohmann_json REQUIRED)
 
 # Add executable
-add_executable(GLTFConvert main.cpp GLTFExporter.cpp GLTFExporter.h)
+add_executable(GLTFConvert main.cpp VKFormat.h GLTFExporter.cpp GLTFExporter.h)
 
 # Link libraries
 target_link_libraries(GLTFConvert

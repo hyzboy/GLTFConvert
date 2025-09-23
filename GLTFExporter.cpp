@@ -33,29 +33,33 @@ bool CopyAccessorToBytes(const fastgltf::Asset& asset,
     size_t elem_size = fastgltf::getElementByteSize(accessor.type, accessor.componentType);
     size_t total_bytes = elem_size * accessor.count;
 
+    bool ok = false;
     std::visit(fastgltf::visitor{
         [&](const fastgltf::sources::Vector& vec){
             if (bv.byteOffset + accessor.byteOffset + total_bytes > vec.bytes.size()) return;
             const std::byte* src = vec.bytes.data() + bv.byteOffset + accessor.byteOffset;
             out.resize(total_bytes);
-            std::memcpy(reinterpret_cast<void*>(out.data()), reinterpret_cast<const void*>(src), total_bytes);
+            std::memcpy(out.data(), src, total_bytes);
+            ok = true;
         },
         [&](const fastgltf::sources::Array& arr){
             if (bv.byteOffset + accessor.byteOffset + total_bytes > arr.bytes.size()) return;
             const std::byte* src = arr.bytes.data() + bv.byteOffset + accessor.byteOffset;
             out.resize(total_bytes);
-            std::memcpy(reinterpret_cast<void*>(out.data()), reinterpret_cast<const void*>(src), total_bytes);
+            std::memcpy(out.data(), src, total_bytes);
+            ok = true;
         },
         [&](const fastgltf::sources::ByteView& bvw){
             if (bv.byteOffset + accessor.byteOffset + total_bytes > bvw.bytes.size()) return;
             const std::byte* src = bvw.bytes.data() + bv.byteOffset + accessor.byteOffset;
             out.resize(total_bytes);
-            std::memcpy(reinterpret_cast<void*>(out.data()), reinterpret_cast<const void*>(src), total_bytes);
+            std::memcpy(out.data(), src, total_bytes);
+            ok = true;
         },
         [&](const auto&){ }
     }, buf.data);
 
-    return !out.empty();
+    return ok;
 }
 
 } // namespace
@@ -105,8 +109,7 @@ bool ExportToTOML(const std::filesystem::path& inputPath,
 
     // Scenes
     nlohmann::json scenes = nlohmann::json::array();
-    for (size_t si = 0; si < asset.scenes.size(); ++si) {
-        const auto &sc = asset.scenes[si];
+    for (const auto &sc : asset.scenes) {
         nlohmann::json s = nlohmann::json::object();
         if (!sc.name.empty()) s["name"] = std::string(sc.name.data(), sc.name.size());
         nlohmann::json nodes = nlohmann::json::array();
@@ -119,19 +122,17 @@ bool ExportToTOML(const std::filesystem::path& inputPath,
     // Global primitives array (flattened)
     nlohmann::json global_primitives = nlohmann::json::array();
 
-    // Meshes
+    // Meshes: will reference global primitive indices
     nlohmann::json meshes = nlohmann::json::array();
-    for (size_t mi = 0; mi < asset.meshes.size(); ++mi) {
-        const auto &mesh = asset.meshes[mi];
+
+    for (const auto &mesh : asset.meshes) {
         nlohmann::json m = nlohmann::json::object();
         if (!mesh.name.empty()) m["name"] = std::string(mesh.name.data(), mesh.name.size());
 
         nlohmann::json prim_indices = nlohmann::json::array();
 
-        for (size_t pi = 0; pi < mesh.primitives.size(); ++pi) {
-            const auto &prim = mesh.primitives[pi];
-            // compute global primitive index before creating files
-            const int64_t prim_index = static_cast<int64_t>(global_primitives.size());
+        for (const auto &prim : mesh.primitives) {
+            int64_t prim_index = static_cast<int64_t>(global_primitives.size());
 
             nlohmann::json p = nlohmann::json::object();
             p["mode"] = static_cast<int64_t>(prim.type);
@@ -139,6 +140,8 @@ bool ExportToTOML(const std::filesystem::path& inputPath,
             if (prim.indicesAccessor) p["indices"] = static_cast<int64_t>(*prim.indicesAccessor);
 
             nlohmann::json attrs = nlohmann::json::array();
+
+            // attributes
             for (const auto &attr : prim.attributes) {
                 const std::string attr_name(attr.name.data(), attr.name.size());
                 const size_t accessor_index = attr.accessorIndex;
@@ -148,29 +151,30 @@ bool ExportToTOML(const std::filesystem::path& inputPath,
                 std::vector<std::byte> bytes;
                 if (!CopyAccessorToBytes(asset, acc, bytes)) continue;
 
+                // write binary file named "<prim_index>.<attributeName>" inside target_dir
                 std::filesystem::path bin_name = std::to_string(prim_index) + "." + attr_name;
                 std::filesystem::path bin_path = target_dir / bin_name;
-
                 std::ofstream ofs(bin_path, std::ios::binary);
-                if (!ofs) {
-                    std::cerr << "[Export] Write failed: " << bin_path << "\n";
-                } else {
+                if (ofs) {
                     ofs.write(reinterpret_cast<const char*>(bytes.data()), static_cast<std::streamsize>(bytes.size()));
                     ofs.close();
                     std::cout << "[Export] Saved: " << bin_path << "\n";
+                } else {
+                    std::cerr << "[Export] Write failed: " << bin_path << "\n";
                 }
 
-                nlohmann::json a = nlohmann::json::object();
-                a["name"] = attr_name;
-                a["accessor"] = static_cast<int64_t>(accessor_index);
-                a["file"] = bin_name.string();
-                a["count"] = static_cast<int64_t>(acc.count);
-                a["componentType"] = static_cast<int64_t>(acc.componentType);
-                a["type"] = static_cast<int64_t>(acc.type);
-                attrs.push_back(std::move(a));
+                nlohmann::json attr_j = nlohmann::json::object();
+                attr_j["id"] = static_cast<int64_t>(attrs.size());
+                attr_j["name"] = attr_name;
+                attr_j["count"] = static_cast<int64_t>(acc.count);
+                attr_j["componentType"] = static_cast<int64_t>(acc.componentType);
+                attr_j["type"] = static_cast<int64_t>(acc.type);
+                attrs.push_back(std::move(attr_j));
             }
+
             p["attributes"] = std::move(attrs);
 
+            // indices
             if (prim.indicesAccessor) {
                 const auto &acc = asset.accessors[*prim.indicesAccessor];
                 std::vector<std::byte> bytes;
@@ -183,11 +187,12 @@ bool ExportToTOML(const std::filesystem::path& inputPath,
                         ofs.close();
                         std::cout << "[Export] Saved: " << bin_path << "\n";
                         p["indices_file"] = bin_name.string();
+                    } else {
+                        std::cerr << "[Export] Write failed: " << bin_path << "\n";
                     }
                 }
             }
 
-            // Append this primitive to global primitives and record its index
             prim_indices.push_back(prim_index);
             global_primitives.push_back(std::move(p));
         }
@@ -195,6 +200,7 @@ bool ExportToTOML(const std::filesystem::path& inputPath,
         m["primitives"] = std::move(prim_indices);
         meshes.push_back(std::move(m));
     }
+
     root["meshes"] = std::move(meshes);
     root["primitives"] = std::move(global_primitives);
 
