@@ -13,8 +13,14 @@ find_package(nlohmann_json REQUIRED)
 # Find Vulkan SDK (headers only; we won't link the library)
 find_package(Vulkan REQUIRED)
 
-# Add executable
-add_executable(GLTFConvert main.cpp VKFormat.h GLTFExporter.cpp GLTFExporter.h)
+# Add executable (include new modules for pure glTF data, importer and exporter)
+add_executable(GLTFConvert
+    main.cpp
+    VKFormat.h
+    PureGLTF.cpp PureGLTF.h
+    Importer.cpp Importer.h
+    Exporter.cpp Exporter.h
+)
 
 # Add Vulkan include directories so headers like <vulkan/vulkan.h> are found
 if (Vulkan_FOUND)

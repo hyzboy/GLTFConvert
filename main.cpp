@@ -1,5 +1,8 @@
-#include"GLTFExporter.h"
-#include<iostream>
+#include <iostream>
+#include <filesystem>
+
+#include "Importer.h"
+#include "Exporter.h"
 
 int main(int argc, char* argv[])
 {
@@ -12,8 +15,16 @@ int main(int argc, char* argv[])
     if (argc >= 3) {
         outDir = argv[2];
     }
-    if (!gltf::ExportToTOML(inputPath, outDir)) {
+
+    puregltf::Model model;
+    if (!importers::ImportFastGLTF(inputPath, model)) {
         return 1;
     }
+
+    if (!exporters::ExportPureModel(model, outDir)) {
+        return 1;
+    }
+
+    std::cout << "[Export] Done: " << inputPath << "\n";
     return 0;
 }
