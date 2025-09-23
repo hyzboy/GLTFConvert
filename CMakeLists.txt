@@ -10,8 +10,23 @@ find_package(glm REQUIRED)
 find_package(fastgltf REQUIRED)
 find_package(nlohmann_json REQUIRED)
 
+# Find Vulkan SDK (headers only; we won't link the library)
+find_package(Vulkan REQUIRED)
+
 # Add executable
 add_executable(GLTFConvert main.cpp VKFormat.h GLTFExporter.cpp GLTFExporter.h)
+
+# Add Vulkan include directories so headers like <vulkan/vulkan.h> are found
+if (Vulkan_FOUND)
+    if (DEFINED Vulkan_INCLUDE_DIRS)
+        target_include_directories(GLTFConvert PRIVATE ${Vulkan_INCLUDE_DIRS})
+    elseif (TARGET Vulkan::Vulkan)
+        get_target_property(_vulkan_includes Vulkan::Vulkan INTERFACE_INCLUDE_DIRECTORIES)
+        if(_vulkan_includes)
+            target_include_directories(GLTFConvert PRIVATE ${_vulkan_includes})
+        endif()
+    endif()
+endif()
 
 # Link libraries
 target_link_libraries(GLTFConvert

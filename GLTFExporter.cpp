@@ -1,4 +1,5 @@
 #include "GLTFExporter.h"
+#include "VKFormat.h"
 
 #include <fastgltf/core.hpp>
 #include <fastgltf/tools.hpp>
@@ -15,6 +16,49 @@ namespace {
 
 std::string stem_noext(const std::filesystem::path& p) {
     return p.stem().string();
+}
+
+static std::string ComponentTypeToString(fastgltf::ComponentType ct) {
+    using CT = fastgltf::ComponentType;
+    switch (ct) {
+        case CT::Byte: return "BYTE";
+        case CT::UnsignedByte: return "UNSIGNED_BYTE";
+        case CT::Short: return "SHORT";
+        case CT::UnsignedShort: return "UNSIGNED_SHORT";
+        case CT::Int: return "INT";
+        case CT::UnsignedInt: return "UNSIGNED_INT";
+        case CT::Float: return "FLOAT";
+        case CT::Double: return "DOUBLE";
+        default: return "UNKNOWN";
+    }
+}
+
+static std::string AccessorTypeToString(fastgltf::AccessorType at) {
+    using AT = fastgltf::AccessorType;
+    switch (at) {
+        case AT::Scalar: return "SCALAR";
+        case AT::Vec2: return "VEC2";
+        case AT::Vec3: return "VEC3";
+        case AT::Vec4: return "VEC4";
+        case AT::Mat2: return "MAT2";
+        case AT::Mat3: return "MAT3";
+        case AT::Mat4: return "MAT4";
+        default: return "UNKNOWN";
+    }
+}
+
+static std::string PrimitiveModeToString(int mode) {
+    // glTF primitive mode integers: 0=POINTS,1=LINES,2=LINE_LOOP,3=LINE_STRIP,4=TRIANGLES,5=TRIANGLE_STRIP,6=TRIANGLE_FAN
+    switch (mode) {
+        case 0: return "POINTS";
+        case 1: return "LINES";
+        case 2: return "LINE_LOOP";
+        case 3: return "LINE_STRIP";
+        case 4: return "TRIANGLES";
+        case 5: return "TRIANGLE_STRIP";
+        case 6: return "TRIANGLE_FAN";
+        default: return "UNKNOWN";
+    }
 }
 
 bool CopyAccessorToBytes(const fastgltf::Asset& asset,
@@ -135,7 +179,7 @@ bool ExportToTOML(const std::filesystem::path& inputPath,
             int64_t prim_index = static_cast<int64_t>(global_primitives.size());
 
             nlohmann::json p = nlohmann::json::object();
-            p["mode"] = static_cast<int64_t>(prim.type);
+            p["mode"] = PrimitiveModeToString(static_cast<int>(prim.type));
             if (prim.materialIndex) p["material"] = static_cast<int64_t>(*prim.materialIndex);
             if (prim.indicesAccessor) p["indices"] = static_cast<int64_t>(*prim.indicesAccessor);
 
@@ -167,8 +211,8 @@ bool ExportToTOML(const std::filesystem::path& inputPath,
                 attr_j["id"] = static_cast<int64_t>(attrs.size());
                 attr_j["name"] = attr_name;
                 attr_j["count"] = static_cast<int64_t>(acc.count);
-                attr_j["componentType"] = static_cast<int64_t>(acc.componentType);
-                attr_j["type"] = static_cast<int64_t>(acc.type);
+                attr_j["componentType"] = ComponentTypeToString(acc.componentType);
+                attr_j["type"] = AccessorTypeToString(acc.type);
                 attrs.push_back(std::move(attr_j));
             }
 
