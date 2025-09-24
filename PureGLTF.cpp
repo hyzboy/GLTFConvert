@@ -1,6 +1,6 @@
 #include "PureGLTF.h"
 
-namespace puregltf {
+namespace gltf {
 
 void Model::computeWorldMatrices() {
     // initialize world matrices with identity
@@ -88,4 +88,4 @@ void Model::convertToZUp() {
     computeSceneAABBs();
 }
 
-} // namespace puregltf
+} // namespace gltf

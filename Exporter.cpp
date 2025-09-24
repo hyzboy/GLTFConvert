@@ -6,7 +6,7 @@
 #include <algorithm>
 
 using nlohmann::json;
-using namespace puregltf;
+using namespace gltf;
 
 namespace exporters {
 

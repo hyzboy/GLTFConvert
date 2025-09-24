@@ -16,7 +16,7 @@ int main(int argc, char* argv[])
         outDir = argv[2];
     }
 
-    puregltf::Model model;
+    gltf::Model model;
     if (!importers::ImportFastGLTF(inputPath, model)) {
         return 1;
     }

@@ -5,7 +5,7 @@
 #include <iostream>
 #include <fstream>
 
-using namespace puregltf;
+using namespace gltf;
 
 namespace importers {
 
@@ -113,7 +113,7 @@ static std::optional<std::pair<glm::dvec3, glm::dvec3>> ComputeAABBFromAccessorF
     return std::make_pair(mn, mx);
 }
 
-bool ImportFastGLTF(const std::filesystem::path& inputPath, puregltf::Model& outModel) {
+bool ImportFastGLTF(const std::filesystem::path& inputPath, gltf::Model& outModel) {
     fastgltf::Parser parser{};
     auto data_res = fastgltf::GltfDataBuffer::FromPath(inputPath);
     if (data_res.error() != fastgltf::Error::None) {
@@ -141,7 +141,7 @@ bool ImportFastGLTF(const std::filesystem::path& inputPath, puregltf::Model& out
     outModel.materials.clear();
     outModel.materials.reserve(asset.materials.size());
     for (const auto& m : asset.materials) {
-        puregltf::Material om{};
+        gltf::Material om{};
         if (!m.name.empty()) om.name.assign(m.name.begin(), m.name.end());
         outModel.materials.emplace_back(std::move(om));
     }

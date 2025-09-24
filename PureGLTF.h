@@ -10,7 +10,7 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/quaternion.hpp>
 
-namespace puregltf {
+namespace gltf {
 
 struct AABB {
     glm::dvec3 min{ std::numeric_limits<double>::infinity() };
@@ -134,4 +134,4 @@ struct Model {
     void convertToZUp();
 };
 
-} // namespace puregltf
+} // namespace gltf
