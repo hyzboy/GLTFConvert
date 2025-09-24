@@ -8,6 +8,7 @@
 #include <limits>
 #include <algorithm>
 #include "AABB.h"
+#include <immintrin.h> // for AVX2 intrinsics
 
 // Oriented Bounding Box in double precision, global namespace
 struct OBB {
@@ -157,6 +158,50 @@ struct OBB {
             double maxV = -std::numeric_limits<double>::infinity();
             double minW =  std::numeric_limits<double>::infinity();
             double maxW = -std::numeric_limits<double>::infinity();
+
+#if defined(__AVX2__)
+            // AVX2 vectorized dot products and min/max
+            const size_t N = count;
+            size_t i = 0;
+            __m256d minU4 = _mm256_set1_pd(minU), maxU4 = _mm256_set1_pd(maxU);
+            __m256d minV4 = _mm256_set1_pd(minV), maxV4 = _mm256_set1_pd(maxV);
+            __m256d minW4 = _mm256_set1_pd(minW), maxW4 = _mm256_set1_pd(maxW);
+            const __m256d Ux = _mm256_set1_pd(U.x), Uy = _mm256_set1_pd(U.y), Uz = _mm256_set1_pd(U.z);
+            const __m256d Vx = _mm256_set1_pd(V.x), Vy = _mm256_set1_pd(V.y), Vz = _mm256_set1_pd(V.z);
+            const __m256d Wx = _mm256_set1_pd(W.x), Wy = _mm256_set1_pd(W.y), Wz = _mm256_set1_pd(W.z);
+            for (; i + 3 < N; i += 4) {
+                __m256d px = _mm256_set_pd(points[i+3].x, points[i+2].x, points[i+1].x, points[i].x);
+                __m256d py = _mm256_set_pd(points[i+3].y, points[i+2].y, points[i+1].y, points[i].y);
+                __m256d pz = _mm256_set_pd(points[i+3].z, points[i+2].z, points[i+1].z, points[i].z);
+                __m256d pu = _mm256_add_pd(_mm256_add_pd(_mm256_mul_pd(px, Ux), _mm256_mul_pd(py, Uy)), _mm256_mul_pd(pz, Uz));
+                __m256d pv = _mm256_add_pd(_mm256_add_pd(_mm256_mul_pd(px, Vx), _mm256_mul_pd(py, Vy)), _mm256_mul_pd(pz, Vz));
+                __m256d pw = _mm256_add_pd(_mm256_add_pd(_mm256_mul_pd(px, Wx), _mm256_mul_pd(py, Wy)), _mm256_mul_pd(pz, Wz));
+                minU4 = _mm256_min_pd(minU4, pu); maxU4 = _mm256_max_pd(maxU4, pu);
+                minV4 = _mm256_min_pd(minV4, pv); maxV4 = _mm256_max_pd(maxV4, pv);
+                minW4 = _mm256_min_pd(minW4, pw); maxW4 = _mm256_max_pd(maxW4, pw);
+            }
+            // Reduce vector min/max to scalars
+            double minUarr[4], maxUarr[4], minVarr[4], maxVarr[4], minWarr[4], maxWarr[4];
+            _mm256_storeu_pd(minUarr, minU4); _mm256_storeu_pd(maxUarr, maxU4);
+            _mm256_storeu_pd(minVarr, minV4); _mm256_storeu_pd(maxVarr, maxV4);
+            _mm256_storeu_pd(minWarr, minW4); _mm256_storeu_pd(maxWarr, maxW4);
+            for (int j = 0; j < 4; ++j) {
+                if (minUarr[j] < minU) minU = minUarr[j]; if (maxUarr[j] > maxU) maxU = maxUarr[j];
+                if (minVarr[j] < minV) minV = minVarr[j]; if (maxVarr[j] > maxV) maxV = maxVarr[j];
+                if (minWarr[j] < minW) minW = minWarr[j]; if (maxWarr[j] > maxW) maxW = maxWarr[j];
+            }
+            // Tail
+            for (; i < N; ++i) {
+                const glm::dvec3& p = points[i];
+                const double pu = glm::dot(p, U);
+                const double pv = glm::dot(p, V);
+                const double pw = glm::dot(p, W);
+                if (pu < minU) minU = pu; if (pu > maxU) maxU = pu;
+                if (pv < minV) minV = pv; if (pv > maxV) maxV = pv;
+                if (pw < minW) minW = pw; if (pw > maxW) maxW = pw;
+            }
+#else
+            // 标量实现
             for (size_t i = 0; i < count; ++i) {
                 const glm::dvec3& p = points[i];
                 const double pu = glm::dot(p, U);
@@ -166,6 +211,7 @@ struct OBB {
                 if (pv < minV) minV = pv; if (pv > maxV) maxV = pv;
                 if (pw < minW) minW = pw; if (pw > maxW) maxW = pw;
             }
+#endif // __AVX2__
             const double sx = (maxU - minU);
             const double sy = (maxV - minV);
             const double sz = (maxW - minW);
