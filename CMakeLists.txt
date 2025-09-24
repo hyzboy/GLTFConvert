@@ -32,9 +32,9 @@ add_executable(GLTFConvert
  target_compile_definitions(GLTFConvert PRIVATE GLM_FORCE_DEFAULT_ALIGNED_GENTYPES GLM_FORCE_INTRINSICS)
 # 编译器指令
 if (MSVC)
-    target_compile_options(GLTFConvert PRIVATE /arch:AVX2 /fp:fast)
+    target_compile_options(GLTFConvert PRIVATE /arch:AVX2 /fp:fast /openmp:llvm)
 elseif (CMAKE_CXX_COMPILER_ID MATCHES "Clang" OR CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
-    target_compile_options(GLTFConvert PRIVATE -mavx2 -O3 -ffast-math)
+    target_compile_options(GLTFConvert PRIVATE -mavx2 -O3 -ffast-math -fopenmp)
 endif()
 
 # Add Vulkan include directories so headers like <vulkan/vulkan.h> are found

@@ -226,7 +226,7 @@ bool ExportPureModel(const gltf::Model& model, const std::filesystem::path& outD
     }
     root["subMeshes"] = std::move(subMeshes);
 
-    std::filesystem::path jsonPath = targetDir / (baseName + ".json");
+    std::filesystem::path jsonPath = targetDir / ("StaticMesh.json");
     std::ofstream jsonOut(jsonPath, std::ios::binary);
     if (!jsonOut) {
         std::cerr << "[Export] Cannot open: " << jsonPath << "\n";

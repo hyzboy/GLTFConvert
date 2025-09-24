@@ -228,28 +228,38 @@ OBB OBB::fromPointsMinVolume(const glm::dvec3 *points,size_t count,double coarse
     }
     double bestYaw = 0,bestPitch = 0,bestRoll = 0;
     double bestVol = std::numeric_limits<double>::infinity();
+    OBB bestTmp;
     OBB tmp;
+    #pragma omp parallel for collapse(3) private(tmp) \
+        shared(yawVals, pitchVals, rollVals, yawSin, yawCos, pitchSin, pitchCos, rollSin, rollCos) \
+        default(none) firstprivate(points, count, evalOrientation) \
+        reduction(min:bestVol)
     for(int iyaw=0; iyaw<yawSteps; ++iyaw) {
         for(int ipitch=0; ipitch<pitchSteps; ++ipitch) {
             for(int iroll=0; iroll<rollSteps; ++iroll) {
-                // 用预计算的sin/cos构造四元数
                 double yaw = yawVals[iyaw], pitch = pitchVals[ipitch], roll = rollVals[iroll];
                 double sy = yawSin[iyaw], cy = yawCos[iyaw];
                 double sp = pitchSin[ipitch], cp = pitchCos[ipitch];
                 double sr = rollSin[iroll], cr = rollCos[iroll];
-                // ZYX欧拉角转四元数
-                glm::dquat qz = glm::dquat(cy, 0, 0, sy); // 只近似用于sin/cos复用
+                glm::dquat qz = glm::dquat(cy, 0, 0, sy);
                 glm::dquat qy = glm::dquat(cp, 0, sp, 0);
                 glm::dquat qx = glm::dquat(cr, sr, 0, 0);
                 glm::dquat q = qz * qy * qx;
                 glm::dmat3 R = glm::mat3_cast(q);
                 double vol = evalOrientation(R,tmp);
                 if(vol < bestVol) {
-                    bestVol = vol; best = tmp; bestYaw = yaw; bestPitch = pitch; bestRoll = roll;
+                    #pragma omp critical
+                    {
+                        if(vol < bestVol) {
+                            bestVol = vol; bestTmp = tmp;
+                            bestYaw = yaw; bestPitch = pitch; bestRoll = roll;
+                        }
+                    }
                 }
             }
         }
     }
+    best = bestTmp;
 
     // Phase 2: refine around best
     auto refine = [&](double rangeDeg,double stepDeg){
