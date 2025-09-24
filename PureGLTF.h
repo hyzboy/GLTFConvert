@@ -52,7 +52,7 @@ struct AABB {
     }
 };
 
-struct Primitive {
+struct Geometry {
     std::string mode; // e.g. TRIANGLES
     struct Attribute {
         std::string name;
@@ -71,10 +71,14 @@ struct Primitive {
     // Source glTF indices accessor index (for dedup)
     std::optional<std::size_t> indicesAccessorIndex;
 
+    AABB localAABB; // computed from POSITION if present
+};
+
+struct Primitive {
+    Geometry geometry; // geometry payload
+
     // material index from glTF primitive (kept for building SubMesh during export)
     std::optional<std::size_t> material;
-
-    AABB localAABB; // computed from POSITION if present
 };
 
 struct Material {

@@ -36,8 +36,8 @@ void Model::computeSceneAABBs() {
         const auto &mesh = meshes[*node.mesh];
         for (std::size_t pidx : mesh.primitives) {
             const auto &prim = primitives[pidx];
-            if (!prim.localAABB.empty()) {
-                scene.worldAABB.merge(prim.localAABB.transformed(node.worldMatrix));
+            if (!prim.geometry.localAABB.empty()) {
+                scene.worldAABB.merge(prim.geometry.localAABB.transformed(node.worldMatrix));
             }
         }
     };

@@ -150,13 +150,13 @@ bool ImportFastGLTF(const std::filesystem::path& inputPath, gltf::Model& outMode
     for (const auto& mesh : asset.meshes) {
         for (const auto& prim : mesh.primitives) {
             Primitive p{};
-            p.mode = ModeToString(prim.type);
+            p.geometry.mode = ModeToString(prim.type);
 
             // attributes
             for (const auto& attr : prim.attributes) {
                 const std::string name(attr.name.data(), attr.name.size());
                 const auto& acc = asset.accessors[attr.accessorIndex];
-                Primitive::Attribute a{};
+                Geometry::Attribute a{};
                 a.name = name;
                 a.count = acc.count;
                 a.componentType = ComponentTypeToString(acc.componentType);
@@ -165,12 +165,12 @@ bool ImportFastGLTF(const std::filesystem::path& inputPath, gltf::Model& outMode
                 if (!CopyAccessorToBytes(asset, acc, a.data)) {
                     a.data.clear();
                 }
-                p.attributes.emplace_back(std::move(a));
+                p.geometry.attributes.emplace_back(std::move(a));
 
                 if (name == "POSITION") {
                     if (auto mm = ComputeAABBFromAccessorFloat(asset, acc)) {
-                        p.localAABB.min = mm->first;
-                        p.localAABB.max = mm->second;
+                        p.geometry.localAABB.min = mm->first;
+                        p.geometry.localAABB.max = mm->second;
                     }
                 }
             }
@@ -180,10 +180,10 @@ bool ImportFastGLTF(const std::filesystem::path& inputPath, gltf::Model& outMode
                 const auto& acc = asset.accessors[*prim.indicesAccessor];
                 std::vector<std::byte> buf;
                 if (CopyAccessorToBytes(asset, acc, buf)) {
-                    p.indices = std::move(buf);
-                    p.indexCount = acc.count;
-                    p.indexComponentType = ComponentTypeToString(acc.componentType);
-                    p.indicesAccessorIndex = prim.indicesAccessor; // record indices accessor identity
+                    p.geometry.indices = std::move(buf);
+                    p.geometry.indexCount = acc.count;
+                    p.geometry.indexComponentType = ComponentTypeToString(acc.componentType);
+                    p.geometry.indicesAccessorIndex = prim.indicesAccessor; // record indices accessor identity
                 }
             }
 
