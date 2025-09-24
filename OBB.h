@@ -2,6 +2,7 @@
 
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
+#include <glm/gtc/quaternion.hpp>
 #include <cmath>
 #include <vector>
 #include <limits>
@@ -287,7 +288,17 @@ struct OBB {
         if (points == nullptr || count == 0) return best;
         if (count == 1) { best.center = points[0]; return best; }
 
-        auto deg2rad = [](double d){ return d * M_PI / 180.0; };
+        auto makeR = [](double yawDeg, double pitchDeg, double rollDeg) {
+            const double k = 3.14159265358979323846264338327950288 / 180.0;
+            const double yaw = yawDeg * k;
+            const double pitch = pitchDeg * k;
+            const double roll = rollDeg * k;
+            const glm::dquat qz = glm::angleAxis(yaw,   glm::dvec3(0,0,1));
+            const glm::dquat qy = glm::angleAxis(pitch, glm::dvec3(0,1,0));
+            const glm::dquat qx = glm::angleAxis(roll,  glm::dvec3(1,0,0));
+            const glm::dquat q = qz * qy * qx;
+            return glm::mat3_cast(q);
+        };
 
         auto evalOrientation = [&](const glm::dmat3& R, OBB& out) {
             const glm::dvec3 U = glm::normalize(glm::dvec3(R[0][0], R[1][0], R[2][0]));
@@ -322,10 +333,6 @@ struct OBB {
             return volume;
         };
 
-        auto rotZ = [](double a){ const double c=std::cos(a), s=std::sin(a); return glm::dmat3(c,-s,0, s,c,0, 0,0,1); };
-        auto rotY = [](double a){ const double c=std::cos(a), s=std::sin(a); return glm::dmat3(c,0,s, 0,1,0, -s,0,c); };
-        auto rotX = [](double a){ const double c=std::cos(a), s=std::sin(a); return glm::dmat3(1,0,0, 0,c,-s, 0,s,c); };
-
         // Phase 1: coarse global search
         double bestYaw = 0, bestPitch = 0, bestRoll = 0;
         double bestVol = std::numeric_limits<double>::infinity();
@@ -333,7 +340,7 @@ struct OBB {
         for (double yaw = -180.0; yaw <= 180.0; yaw += coarseStepDeg) {
             for (double pitch = -90.0; pitch <= 90.0; pitch += coarseStepDeg) {
                 for (double roll = -180.0; roll <= 180.0; roll += coarseStepDeg) {
-                    const glm::dmat3 R = rotZ(deg2rad(yaw)) * rotY(deg2rad(pitch)) * rotX(deg2rad(roll));
+                    const glm::dmat3 R = makeR(yaw, pitch, roll);
                     const double vol = evalOrientation(R, tmp);
                     if (vol < bestVol) {
                         bestVol = vol; best = tmp; bestYaw = yaw; bestPitch = pitch; bestRoll = roll;
@@ -348,7 +355,7 @@ struct OBB {
             for (double dy = -rangeDeg; dy <= rangeDeg; dy += stepDeg) {
                 for (double dp = -rangeDeg; dp <= rangeDeg; dp += stepDeg) {
                     for (double dr = -rangeDeg; dr <= rangeDeg; dr += stepDeg) {
-                        const glm::dmat3 R = rotZ(deg2rad(y0+dy)) * rotY(deg2rad(p0+dp)) * rotX(deg2rad(r0+dr));
+                        const glm::dmat3 R = makeR(y0+dy, p0+dp, r0+dr);
                         const double vol = evalOrientation(R, tmp);
                         if (vol < bestVol) {
                             bestVol = vol; best = tmp; bestYaw = y0+dy; bestPitch = p0+dp; bestRoll = r0+dr;

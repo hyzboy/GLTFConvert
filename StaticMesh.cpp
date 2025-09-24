@@ -35,6 +35,26 @@ static bool SameGeometryByAccessorId(const gltf::Geometry& a, const gltf::Geomet
     return la == lb;
 }
 
+static bool TryDecodePositionsAsDVec3(const gltf::Geometry& g, std::vector<glm::dvec3>& out) {
+    out.clear();
+    for (const auto& a : g.attributes) {
+        if (a.name == "POSITION" && a.componentType == "FLOAT" && (a.type == "VEC3" || a.type == "VEC4")) {
+            // assume tightly packed float3/float4
+            const std::byte* ptr = a.data.data();
+            const std::size_t elementCount = a.count;
+            const std::size_t stride = (a.type == "VEC3") ? sizeof(float) * 3 : sizeof(float) * 4;
+            if (a.data.size() < elementCount * stride) return false;
+            out.resize(elementCount);
+            for (std::size_t i = 0; i < elementCount; ++i) {
+                const float* f = reinterpret_cast<const float*>(ptr + i * stride);
+                out[i] = glm::dvec3(f[0], f[1], f[2]);
+            }
+            return true;
+        }
+    }
+    return false;
+}
+
 Model ConvertFromGLTF(const gltf::Model& src) {
     Model dst;
     dst.gltf_source = src.source;
@@ -45,10 +65,10 @@ Model ConvertFromGLTF(const gltf::Model& src) {
         pure::Material pm; pm.name = m.name; dst.materials.push_back(std::move(pm));
     }
 
-    // scenes with aabb
+    // scenes with aabb (scene OBB filled later after nodes computed)
     dst.scenes.reserve(src.scenes.size());
     for (const auto& s : src.scenes) {
-        pure::Scene ps; ps.name = s.name; ps.nodes = s.nodes; ps.aabb = s.worldAABB; dst.scenes.push_back(std::move(ps));
+        pure::Scene ps; ps.name = s.name; ps.nodes = s.nodes; ps.aabb = s.worldAABB; /*ps.obb stays empty*/ dst.scenes.push_back(std::move(ps));
     }
 
     // mesh_nodes (nodes) copy + world matrices
@@ -109,9 +129,36 @@ Model ConvertFromGLTF(const gltf::Model& src) {
             ga.componentType = a.componentType;
             ga.type = a.type;
             ga.data = a.data; // copy binary
+            // Add a decoded double-precision cache for POSITION
+            if (ga.name == "POSITION" && ga.componentType == "FLOAT" && (ga.type == "VEC3" || ga.type == "VEC4")) {
+                const std::byte* ptr = a.data.data();
+                const std::size_t elementCount = a.count;
+                const std::size_t stride = (a.type == "VEC3") ? sizeof(float) * 3 : sizeof(float) * 4;
+                if (a.data.size() >= elementCount * stride) {
+                    std::vector<glm::dvec3> decoded;
+                    decoded.resize(elementCount);
+                    for (std::size_t vi = 0; vi < elementCount; ++vi) {
+                        const float* f = reinterpret_cast<const float*>(ptr + vi * stride);
+                        decoded[vi] = glm::dvec3(f[0], f[1], f[2]);
+                    }
+                    ga.dvec3 = std::move(decoded);
+                }
+            }
             pg.attributes.push_back(std::move(ga));
         }
         pg.aabb = g.localAABB;
+
+        // Compute local-space OBB from POSITION if available
+        {
+            std::vector<glm::dvec3> pos;
+            if (TryDecodePositionsAsDVec3(g, pos) && !pos.empty()) {
+                // Use precise min-volume search as requested (slow is okay)
+                pg.obb = OBB::fromPointsMinVolume(pos);
+            } else {
+                pg.obb.reset();
+            }
+        }
+
         if (g.indices) {
             pg.indicesData = *g.indices; // copy raw indices buffer
         }
@@ -144,12 +191,15 @@ Model ConvertFromGLTF(const gltf::Model& src) {
         }
     }
 
-    // Compute per-node world-space AABB from attached subMeshes and node world_matrix
+    // Compute per-node world-space AABB and OBB from attached subMeshes and node world_matrix
     for (std::size_t ni = 0; ni < dst.mesh_nodes.size(); ++ni) {
         auto& pn = dst.mesh_nodes[ni];
         pn.aabb.reset();
+        pn.obb.reset();
         if (pn.subMeshes.empty()) continue;
         const glm::dmat4 world = glm::dmat4(pn.world_matrix);
+
+        std::vector<glm::dvec3> worldPoints; worldPoints.reserve(1024);
         for (auto smIndex : pn.subMeshes) {
             const auto& sm = dst.subMeshes[smIndex];
             if (sm.geometry == static_cast<std::size_t>(-1)) continue;
@@ -157,7 +207,50 @@ Model ConvertFromGLTF(const gltf::Model& src) {
             if (!g.aabb.empty()) {
                 pn.aabb.merge(g.aabb.transformed(world));
             }
+            // collect transformed positions for precise OBB
+            // decode from source prim geometry to avoid lossy conversions
+            const auto& srcGeom = src.primitives[smIndex].geometry;
+            std::vector<glm::dvec3> local;
+            if (TryDecodePositionsAsDVec3(srcGeom, local)) {
+                for (auto& p : local) {
+                    glm::dvec4 hp = world * glm::dvec4(p, 1.0);
+                    worldPoints.emplace_back(hp.x, hp.y, hp.z);
+                }
+            }
         }
+        if (!worldPoints.empty()) {
+            pn.obb = OBB::fromPointsMinVolume(worldPoints);
+        }
+    }
+
+    // Compute per-scene OBB from all world-space points under its nodes
+    for (std::size_t si = 0; si < dst.scenes.size(); ++si) {
+        auto& sc = dst.scenes[si];
+        sc.obb.reset();
+        std::vector<glm::dvec3> scenePts; scenePts.reserve(4096);
+
+        // traverse nodes of scene and gather each node's world-space points again
+        std::vector<std::size_t> stack(sc.nodes.begin(), sc.nodes.end());
+        while (!stack.empty()) {
+            auto ni = stack.back(); stack.pop_back();
+            const auto& node = src.nodes[ni];
+            if (node.mesh) {
+                const auto& mesh = src.meshes[*node.mesh];
+                const glm::dmat4 world = node.worldMatrix;
+                for (auto primIndex : mesh.primitives) {
+                    const auto& sg = src.primitives[primIndex].geometry;
+                    std::vector<glm::dvec3> local;
+                    if (TryDecodePositionsAsDVec3(sg, local)) {
+                        for (auto& p : local) {
+                            glm::dvec4 hp = world * glm::dvec4(p, 1.0);
+                            scenePts.emplace_back(hp.x, hp.y, hp.z);
+                        }
+                    }
+                }
+            }
+            for (auto c : node.children) stack.push_back(c);
+        }
+        if (!scenePts.empty()) sc.obb = OBB::fromPointsMinVolume(scenePts);
     }
 
     return dst;

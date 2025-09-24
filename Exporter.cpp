@@ -30,6 +30,21 @@ bool ExportPureModel(const gltf::Model& model, const std::filesystem::path& outD
     json root = json::object();
     root["gltf_source"] = sm.gltf_source;
 
+    auto writeOBB = [](json& j, const ::OBB& obb){
+        if (!obb.empty()) {
+            // Write center, axes, halfSize
+            j = json::object({
+                {"center", json::array({obb.center.x, obb.center.y, obb.center.z})},
+                {"axisX", json::array({obb.axisX.x, obb.axisX.y, obb.axisX.z})},
+                {"axisY", json::array({obb.axisY.x, obb.axisY.y, obb.axisY.z})},
+                {"axisZ", json::array({obb.axisZ.x, obb.axisZ.y, obb.axisZ.z})},
+                {"halfSize", json::array({obb.halfSize.x, obb.halfSize.y, obb.halfSize.z})}
+            });
+        } else {
+            j = nullptr;
+        }
+    };
+
     // materials (names only for now)
     json materials = json::array();
     for (const auto& mtl : sm.materials) {
@@ -55,6 +70,7 @@ bool ExportPureModel(const gltf::Model& model, const std::filesystem::path& outD
         } else {
             s["aabb"] = nullptr;
         }
+        json jobb; writeOBB(jobb, sc.obb); s["obb"] = std::move(jobb);
         scenes.push_back(std::move(s));
     }
     root["scenes"] = std::move(scenes);
@@ -96,6 +112,17 @@ bool ExportPureModel(const gltf::Model& model, const std::filesystem::path& outD
         json sms = json::array();
         for (auto primIndex : n.subMeshes) sms.push_back(static_cast<int64_t>(primIndex));
         j["subMeshes"] = std::move(sms);
+
+        // AABB and OBB
+        if (!n.aabb.empty()) {
+            j["aabb"] = json::object({
+                {"min", json::array({n.aabb.min.x, n.aabb.min.y, n.aabb.min.z})},
+                {"max", json::array({n.aabb.max.x, n.aabb.max.y, n.aabb.max.z})}
+            });
+        } else {
+            j["aabb"] = nullptr;
+        }
+        json jobb; writeOBB(jobb, n.obb); j["obb"] = std::move(jobb);
 
         meshNodes.push_back(std::move(j));
     }
@@ -141,6 +168,8 @@ bool ExportPureModel(const gltf::Model& model, const std::filesystem::path& outD
         } else {
             pj["aabb"] = nullptr;
         }
+
+        json jobb; writeOBB(jobb, g.obb); pj["obb"] = std::move(jobb);
 
         if (g.indicesData.has_value()) {
             // write index buffer for consumers, but do not store file name in JSON

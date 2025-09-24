@@ -10,6 +10,7 @@
 #include <glm/gtc/matrix_transform.hpp>
 
 #include "AABB.h"
+#include "OBB.h"
 #include "PureGLTF.h"
 
 namespace pure {
@@ -25,6 +26,8 @@ struct GeometryAttribute {
     std::string componentType; // e.g. FLOAT
     std::string type; // e.g. VEC3
     std::vector<std::byte> data; // raw attribute data
+    // Optional double-precision decoded data for POSITION attribute (for future OBB computation)
+    std::optional<std::vector<glm::dvec3>> dvec3; 
 };
 
 struct GeometryIndicesMeta {
@@ -36,6 +39,7 @@ struct Geometry {
     std::string mode; // e.g. TRIANGLES
     std::vector<GeometryAttribute> attributes; // includes raw data
     ::AABB aabb; // empty() means null in exported JSON
+    ::OBB obb;   // local-space OBB computed from POSITION
     std::optional<std::vector<std::byte>> indicesData; // raw index buffer if present
     std::optional<GeometryIndicesMeta> indices; // metadata only
 };
@@ -63,12 +67,14 @@ struct MeshNode {
     std::vector<std::size_t> subMeshes; // indices into Model::subMeshes
 
     ::AABB aabb; // world-space AABB for this node (empty if no geometry)
+    ::OBB obb;   // world-space OBB for this node
 };
 
 struct Scene {
     std::string name;
     std::vector<std::size_t> nodes; // root node indices
     ::AABB aabb; // empty() means null in exported JSON
+    ::OBB obb;   // world-space OBB for this scene
 };
 
 struct Model {
