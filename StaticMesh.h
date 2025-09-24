@@ -56,7 +56,7 @@ struct MeshNode {
     std::string name;
     std::vector<std::size_t> children;
 
-    std::optional<glm::dmat4> matrix; // when hasMatrix in the source
+    std::optional<glm::mat4> matrix; // when hasMatrix in the source
     std::optional<MeshNodeTransform> transform; // when using TRS in the source
     glm::mat4 world_matrix{1.0f};
 

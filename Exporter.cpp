@@ -5,8 +5,9 @@
 #include <iostream>
 #include <algorithm>
 
+#include "StaticMesh.h"
+
 using nlohmann::json;
-using namespace gltf;
 
 namespace exporters {
 
@@ -14,52 +15,24 @@ static std::string stem_noext(const std::filesystem::path& p) {
     return p.stem().string();
 }
 
-// Compare two primitives' geometry by accessor identity (mode, attributes set, indices accessor)
-static bool SameGeometryByAccessorId(const Geometry& a, const Geometry& b) {
-    if (a.mode != b.mode) return false;
+bool ExportPureModel(const gltf::Model& model, const std::filesystem::path& outDir) {
+    // Convert source glTF model into pure static-mesh model first
+    pure::Model sm = pure::ConvertFromGLTF(model);
 
-    // indices presence and identity
-    if (static_cast<bool>(a.indicesAccessorIndex) != static_cast<bool>(b.indicesAccessorIndex)) return false;
-    if (a.indicesAccessorIndex && b.indicesAccessorIndex && (*a.indicesAccessorIndex != *b.indicesAccessorIndex)) return false;
-
-    if (a.attributes.size() != b.attributes.size()) return false;
-
-    // Build sorted views of (name, accessorIndex)
-    auto makeList = [](const Geometry& g) {
-        std::vector<std::pair<std::string, std::size_t>> v;
-        v.reserve(g.attributes.size());
-        for (const auto& at : g.attributes) {
-            if (!at.accessorIndex) return std::vector<std::pair<std::string, std::size_t>>{}; // missing info -> treat as unmatched
-            v.emplace_back(at.name, *at.accessorIndex);
-        }
-        std::sort(v.begin(), v.end(), [](auto& l, auto& r){
-            if (l.first != r.first) return l.first < r.first;
-            return l.second < r.second;
-        });
-        return v;
-    };
-
-    auto la = makeList(a);
-    auto lb = makeList(b);
-    if (la.empty() || lb.empty()) return false; // cannot dedup without full identity
-    return la == lb;
-}
-
-bool ExportPureModel(const Model& model, const std::filesystem::path& outDir) {
-    std::filesystem::path baseDir = outDir.empty() ? std::filesystem::path(model.source).parent_path() : outDir;
+    std::filesystem::path baseDir = outDir.empty() ? std::filesystem::path(sm.gltf_source).parent_path() : outDir;
     std::error_code ec;
     std::filesystem::create_directories(baseDir, ec);
 
-    const std::string baseName = stem_noext(model.source);
+    const std::string baseName = stem_noext(sm.gltf_source);
     std::filesystem::path targetDir = baseDir / (baseName + ".StaticMesh");
     std::filesystem::create_directories(targetDir, ec);
 
     json root = json::object();
-    root["gltf_source"] = model.source;
+    root["gltf_source"] = sm.gltf_source;
 
     // materials (names only for now)
     json materials = json::array();
-    for (const auto& mtl : model.materials) {
+    for (const auto& mtl : sm.materials) {
         json mj = json::object();
         if (!mtl.name.empty()) mj["name"] = mtl.name;
         materials.push_back(std::move(mj));
@@ -68,16 +41,16 @@ bool ExportPureModel(const Model& model, const std::filesystem::path& outDir) {
 
     // scenes
     json scenes = json::array();
-    for (const auto& sc : model.scenes) {
+    for (const auto& sc : sm.scenes) {
         json s = json::object();
         if (!sc.name.empty()) s["name"] = sc.name;
         json ns = json::array();
         for (auto n : sc.nodes) ns.push_back(static_cast<int64_t>(n));
         s["nodes"] = std::move(ns);
-        if (!sc.worldAABB.empty()) {
+        if (!sc.aabb.empty()) {
             s["aabb"] = json::object({
-                {"min", json::array({sc.worldAABB.min.x, sc.worldAABB.min.y, sc.worldAABB.min.z})},
-                {"max", json::array({sc.worldAABB.max.x, sc.worldAABB.max.y, sc.worldAABB.max.z})}
+                {"min", json::array({sc.aabb.min.x, sc.aabb.min.y, sc.aabb.min.z})},
+                {"max", json::array({sc.aabb.max.x, sc.aabb.max.y, sc.aabb.max.z})}
             });
         } else {
             s["aabb"] = nullptr;
@@ -86,71 +59,58 @@ bool ExportPureModel(const Model& model, const std::filesystem::path& outDir) {
     }
     root["scenes"] = std::move(scenes);
 
-    // mesh_nodes (rename of nodes) and world transforms (subMeshes indices will be attached later)
+    // mesh_nodes and world transforms (subMeshes are already attached in pure model)
     json meshNodes = json::array();
-    for (const auto& n : model.nodes) {
+    for (const auto& n : sm.mesh_nodes) {
         json j = json::object();
         if (!n.name.empty()) j["name"] = n.name;
-        // remove j["mesh"], not needed in exported layout
         json ch = json::array();
         for (auto c : n.children) ch.push_back(static_cast<int64_t>(c));
         j["children"] = std::move(ch);
 
-        if (n.hasMatrix) {
+        if (n.matrix.has_value()) {
             json m = json::array();
             for (int c = 0; c < 4; ++c)
                 for (int r = 0; r < 4; ++r)
-                    m.push_back(n.matrix[c][r]);
+                    m.push_back(n.matrix->operator[](c)[r]);
             j["matrix"] = std::move(m);
-        } else {
+        } else if (n.transform.has_value()) {
+            const auto& tf = *n.transform;
             j["transform"] = json::object({
-                {"translation", json::array({n.translation.x, n.translation.y, n.translation.z})},
-                {"rotation", json::array({n.rotation.x, n.rotation.y, n.rotation.z, n.rotation.w})},
-                {"scale", json::array({n.scale.x, n.scale.y, n.scale.z})}
+                {"translation", json::array({tf.translation.x, tf.translation.y, tf.translation.z})},
+                {"rotation", json::array({tf.rotation.x, tf.rotation.y, tf.rotation.z, tf.rotation.w})},
+                {"scale", json::array({tf.scale.x, tf.scale.y, tf.scale.z})}
             });
+        } else {
+            j["transform"] = nullptr;
         }
 
         // world matrix
         json wm = json::array();
         for (int c = 0; c < 4; ++c)
             for (int r = 0; r < 4; ++r)
-                wm.push_back(n.worldMatrix[c][r]);
+                wm.push_back(n.world_matrix[c][r]);
         j["world_matrix"] = std::move(wm);
+
+        // per-node subMeshes (indices into global subMeshes)
+        json sms = json::array();
+        for (auto primIndex : n.subMeshes) sms.push_back(static_cast<int64_t>(primIndex));
+        j["subMeshes"] = std::move(sms);
 
         meshNodes.push_back(std::move(j));
     }
     root["mesh_nodes"] = std::move(meshNodes);
 
-    // Build unique geometry set by accessor identity
-    const auto& prims = model.primitives;
-    std::vector<std::size_t> uniqueRepGeomPrimIdx; // representative primitive index per unique geometry
-    std::vector<std::size_t> geomIndexOfPrim(prims.size(), static_cast<std::size_t>(-1));
-
-    for (std::size_t i = 0; i < prims.size(); ++i) {
-        const auto& g = prims[i].geometry;
-        std::size_t found = static_cast<std::size_t>(-1);
-        for (std::size_t u = 0; u < uniqueRepGeomPrimIdx.size(); ++u) {
-            if (SameGeometryByAccessorId(g, prims[uniqueRepGeomPrimIdx[u]].geometry)) { found = u; break; }
-        }
-        if (found == static_cast<std::size_t>(-1)) {
-            uniqueRepGeomPrimIdx.push_back(i);
-            geomIndexOfPrim[i] = uniqueRepGeomPrimIdx.size() - 1;
-        } else {
-            geomIndexOfPrim[i] = found;
-        }
-    }
-
-    // geometry (pure geometry) and binary dumps for unique ones only
+    // geometry (pure geometry) and binary dumps
     json geometry = json::array();
 
-    for (std::size_t u = 0; u < uniqueRepGeomPrimIdx.size(); ++u) {
-        const std::size_t i = uniqueRepGeomPrimIdx[u];
-        const auto& g = prims[i].geometry;
+    for (std::size_t u = 0; u < sm.geometry.size(); ++u) {
+        const auto& g = sm.geometry[u];
         json pj = json::object();
         pj["mode"] = g.mode;
         json attrs = json::array();
         for (const auto& a : g.attributes) {
-            // write attribute blob (geometry only) named by unique geometry index
+            // write attribute blob named by unique geometry index
             std::filesystem::path binName = std::to_string(u) + "." + a.name;
             std::filesystem::path binPath = targetDir / binName;
             std::ofstream ofs(binPath, std::ios::binary);
@@ -163,7 +123,7 @@ bool ExportPureModel(const Model& model, const std::filesystem::path& outDir) {
             }
 
             json aj = json::object({
-                {"id", static_cast<int64_t>(attrs.size())},
+                {"id", static_cast<int64_t>(a.id)},
                 {"name", a.name},
                 {"count", static_cast<int64_t>(a.count)},
                 {"componentType", a.componentType},
@@ -173,20 +133,23 @@ bool ExportPureModel(const Model& model, const std::filesystem::path& outDir) {
         }
         pj["attributes"] = std::move(attrs);
 
-        if (!g.localAABB.empty()) {
+        if (!g.aabb.empty()) {
             pj["aabb"] = json::object({
-                {"min", json::array({g.localAABB.min.x, g.localAABB.min.y, g.localAABB.min.z})},
-                {"max", json::array({g.localAABB.max.x, g.localAABB.max.y, g.localAABB.max.z})}
+                {"min", json::array({g.aabb.min.x, g.aabb.min.y, g.aabb.min.z})},
+                {"max", json::array({g.aabb.max.x, g.aabb.max.y, g.aabb.max.z})}
             });
+        } else {
+            pj["aabb"] = nullptr;
         }
 
-        if (g.indices) {
-            // still write index buffer for consumers, but do not store file name in JSON
+        if (g.indicesData.has_value()) {
+            // write index buffer for consumers, but do not store file name in JSON
             std::filesystem::path binName = std::to_string(u) + ".indices";
             std::filesystem::path binPath = targetDir / binName;
             std::ofstream ofs(binPath, std::ios::binary);
             if (ofs) {
-                ofs.write(reinterpret_cast<const char*>(g.indices->data()), static_cast<std::streamsize>(g.indices->size()));
+                const auto& ib = *g.indicesData;
+                ofs.write(reinterpret_cast<const char*>(ib.data()), static_cast<std::streamsize>(ib.size()));
                 ofs.close();
                 std::cout << "[Export] Saved: " << binPath << "\n";
             } else {
@@ -195,10 +158,10 @@ bool ExportPureModel(const Model& model, const std::filesystem::path& outDir) {
         }
 
         // export index metadata instead of file name
-        if (g.indexCount && g.indexComponentType) {
+        if (g.indices.has_value()) {
             pj["indices"] = json::object({
-                {"count", static_cast<int64_t>(*g.indexCount)},
-                {"componentType", *g.indexComponentType}
+                {"count", static_cast<int64_t>(g.indices->count)},
+                {"componentType", g.indices->componentType}
             });
         } else {
             pj["indices"] = nullptr;
@@ -209,32 +172,15 @@ bool ExportPureModel(const Model& model, const std::filesystem::path& outDir) {
 
     root["geometry"] = std::move(geometry);
 
-    // Global SubMeshes list: one-to-one with glTF primitives (geometry + material)
+    // Global SubMeshes list
     json subMeshes = json::array();
-    for (std::size_t i = 0; i < prims.size(); ++i) {
-        const auto& p = prims[i];
+    for (const auto& p : sm.subMeshes) {
         json sj = json::object();
-        sj["geometry"] = static_cast<int64_t>(geomIndexOfPrim[i]);
+        sj["geometry"] = static_cast<int64_t>(p.geometry);
         if (p.material) sj["material"] = static_cast<int64_t>(*p.material); else sj["material"] = nullptr;
         subMeshes.push_back(std::move(sj));
     }
     root["subMeshes"] = std::move(subMeshes);
-
-    // Attach per-node SubMeshes indices (each equals a glTF primitive under the node's glTF mesh)
-    {
-        auto& meshNodesRef = root["mesh_nodes"];
-        for (std::size_t ni = 0; ni < model.nodes.size(); ++ni) {
-            const auto& node = model.nodes[ni];
-            json sms = json::array();
-            if (node.mesh) {
-                const auto& mesh = model.meshes[*node.mesh];
-                for (auto primIndex : mesh.primitives) {
-                    sms.push_back(static_cast<int64_t>(primIndex)); // index into global subMeshes
-                }
-            }
-            meshNodesRef[static_cast<int>(ni)]["subMeshes"] = std::move(sms);
-        }
-    }
 
     std::filesystem::path jsonPath = targetDir / (baseName + ".json");
     std::ofstream jsonOut(jsonPath, std::ios::binary);
