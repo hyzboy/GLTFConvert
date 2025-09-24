@@ -60,13 +60,19 @@ struct MeshNodeTransform {
     glm::vec3 scale{1.0f};
 };
 
+// Matrix pool entry: local/world matrices
+struct MatrixEntry {
+    glm::mat4 local{1.0f};
+    glm::mat4 world{1.0f};
+};
+
 struct MeshNode {
     std::string name;
     std::vector<std::size_t> children;
 
-    std::optional<glm::mat4> matrix; // when hasMatrix in the source
-    std::optional<MeshNodeTransform> transform; // when using TRS in the source
-    glm::mat4 world_matrix{1.0f};
+    // Separate indices into pools (plus one). 0 indicates identity/empty and not stored in pool.
+    std::size_t matrixIndexPlusOne = 0; // refers to Model::matrixPool
+    std::size_t trsIndexPlusOne = 0;    // refers to Model::trsPool
 
     std::vector<std::size_t> subMeshes; // indices into Model::subMeshes
 
@@ -94,9 +100,45 @@ struct Model {
     // Global pool of unique bounding boxes (AABB + OBB + Sphere)
     std::vector<BoundingBox> bounds;
 
+    // Separate transform pools
+    std::vector<MatrixEntry> matrixPool;              // deduped local/world matrices
+    std::vector<MeshNodeTransform> trsPool;           // deduped TRS
+
     // Add or find a BoundingBox in the global pool; returns its index
     std::size_t internBounds(const BoundingBox& b);
+
+    // Add or find in TRS pool; returns index
+    std::size_t internTRS(const MeshNodeTransform& t);
+
+    // Add or find in matrix pool (local+world pair); returns index
+    std::size_t internMatrix(const MatrixEntry& m);
 };
+
+// Helpers to access matrices from the matrix pool
+inline glm::mat4 GetNodeWorldMatrix(const Model& m, const MeshNode& n) {
+    if (n.matrixIndexPlusOne == 0) return glm::mat4(1.0f);
+    const auto idx = n.matrixIndexPlusOne - 1;
+    return m.matrixPool[idx].world;
+}
+
+inline glm::mat4 GetNodeLocalMatrix(const Model& m, const MeshNode& n) {
+    if (n.matrixIndexPlusOne == 0) return glm::mat4(1.0f);
+    const auto idx = n.matrixIndexPlusOne - 1;
+    return m.matrixPool[idx].local;
+}
+
+inline const std::optional<MeshNodeTransform>& GetNodeTRS(const Model& m, const MeshNode& n) {
+    if (n.trsIndexPlusOne == 0) {
+        static const std::optional<MeshNodeTransform> kEmpty{}; // no TRS
+        return kEmpty;
+    }
+    const auto idx = n.trsIndexPlusOne - 1;
+    // Provide reference to an optional wrapper (thread-local to be safe)
+    struct Holder { std::optional<MeshNodeTransform> opt; };
+    static thread_local Holder holder;
+    holder.opt = m.trsPool[idx];
+    return holder.opt;
+}
 
 // Convert from the original gltf::Model into the static format above.
 Model ConvertFromGLTF(const gltf::Model& src);

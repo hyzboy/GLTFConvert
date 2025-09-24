@@ -36,6 +36,18 @@ static bool SameGeometryByAccessorId(const gltf::Geometry& a, const gltf::Geomet
     return la == lb;
 }
 
+static bool Mat4Equal(const glm::mat4& a, const glm::mat4& b) {
+    return a == b; // exact compare; values come directly from glTF/doubles cast to float
+}
+
+static bool IsIdentity(const glm::mat4& m) {
+    return Mat4Equal(m, glm::mat4(1.0f));
+}
+
+static bool TRSEqual(const MeshNodeTransform& a, const MeshNodeTransform& b) {
+    return a.translation == b.translation && a.rotation == b.rotation && a.scale == b.scale;
+}
+
 // internBounds implementation
 std::size_t Model::internBounds(const BoundingBox& b) {
     // Simple linear dedup; can be improved with hashing if needed
@@ -49,6 +61,22 @@ std::size_t Model::internBounds(const BoundingBox& b) {
     }
     bounds.push_back(b);
     return bounds.size() - 1;
+}
+
+std::size_t Model::internTRS(const MeshNodeTransform& t) {
+    for (std::size_t i = 0; i < trsPool.size(); ++i) {
+        if (TRSEqual(trsPool[i], t)) return i;
+    }
+    trsPool.push_back(t);
+    return trsPool.size() - 1;
+}
+
+std::size_t Model::internMatrix(const MatrixEntry& m) {
+    for (std::size_t i = 0; i < matrixPool.size(); ++i) {
+        if (Mat4Equal(matrixPool[i].local, m.local) && Mat4Equal(matrixPool[i].world, m.world)) return i;
+    }
+    matrixPool.push_back(m);
+    return matrixPool.size() - 1;
 }
 
 Model ConvertFromGLTF(const gltf::Model& src) {
@@ -71,24 +99,42 @@ Model ConvertFromGLTF(const gltf::Model& src) {
         dst.scenes.push_back(std::move(ps));
     }
 
-    // mesh_nodes (nodes) copy + world matrices
+    // mesh_nodes (nodes) copy + transform pools
     dst.mesh_nodes.reserve(src.nodes.size());
     for (const auto& n : src.nodes) {
         pure::MeshNode pn;
         pn.name = n.name;
         pn.children = n.children;
-        if (n.hasMatrix) {
-            pn.matrix = n.matrix;
+
+        // Fill matrix entry
+        MatrixEntry me;
+        me.local = glm::mat4(n.localMatrix());
+        me.world = glm::mat4(n.worldMatrix);
+        const bool isIdentityMatrix = IsIdentity(me.local) && IsIdentity(me.world);
+        if (!isIdentityMatrix) {
+            const std::size_t midx = dst.internMatrix(me);
+            pn.matrixIndexPlusOne = midx + 1;
         } else {
-            // restore TRS into float-based transform
+            pn.matrixIndexPlusOne = 0; // identity
+        }
+
+        // Fill TRS entry only if source used TRS and it's non-identity
+        if (!n.hasMatrix) {
             MeshNodeTransform tf;
             tf.translation = glm::vec3(n.translation);
             tf.rotation = glm::quat(n.rotation);
             tf.scale = glm::vec3(n.scale);
-            pn.transform = tf;
+            const bool isIdentityTRS = TRSEqual(tf, MeshNodeTransform{});
+            if (!isIdentityTRS) {
+                const std::size_t tidx = dst.internTRS(tf);
+                pn.trsIndexPlusOne = tidx + 1;
+            } else {
+                pn.trsIndexPlusOne = 0;
+            }
+        } else {
+            pn.trsIndexPlusOne = 0; // came from matrix path
         }
-        // convert double-precision world matrix to float for storage
-        pn.world_matrix = glm::mat4(n.worldMatrix);
+
         pn.boundsIndex = kInvalidBoundsIndex; // will be filled later
         dst.mesh_nodes.push_back(std::move(pn));
     }

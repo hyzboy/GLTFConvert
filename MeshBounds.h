@@ -18,4 +18,9 @@ void ComputeAllMeshNodeBounds(pure::Model& model);
 void ComputeSceneBounds(pure::Model& model, pure::Scene& scene);
 void ComputeAllSceneBounds(pure::Model& model);
 
+// 新接口：读取节点世界矩阵（通过统一变换池）
+inline glm::mat4 GetWorldMatrix(const pure::Model& m, const pure::MeshNode& n) {
+    return GetNodeWorldMatrix(m, n);
+}
+
 } // namespace pure

@@ -60,7 +60,7 @@ void ComputeMeshNodeBounds(pure::Model& model, std::size_t nodeIndex) {
     nb.sphere.reset();
     if (node.subMeshes.empty()) { node.boundsIndex = model.internBounds(nb); return; }
 
-    const glm::dmat4 world = glm::dmat4(node.world_matrix);
+    const glm::dmat4 world = glm::dmat4(GetNodeWorldMatrix(model, node));
 
     std::vector<glm::dvec3> worldPoints; worldPoints.reserve(1024);
     for (auto smIndex : node.subMeshes) {
@@ -114,7 +114,7 @@ void ComputeSceneBounds(pure::Model& model, pure::Scene& scene) {
     while (!stack.empty()) {
         auto ni = stack.back(); stack.pop_back();
         const auto& node = model.mesh_nodes[ni];
-        const glm::dmat4 world = glm::dmat4(node.world_matrix);
+        const glm::dmat4 world = glm::dmat4(GetNodeWorldMatrix(model, node));
 
         for (auto smIndex : node.subMeshes) {
             const auto& sm = model.subMeshes[smIndex];

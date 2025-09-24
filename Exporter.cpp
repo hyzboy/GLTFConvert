@@ -139,7 +139,7 @@ bool ExportPureModel(const gltf::Model& model, const std::filesystem::path& outD
     }
     root["scenes"] = std::move(scenes);
 
-    // mesh_nodes and world transforms (subMeshes are already attached in pure model)
+    // mesh_nodes and transform indices (subMeshes are already attached in pure model)
     json meshNodes = json::array();
     for (const auto& n : sm.mesh_nodes) {
         json j = json::object();
@@ -148,29 +148,9 @@ bool ExportPureModel(const gltf::Model& model, const std::filesystem::path& outD
         for (auto c : n.children) ch.push_back(static_cast<int64_t>(c));
         j["children"] = std::move(ch);
 
-        if (n.matrix.has_value()) {
-            json m = json::array();
-            for (int c = 0; c < 4; ++c)
-                for (int r = 0; r < 4; ++r)
-                    m.push_back(n.matrix->operator[](c)[r]);
-            j["matrix"] = std::move(m);
-        } else if (n.transform.has_value()) {
-            const auto& tf = *n.transform;
-            j["transform"] = json::object({
-                {"translation", json::array({tf.translation.x, tf.translation.y, tf.translation.z})},
-                {"rotation", json::array({tf.rotation.x, tf.rotation.y, tf.rotation.z, tf.rotation.w})},
-                {"scale", json::array({tf.scale.x, tf.scale.y, tf.scale.z})}
-            });
-        } else {
-            j["transform"] = nullptr;
-        }
-
-        // world matrix
-        json wm = json::array();
-        for (int c = 0; c < 4; ++c)
-            for (int r = 0; r < 4; ++r)
-                wm.push_back(n.world_matrix[c][r]);
-        j["world_matrix"] = std::move(wm);
+        // indices
+        j["matrix"] = static_cast<int64_t>(n.matrixIndexPlusOne);
+        j["trs"] = static_cast<int64_t>(n.trsIndexPlusOne);
 
         // per-node subMeshes (indices into global subMeshes)
         json sms = json::array();
@@ -183,6 +163,42 @@ bool ExportPureModel(const gltf::Model& model, const std::filesystem::path& outD
         meshNodes.push_back(std::move(j));
     }
     root["mesh_nodes"] = std::move(meshNodes);
+
+    // Export matrix pool as a binary file (local/world pairs)
+    {
+        std::filesystem::path binPath = targetDir / "Matrices.bin";
+        std::ofstream ofs(binPath, std::ios::binary);
+        if (ofs) {
+            for (const auto& m : sm.matrixPool) {
+                ofs.write(reinterpret_cast<const char*>(&m.local), sizeof(glm::mat4));
+                ofs.write(reinterpret_cast<const char*>(&m.world), sizeof(glm::mat4));
+            }
+            ofs.close();
+            std::cout << "[Export] Saved: " << binPath << "\n";
+        }
+        // store count in main JSON
+        root["matrices"] = static_cast<int64_t>(sm.matrixPool.size());
+    }
+
+    // Export TRS pool as a compact binary file: [tx ty tz rx ry rz rw sx sy sz] floats per entry
+    {
+        std::filesystem::path binPath = targetDir / "TRS.bin";
+        std::ofstream ofs(binPath, std::ios::binary);
+        if (ofs) {
+            for (const auto& t : sm.trsPool) {
+                const float tvals[3] = { t.translation.x, t.translation.y, t.translation.z };
+                const float rvals[4] = { t.rotation.x, t.rotation.y, t.rotation.z, t.rotation.w }; // xyzw
+                const float svals[3] = { t.scale.x, t.scale.y, t.scale.z };
+                ofs.write(reinterpret_cast<const char*>(tvals), sizeof(tvals));
+                ofs.write(reinterpret_cast<const char*>(rvals), sizeof(rvals));
+                ofs.write(reinterpret_cast<const char*>(svals), sizeof(svals));
+            }
+            ofs.close();
+            std::cout << "[Export] Saved: " << binPath << "\n";
+        }
+        // store count in main JSON
+        root["trs_count"] = static_cast<int64_t>(sm.trsPool.size());
+    }
 
     // geometry (pure geometry) and binary dumps
     json geometry = json::array();
