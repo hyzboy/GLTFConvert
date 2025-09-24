@@ -86,12 +86,12 @@ bool ExportPureModel(const Model& model, const std::filesystem::path& outDir) {
     }
     root["scenes"] = std::move(scenes);
 
-    // mesh_nodes (rename of nodes) and world transforms
+    // mesh_nodes (rename of nodes) and world transforms (subMeshes indices will be attached later)
     json meshNodes = json::array();
     for (const auto& n : model.nodes) {
         json j = json::object();
         if (!n.name.empty()) j["name"] = n.name;
-        if (n.mesh) j["mesh"] = static_cast<int64_t>(*n.mesh);
+        // remove j["mesh"], not needed in exported layout
         json ch = json::array();
         for (auto c : n.children) ch.push_back(static_cast<int64_t>(c));
         j["children"] = std::move(ch);
@@ -209,7 +209,7 @@ bool ExportPureModel(const Model& model, const std::filesystem::path& outDir) {
 
     root["geometry"] = std::move(geometry);
 
-    // SubMeshes: one-to-one with glTF primitives: geometry + material
+    // Global SubMeshes list: one-to-one with glTF primitives (geometry + material)
     json subMeshes = json::array();
     for (std::size_t i = 0; i < prims.size(); ++i) {
         const auto& p = prims[i];
@@ -220,7 +220,7 @@ bool ExportPureModel(const Model& model, const std::filesystem::path& outDir) {
     }
     root["subMeshes"] = std::move(subMeshes);
 
-    // Attach per-node subMeshes list (derived from glTF node.mesh -> mesh.primitives)
+    // Attach per-node SubMeshes indices (each equals a glTF primitive under the node's glTF mesh)
     {
         auto& meshNodesRef = root["mesh_nodes"];
         for (std::size_t ni = 0; ni < model.nodes.size(); ++ni) {
@@ -229,8 +229,7 @@ bool ExportPureModel(const Model& model, const std::filesystem::path& outDir) {
             if (node.mesh) {
                 const auto& mesh = model.meshes[*node.mesh];
                 for (auto primIndex : mesh.primitives) {
-                    // push subMesh index (one-to-one with glTF primitives)
-                    sms.push_back(static_cast<int64_t>(primIndex));
+                    sms.push_back(static_cast<int64_t>(primIndex)); // index into global subMeshes
                 }
             }
             meshNodesRef[static_cast<int>(ni)]["subMeshes"] = std::move(sms);
