@@ -23,6 +23,7 @@ add_executable(GLTFConvert
     PureGLTF.cpp PureGLTF.h
     Importer.cpp Importer.h
     StaticMesh.cpp StaticMesh.h
+    MeshBounds.cpp MeshBounds.h
     Exporter.cpp Exporter.h
 )
 

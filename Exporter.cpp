@@ -78,6 +78,14 @@ bool ExportPureModel(const gltf::Model& model, const std::filesystem::path& outD
     }
     root["materials"] = std::move(materials);
 
+    // Export global bounds pool once
+    json boundsArray = json::array();
+    for (const auto& b : sm.bounds) {
+        json jb; writeBounds(jb, b);
+        boundsArray.push_back(std::move(jb));
+    }
+    root["bounds"] = std::move(boundsArray);
+
     // scenes
     json scenes = json::array();
     for (const auto& sc : sm.scenes) {
@@ -87,8 +95,8 @@ bool ExportPureModel(const gltf::Model& model, const std::filesystem::path& outD
         for (auto n : sc.nodes) ns.push_back(static_cast<int64_t>(n));
         s["nodes"] = std::move(ns);
 
-        json jb; writeBounds(jb, sc.bounds);
-        s["bounds"] = std::move(jb);
+        // reference bounds by index
+        s["bounds"] = (sc.boundsIndex == pure::kInvalidBoundsIndex) ? json(nullptr) : json(static_cast<int64_t>(sc.boundsIndex));
 
         scenes.push_back(std::move(s));
     }
@@ -132,8 +140,8 @@ bool ExportPureModel(const gltf::Model& model, const std::filesystem::path& outD
         for (auto primIndex : n.subMeshes) sms.push_back(static_cast<int64_t>(primIndex));
         j["subMeshes"] = std::move(sms);
 
-        json jb; writeBounds(jb, n.bounds);
-        j["bounds"] = std::move(jb);
+        // reference bounds by index
+        j["bounds"] = (n.boundsIndex == pure::kInvalidBoundsIndex) ? json(nullptr) : json(static_cast<int64_t>(n.boundsIndex));
 
         meshNodes.push_back(std::move(j));
     }
@@ -171,8 +179,8 @@ bool ExportPureModel(const gltf::Model& model, const std::filesystem::path& outD
         }
         pj["attributes"] = std::move(attrs);
 
-        json jb; writeBounds(jb, g.bounds);
-        pj["bounds"] = std::move(jb);
+        // reference bounds by index
+        pj["bounds"] = (g.boundsIndex == pure::kInvalidBoundsIndex) ? json(nullptr) : json(static_cast<int64_t>(g.boundsIndex));
 
         if (g.indicesData.has_value()) {
             // write index buffer for consumers, but do not store file name in JSON
