@@ -83,6 +83,11 @@ void Model::convertToZUp() {
         }
     }
 
+    // Also rotate local geometry AABBs into the new basis so downstream world-space AABBs are correct
+    for (auto &prim : primitives) {
+        prim.geometry.localAABB = prim.geometry.localAABB.transformed(R);
+    }
+
     // Recompute derived data
     computeWorldMatrices();
     computeSceneAABBs();

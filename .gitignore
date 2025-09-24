@@ -4,3 +4,9 @@
 /GLTFConvert.dir
 /build
 /x64
+/*.vcxproj
+/*.filters
+/*.sln
+/*.cmake
+/*.build
+/CMakeCache.txt
