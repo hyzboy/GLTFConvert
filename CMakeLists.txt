@@ -25,6 +25,18 @@ add_executable(GLTFConvert
     Exporter.cpp Exporter.h
 )
 
+# GLM SIMD/AVX2 优化相关宏定义
+# 强制所有源文件启用 GLM 对齐和 SIMD
+# 仅对 GLTFConvert 目标生效
+# 宏定义
+ target_compile_definitions(GLTFConvert PRIVATE GLM_FORCE_DEFAULT_ALIGNED_GENTYPES GLM_FORCE_INTRINSICS)
+# 编译器指令
+if (MSVC)
+    target_compile_options(GLTFConvert PRIVATE /arch:AVX2)
+elseif (CMAKE_CXX_COMPILER_ID MATCHES "Clang" OR CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+    target_compile_options(GLTFConvert PRIVATE -mavx2)
+endif()
+
 # Add Vulkan include directories so headers like <vulkan/vulkan.h> are found
 if (Vulkan_FOUND)
     if (DEFINED Vulkan_INCLUDE_DIRS)
