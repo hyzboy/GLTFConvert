@@ -226,8 +226,7 @@ bool ImportFastGLTF(const std::filesystem::path& inputPath, puregltf::Model& out
     }
 
     // compute derived data
-    outModel.computeWorldMatrices();
-    outModel.computeSceneAABBs();
+    outModel.convertToZUp();
 
     return true;
 }

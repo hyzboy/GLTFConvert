@@ -57,4 +57,35 @@ void Model::computeSceneAABBs() {
     }
 }
 
+void Model::convertToZUp() {
+    // +90 degrees around X axis rotates Y-up to Z-up
+    const double angle = glm::radians(90.0);
+    const glm::dvec3 axis(1.0, 0.0, 0.0);
+
+    const glm::dmat4 R = glm::rotate(glm::dmat4(1.0), angle, axis);
+    const glm::dmat4 Rinv = glm::transpose(R); // rotation matrix inverse == transpose
+
+    const glm::dquat rq = glm::angleAxis(angle, axis);
+    const glm::dquat rqInv = glm::inverse(rq);
+
+    for (auto &n : nodes) {
+        if (n.hasMatrix) {
+            n.matrix = R * n.matrix * Rinv;
+        } else {
+            // translation as a point (rotation only so w doesn't matter)
+            glm::dvec4 t4(n.translation, 1.0);
+            t4 = R * t4;
+            n.translation = glm::dvec3(t4);
+
+            // rotate orientation via conjugation to change basis
+            n.rotation = glm::normalize(rq * n.rotation * rqInv);
+            // scale stays component-wise the same under a pure basis change
+        }
+    }
+
+    // Recompute derived data
+    computeWorldMatrices();
+    computeSceneAABBs();
+}
+
 } // namespace puregltf
