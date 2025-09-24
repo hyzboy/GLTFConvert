@@ -43,6 +43,14 @@ static void writeBounds(json& j, const BoundingBox& b)
     } else {
         out["obb"] = nullptr;
     }
+    if (!b.sphere.empty()) {
+        out["sphere"] = json::object({
+            {"center", json::array({b.sphere.center.x, b.sphere.center.y, b.sphere.center.z})},
+            {"radius", b.sphere.radius}
+        });
+    } else {
+        out["sphere"] = nullptr;
+    }
     j = std::move(out);
 }
 
