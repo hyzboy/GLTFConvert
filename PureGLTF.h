@@ -60,14 +60,25 @@ struct Primitive {
         std::string componentType; // e.g. FLOAT
         std::string type; // e.g. VEC3
         std::vector<std::byte> data; // raw data as-is
+        // Source glTF accessor index (for dedup by accessor identity)
+        std::optional<std::size_t> accessorIndex;
     };
     std::vector<Attribute> attributes;
     std::optional<std::vector<std::byte>> indices;
     // metadata for indices
     std::optional<std::size_t> indexCount; // number of indices
     std::optional<std::string> indexComponentType; // e.g. UNSIGNED_SHORT
+    // Source glTF indices accessor index (for dedup)
+    std::optional<std::size_t> indicesAccessorIndex;
+
+    // material index from glTF primitive (kept for building SubMesh during export)
+    std::optional<std::size_t> material;
 
     AABB localAABB; // computed from POSITION if present
+};
+
+struct Material {
+    std::string name;
 };
 
 struct Mesh {
@@ -111,6 +122,9 @@ struct Model {
     std::vector<Mesh> meshes;
     std::vector<Node> nodes;
     std::vector<Scene> scenes;
+
+    // materials from the asset
+    std::vector<Material> materials;
 
     // compute per-node world matrices across all scenes
     void computeWorldMatrices();

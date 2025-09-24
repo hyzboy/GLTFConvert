@@ -137,6 +137,15 @@ bool ImportFastGLTF(const std::filesystem::path& inputPath, puregltf::Model& out
 
     outModel.source = std::filesystem::absolute(inputPath).string();
 
+    // materials
+    outModel.materials.clear();
+    outModel.materials.reserve(asset.materials.size());
+    for (const auto& m : asset.materials) {
+        puregltf::Material om{};
+        if (!m.name.empty()) om.name.assign(m.name.begin(), m.name.end());
+        outModel.materials.emplace_back(std::move(om));
+    }
+
     // primitives
     for (const auto& mesh : asset.meshes) {
         for (const auto& prim : mesh.primitives) {
@@ -152,6 +161,7 @@ bool ImportFastGLTF(const std::filesystem::path& inputPath, puregltf::Model& out
                 a.count = acc.count;
                 a.componentType = ComponentTypeToString(acc.componentType);
                 a.type = AccessorTypeToString(acc.type);
+                a.accessorIndex = attr.accessorIndex; // record accessor identity for dedup
                 if (!CopyAccessorToBytes(asset, acc, a.data)) {
                     a.data.clear();
                 }
@@ -173,7 +183,13 @@ bool ImportFastGLTF(const std::filesystem::path& inputPath, puregltf::Model& out
                     p.indices = std::move(buf);
                     p.indexCount = acc.count;
                     p.indexComponentType = ComponentTypeToString(acc.componentType);
+                    p.indicesAccessorIndex = prim.indicesAccessor; // record indices accessor identity
                 }
+            }
+
+            // material index (if any)
+            if (prim.materialIndex) {
+                p.material = *prim.materialIndex;
             }
 
             outModel.primitives.emplace_back(std::move(p));
