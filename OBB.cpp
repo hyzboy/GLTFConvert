@@ -2,6 +2,8 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/quaternion.hpp>
 #include <immintrin.h> // for AVX2 intrinsics
+#include <chrono>
+#include <cstdio>
 
 void OBB::reset() {
     center = glm::dvec3(0.0);
@@ -107,6 +109,7 @@ void OBB::corners(glm::dvec3 out[8]) const {
 // Extremely thorough minimum-volume OBB by global orientation search (slow, memory heavy OK).
 // Performs coarse-to-fine search over yaw(Z), pitch(Y), roll(X) and evaluates exact extents.
 OBB OBB::fromPointsMinVolume(const glm::dvec3 *points,size_t count,double coarseStepDeg,double fineStepDeg,double ultraStepDeg) {
+    auto t0 = std::chrono::high_resolution_clock::now();
     OBB best; // empty initially
     if(points == nullptr || count == 0) return best;
     if(count == 1) { best.center = points[0]; return best; }
@@ -267,6 +270,9 @@ OBB OBB::fromPointsMinVolume(const glm::dvec3 *points,size_t count,double coarse
     refine(15.0,fineStepDeg);
     refine(3.0,ultraStepDeg);
 
+    auto t1 = std::chrono::high_resolution_clock::now();
+    double ms = std::chrono::duration<double, std::milli>(t1 - t0).count();
+    std::printf("OBB::fromPointsMinVolume 顶点数: %zu, 计算耗时: %.3f ms\n", count, ms);
     return best;
 }
 
