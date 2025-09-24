@@ -4,6 +4,30 @@
 
 namespace pure {
 
+// Helper: sphere from AABB (center = mid, radius = half diagonal)
+static BoundingSphere SphereFromAABB(const AABB& a) {
+    BoundingSphere s; s.reset();
+    if (!a.empty()) {
+        s.center = (a.min + a.max) * 0.5;
+        s.radius = glm::length(a.max - s.center);
+    }
+    return s;
+}
+
+// Helper: sphere from points (center = average, radius = max distance to center)
+static BoundingSphere SphereFromPoints(const std::vector<glm::dvec3>& pts) {
+    BoundingSphere s; s.reset();
+    if (pts.empty()) return s;
+    glm::dvec3 c(0.0);
+    for (const auto& p : pts) c += p;
+    c /= static_cast<double>(pts.size());
+    double r = 0.0;
+    for (const auto& p : pts) r = std::max(r, glm::length(p - c));
+    s.center = c;
+    s.radius = r;
+    return s;
+}
+
 // Compare two primitives' geometry by accessor identity (mode, attributes set, indices accessor)
 static bool SameGeometryByAccessorId(const gltf::Geometry& a, const gltf::Geometry& b) {
     if (a.mode != b.mode) return false;
@@ -145,6 +169,15 @@ Model ConvertFromGLTF(const gltf::Model& src) {
             }
         }
 
+        // Compute sphere for geometry (prefer points if available; fallback to AABB)
+        if (pg.positions && !pg.positions->empty()) {
+            pg.bounds.sphere = SphereFromPoints(*pg.positions);
+        } else if (!pg.bounds.aabb.empty()) {
+            pg.bounds.sphere = SphereFromAABB(pg.bounds.aabb);
+        } else {
+            pg.bounds.sphere.reset();
+        }
+
         if (g.indices) {
             pg.indicesData = *g.indices; // copy raw indices buffer
         }
@@ -182,6 +215,7 @@ Model ConvertFromGLTF(const gltf::Model& src) {
         auto& pn = dst.mesh_nodes[ni];
         pn.bounds.aabb.reset();
         pn.bounds.obb.reset();
+        pn.bounds.sphere.reset();
         if (pn.subMeshes.empty()) continue;
         const glm::dmat4 world = glm::dmat4(pn.world_matrix);
 
@@ -204,12 +238,21 @@ Model ConvertFromGLTF(const gltf::Model& src) {
         if (!worldPoints.empty()) {
             pn.bounds.obb = OBB::fromPointsMinVolume(worldPoints);
         }
+        // Compute sphere for node (prefer points if available; fallback to AABB)
+        if (!worldPoints.empty()) {
+            pn.bounds.sphere = SphereFromPoints(worldPoints);
+        } else if (!pn.bounds.aabb.empty()) {
+            pn.bounds.sphere = SphereFromAABB(pn.bounds.aabb);
+        } else {
+            pn.bounds.sphere.reset();
+        }
     }
 
     // Compute per-scene OBB from all world-space points under its nodes
     for (std::size_t si = 0; si < dst.scenes.size(); ++si) {
         auto& sc = dst.scenes[si];
         sc.bounds.obb.reset();
+        sc.bounds.sphere.reset();
         std::vector<glm::dvec3> scenePts; scenePts.reserve(4096);
 
         // traverse nodes of scene and gather each node's world-space points again
@@ -236,6 +279,15 @@ Model ConvertFromGLTF(const gltf::Model& src) {
             for (auto c : node.children) stack.push_back(c);
         }
         if (!scenePts.empty()) sc.bounds.obb = OBB::fromPointsMinVolume(scenePts);
+
+        // Compute sphere for scene (prefer points if available; fallback to AABB)
+        if (!scenePts.empty()) {
+            sc.bounds.sphere = SphereFromPoints(scenePts);
+        } else if (!sc.bounds.aabb.empty()) {
+            sc.bounds.sphere = SphereFromAABB(sc.bounds.aabb);
+        } else {
+            sc.bounds.sphere.reset();
+        }
     }
 
     return dst;
