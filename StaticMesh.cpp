@@ -129,32 +129,18 @@ Model ConvertFromGLTF(const gltf::Model& src) {
             ga.componentType = a.componentType;
             ga.type = a.type;
             ga.data = a.data; // copy binary
-            // Add a decoded double-precision cache for POSITION
-            if (ga.name == "POSITION" && ga.componentType == "FLOAT" && (ga.type == "VEC3" || ga.type == "VEC4")) {
-                const std::byte* ptr = a.data.data();
-                const std::size_t elementCount = a.count;
-                const std::size_t stride = (a.type == "VEC3") ? sizeof(float) * 3 : sizeof(float) * 4;
-                if (a.data.size() >= elementCount * stride) {
-                    std::vector<glm::dvec3> decoded;
-                    decoded.resize(elementCount);
-                    for (std::size_t vi = 0; vi < elementCount; ++vi) {
-                        const float* f = reinterpret_cast<const float*>(ptr + vi * stride);
-                        decoded[vi] = glm::dvec3(f[0], f[1], f[2]);
-                    }
-                    ga.dvec3 = std::move(decoded);
-                }
-            }
             pg.attributes.push_back(std::move(ga));
         }
         pg.aabb = g.localAABB;
 
-        // Compute local-space OBB from POSITION if available
+        // Compute and store local-space positions (double) if available, and compute OBB (decode ONCE per unique geometry)
         {
             std::vector<glm::dvec3> pos;
             if (TryDecodePositionsAsDVec3(g, pos) && !pos.empty()) {
-                // Use precise min-volume search as requested (slow is okay)
+                pg.positions = pos; // cache in Geometry
                 pg.obb = OBB::fromPointsMinVolume(pos);
             } else {
+                pg.positions.reset();
                 pg.obb.reset();
             }
         }
@@ -207,12 +193,9 @@ Model ConvertFromGLTF(const gltf::Model& src) {
             if (!g.aabb.empty()) {
                 pn.aabb.merge(g.aabb.transformed(world));
             }
-            // collect transformed positions for precise OBB
-            // decode from source prim geometry to avoid lossy conversions
-            const auto& srcGeom = src.primitives[smIndex].geometry;
-            std::vector<glm::dvec3> local;
-            if (TryDecodePositionsAsDVec3(srcGeom, local)) {
-                for (auto& p : local) {
+            // collect transformed positions using cached positions
+            if (g.positions && !g.positions->empty()) {
+                for (const auto& p : *g.positions) {
                     glm::dvec4 hp = world * glm::dvec4(p, 1.0);
                     worldPoints.emplace_back(hp.x, hp.y, hp.z);
                 }
@@ -238,12 +221,14 @@ Model ConvertFromGLTF(const gltf::Model& src) {
                 const auto& mesh = src.meshes[*node.mesh];
                 const glm::dmat4 world = node.worldMatrix;
                 for (auto primIndex : mesh.primitives) {
-                    const auto& sg = src.primitives[primIndex].geometry;
-                    std::vector<glm::dvec3> local;
-                    if (TryDecodePositionsAsDVec3(sg, local)) {
-                        for (auto& p : local) {
-                            glm::dvec4 hp = world * glm::dvec4(p, 1.0);
-                            scenePts.emplace_back(hp.x, hp.y, hp.z);
+                    const std::size_t gi = geomIndexOfPrim[primIndex];
+                    if (gi != static_cast<std::size_t>(-1)) {
+                        const auto& g = dst.geometry[gi];
+                        if (g.positions && !g.positions->empty()) {
+                            for (const auto& p : *g.positions) {
+                                glm::dvec4 hp = world * glm::dvec4(p, 1.0);
+                                scenePts.emplace_back(hp.x, hp.y, hp.z);
+                            }
                         }
                     }
                 }

@@ -30,19 +30,16 @@ bool ExportPureModel(const gltf::Model& model, const std::filesystem::path& outD
     json root = json::object();
     root["gltf_source"] = sm.gltf_source;
 
-    auto writeOBB = [](json& j, const ::OBB& obb){
-        if (!obb.empty()) {
-            // Write center, axes, halfSize
-            j = json::object({
-                {"center", json::array({obb.center.x, obb.center.y, obb.center.z})},
-                {"axisX", json::array({obb.axisX.x, obb.axisX.y, obb.axisX.z})},
-                {"axisY", json::array({obb.axisY.x, obb.axisY.y, obb.axisY.z})},
-                {"axisZ", json::array({obb.axisZ.x, obb.axisZ.y, obb.axisZ.z})},
-                {"halfSize", json::array({obb.halfSize.x, obb.halfSize.y, obb.halfSize.z})}
-            });
-        } else {
-            j = nullptr;
-        }
+    auto writeOBB = [](json& j, const ::OBB& obb)
+    {
+        // Write center, axes, halfSize
+        j = json::object({
+            {"center", json::array({obb.center.x, obb.center.y, obb.center.z})},
+            {"axisX", json::array({obb.axisX.x, obb.axisX.y, obb.axisX.z})},
+            {"axisY", json::array({obb.axisY.x, obb.axisY.y, obb.axisY.z})},
+            {"axisZ", json::array({obb.axisZ.x, obb.axisZ.y, obb.axisZ.z})},
+            {"halfSize", json::array({obb.halfSize.x, obb.halfSize.y, obb.halfSize.z})}
+        });
     };
 
     // materials (names only for now)
@@ -70,7 +67,14 @@ bool ExportPureModel(const gltf::Model& model, const std::filesystem::path& outD
         } else {
             s["aabb"] = nullptr;
         }
-        json jobb; writeOBB(jobb, sc.obb); s["obb"] = std::move(jobb);
+
+        if(!sc.obb.empty())
+        {
+            json jobb;
+            writeOBB(jobb, sc.obb);
+            s["obb"] = std::move(jobb);
+        }
+
         scenes.push_back(std::move(s));
     }
     root["scenes"] = std::move(scenes);
@@ -122,7 +126,13 @@ bool ExportPureModel(const gltf::Model& model, const std::filesystem::path& outD
         } else {
             j["aabb"] = nullptr;
         }
-        json jobb; writeOBB(jobb, n.obb); j["obb"] = std::move(jobb);
+
+        if(!n.obb.empty())
+        {
+            json jobb;
+            writeOBB(jobb, n.obb);
+            j["obb"] = std::move(jobb);
+        }
 
         meshNodes.push_back(std::move(j));
     }
@@ -169,7 +179,12 @@ bool ExportPureModel(const gltf::Model& model, const std::filesystem::path& outD
             pj["aabb"] = nullptr;
         }
 
-        json jobb; writeOBB(jobb, g.obb); pj["obb"] = std::move(jobb);
+        if(!g.obb.empty())
+        {
+            json jobb;
+            writeOBB(jobb, g.obb);
+            pj["obb"] = std::move(jobb);
+        }
 
         if (g.indicesData.has_value()) {
             // write index buffer for consumers, but do not store file name in JSON

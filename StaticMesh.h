@@ -26,8 +26,6 @@ struct GeometryAttribute {
     std::string componentType; // e.g. FLOAT
     std::string type; // e.g. VEC3
     std::vector<std::byte> data; // raw attribute data
-    // Optional double-precision decoded data for POSITION attribute (for future OBB computation)
-    std::optional<std::vector<glm::dvec3>> dvec3; 
 };
 
 struct GeometryIndicesMeta {
@@ -42,6 +40,8 @@ struct Geometry {
     ::OBB obb;   // local-space OBB computed from POSITION
     std::optional<std::vector<std::byte>> indicesData; // raw index buffer if present
     std::optional<GeometryIndicesMeta> indices; // metadata only
+    // Optional double-precision decoded POSITION data (local space)
+    std::optional<std::vector<glm::dvec3>> positions; 
 };
 
 struct SubMesh {
