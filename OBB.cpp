@@ -200,14 +200,47 @@ OBB OBB::fromPointsMinVolume(const glm::dvec3 *points,size_t count,double coarse
         };
 
     // Phase 1: coarse global search
+    // 预计算所有可能的sin/cos，避免循环内重复计算
+    const int yawSteps = static_cast<int>(360.0 / coarseStepDeg) + 1;
+    const int pitchSteps = static_cast<int>(180.0 / coarseStepDeg) + 1;
+    const int rollSteps = static_cast<int>(360.0 / coarseStepDeg) + 1;
+    std::vector<double> yawVals(yawSteps), yawSin(yawSteps), yawCos(yawSteps);
+    std::vector<double> pitchVals(pitchSteps), pitchSin(pitchSteps), pitchCos(pitchSteps);
+    std::vector<double> rollVals(rollSteps), rollSin(rollSteps), rollCos(rollSteps);
+    const double k = 3.14159265358979323846264338327950288 / 180.0;
+    for(int i=0; i<yawSteps; ++i) {
+        yawVals[i] = -180.0 + i * coarseStepDeg;
+        yawSin[i] = sin(yawVals[i] * k);
+        yawCos[i] = cos(yawVals[i] * k);
+    }
+    for(int i=0; i<pitchSteps; ++i) {
+        pitchVals[i] = -90.0 + i * coarseStepDeg;
+        pitchSin[i] = sin(pitchVals[i] * k);
+        pitchCos[i] = cos(pitchVals[i] * k);
+    }
+    for(int i=0; i<rollSteps; ++i) {
+        rollVals[i] = -180.0 + i * coarseStepDeg;
+        rollSin[i] = sin(rollVals[i] * k);
+        rollCos[i] = cos(rollVals[i] * k);
+    }
     double bestYaw = 0,bestPitch = 0,bestRoll = 0;
     double bestVol = std::numeric_limits<double>::infinity();
     OBB tmp;
-    for(double yaw = -180.0; yaw <= 180.0; yaw += coarseStepDeg) {
-        for(double pitch = -90.0; pitch <= 90.0; pitch += coarseStepDeg) {
-            for(double roll = -180.0; roll <= 180.0; roll += coarseStepDeg) {
-                const glm::dmat3 R = makeR(yaw,pitch,roll);
-                const double vol = evalOrientation(R,tmp);
+    for(int iyaw=0; iyaw<yawSteps; ++iyaw) {
+        for(int ipitch=0; ipitch<pitchSteps; ++ipitch) {
+            for(int iroll=0; iroll<rollSteps; ++iroll) {
+                // 用预计算的sin/cos构造四元数
+                double yaw = yawVals[iyaw], pitch = pitchVals[ipitch], roll = rollVals[iroll];
+                double sy = yawSin[iyaw], cy = yawCos[iyaw];
+                double sp = pitchSin[ipitch], cp = pitchCos[ipitch];
+                double sr = rollSin[iroll], cr = rollCos[iroll];
+                // ZYX欧拉角转四元数
+                glm::dquat qz = glm::dquat(cy, 0, 0, sy); // 只近似用于sin/cos复用
+                glm::dquat qy = glm::dquat(cp, 0, sp, 0);
+                glm::dquat qx = glm::dquat(cr, sr, 0, 0);
+                glm::dquat q = qz * qy * qx;
+                glm::dmat3 R = glm::mat3_cast(q);
+                double vol = evalOrientation(R,tmp);
                 if(vol < bestVol) {
                     bestVol = vol; best = tmp; bestYaw = yaw; bestPitch = pitch; bestRoll = roll;
                 }
