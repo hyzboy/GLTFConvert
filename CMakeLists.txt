@@ -18,7 +18,7 @@ add_executable(GLTFConvert
     main.cpp
     VKFormat.h
     AABB.h
-    OBB.h
+    OBB.cpp OBB.h
     PureGLTF.cpp PureGLTF.h
     Importer.cpp Importer.h
     StaticMesh.cpp StaticMesh.h
@@ -32,9 +32,9 @@ add_executable(GLTFConvert
  target_compile_definitions(GLTFConvert PRIVATE GLM_FORCE_DEFAULT_ALIGNED_GENTYPES GLM_FORCE_INTRINSICS)
 # 编译器指令
 if (MSVC)
-    target_compile_options(GLTFConvert PRIVATE /arch:AVX2)
+    target_compile_options(GLTFConvert PRIVATE /arch:AVX2 /fp:fast)
 elseif (CMAKE_CXX_COMPILER_ID MATCHES "Clang" OR CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
-    target_compile_options(GLTFConvert PRIVATE -mavx2)
+    target_compile_options(GLTFConvert PRIVATE -mavx2 -O3 -ffast-math)
 endif()
 
 # Add Vulkan include directories so headers like <vulkan/vulkan.h> are found
