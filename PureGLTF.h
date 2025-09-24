@@ -9,48 +9,11 @@
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/quaternion.hpp>
+#include "AABB.h"
 
 namespace gltf {
 
-struct AABB {
-    glm::dvec3 min{ std::numeric_limits<double>::infinity() };
-    glm::dvec3 max{ -std::numeric_limits<double>::infinity() };
-
-    void reset() {
-        min = { std::numeric_limits<double>::infinity(), std::numeric_limits<double>::infinity(), std::numeric_limits<double>::infinity() };
-        max = { -std::numeric_limits<double>::infinity(), -std::numeric_limits<double>::infinity(), -std::numeric_limits<double>::infinity() };
-    }
-
-    bool empty() const {
-        return !(min.x <= max.x && min.y <= max.y && min.z <= max.z);
-    }
-
-    void include(const glm::dvec3& p) {
-        min = glm::min(min, p);
-        max = glm::max(max, p);
-    }
-
-    void merge(const AABB& other) {
-        if (other.empty()) return;
-        include(other.min);
-        include(other.max);
-    }
-
-    AABB transformed(const glm::dmat4& m) const {
-        if (empty()) return *this;
-        // transform 8 corners and recompute
-        const glm::dvec3 c[8] = {
-            {min.x, min.y, min.z}, {max.x, min.y, min.z}, {min.x, max.y, min.z}, {min.x, min.y, max.z},
-            {max.x, max.y, min.z}, {max.x, min.y, max.z}, {min.x, max.y, max.z}, {max.x, max.y, max.z}
-        };
-        AABB out; out.reset();
-        for (auto& p : c) {
-            glm::dvec4 tp = m * glm::dvec4(p, 1.0);
-            out.include(glm::dvec3(tp));
-        }
-        return out;
-    }
-};
+// struct AABB moved to global namespace in AABB.h
 
 struct Geometry {
     std::string mode; // e.g. TRIANGLES
@@ -71,7 +34,7 @@ struct Geometry {
     // Source glTF indices accessor index (for dedup)
     std::optional<std::size_t> indicesAccessorIndex;
 
-    AABB localAABB; // computed from POSITION if present
+    ::AABB localAABB; // computed from POSITION if present
 };
 
 struct Primitive {
@@ -116,7 +79,7 @@ struct Node {
 struct Scene {
     std::string name;
     std::vector<std::size_t> nodes; // root node indices
-    AABB worldAABB; // computed
+    ::AABB worldAABB; // computed
 };
 
 struct Model {

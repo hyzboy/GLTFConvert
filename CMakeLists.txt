@@ -17,6 +17,7 @@ find_package(Vulkan REQUIRED)
 add_executable(GLTFConvert
     main.cpp
     VKFormat.h
+    AABB.h
     PureGLTF.cpp PureGLTF.h
     Importer.cpp Importer.h
     Exporter.cpp Exporter.h
