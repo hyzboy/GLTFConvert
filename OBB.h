@@ -29,7 +29,7 @@ struct OBB {
     }
 
     bool empty() const {
-        return (halfSize.x <= 0.0) || (halfSize.y <= 0.0) || (halfSize.z <= 0.0);
+        return (halfSize.x <= 0.0) && (halfSize.y <= 0.0) && (halfSize.z <= 0.0);
     }
 
     // Build an OBB from an AABB (axes aligned with world axes)
