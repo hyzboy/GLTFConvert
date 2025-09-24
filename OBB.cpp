@@ -12,7 +12,7 @@ void OBB::reset() {
 }
 
 bool OBB::empty() const {
-    return (halfSize.x <= 0.0) && (halfSize.y <= 0.0) && (halfSize.z <= 0.0);
+    return (halfSize.x <= 0.0) || (halfSize.y <= 0.0) || (halfSize.z <= 0.0);
 }
 
 // Build an OBB from an AABB (axes aligned with world axes)
@@ -124,12 +124,10 @@ OBB OBB::fromPointsMinVolume(const glm::dvec3 *points,size_t count,double coarse
         };
 
     auto evalOrientation = [&](const glm::dmat3 &R,OBB &out) {
-        const glm::dvec3 U = glm::normalize(glm::dvec3(R[0][0],R[1][0],R[2][0]));
-        const glm::dvec3 V = glm::normalize(glm::dvec3(R[0][1],R[1][1],R[2][1]));
-        glm::dvec3 W = glm::cross(U,V);
-        if(glm::dot(W,W) < 1e-30) return std::numeric_limits<double>::infinity();
-        W = glm::normalize(W);
-        if(glm::dot(glm::cross(U,V),W) < 0.0) W = -W;
+        // R is built from a unit quaternion => columns are already orthonormal.
+        const glm::dvec3 U = glm::dvec3(R[0]);
+        const glm::dvec3 V = glm::dvec3(R[1]);
+        const glm::dvec3 W = glm::dvec3(R[2]);
 
         double minU = std::numeric_limits<double>::infinity();
         double maxU = -std::numeric_limits<double>::infinity();
@@ -138,8 +136,8 @@ OBB OBB::fromPointsMinVolume(const glm::dvec3 *points,size_t count,double coarse
         double minW = std::numeric_limits<double>::infinity();
         double maxW = -std::numeric_limits<double>::infinity();
 
-#if defined(__AVX2__)
-        // AVX2 vectorized dot products and min/max
+#if defined(__AVX__)
+        // AVX vectorized dot products and min/max
         const size_t N = count;
         size_t i = 0;
         __m256d minU4 = _mm256_set1_pd(minU),maxU4 = _mm256_set1_pd(maxU);
@@ -190,7 +188,7 @@ OBB OBB::fromPointsMinVolume(const glm::dvec3 *points,size_t count,double coarse
             if(pv < minV) minV = pv; if(pv > maxV) maxV = pv;
             if(pw < minW) minW = pw; if(pw > maxW) maxW = pw;
         }
-#endif // __AVX2__
+#endif // __AVX__
         const double sx = (maxU - minU);
         const double sy = (maxV - minV);
         const double sz = (maxW - minW);
