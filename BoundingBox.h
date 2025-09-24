@@ -10,6 +10,9 @@ struct BoundingSphere {
     bool empty() const { return radius <= 0.0; }
 };
 
+BoundingSphere SphereFromAABB(const AABB &a);
+BoundingSphere SphereFromPoints(const std::vector<glm::dvec3> &pts);
+
 // Combined bounding info holding both an AABB and an OBB in double precision
 struct BoundingBox {
     AABB aabb; // axis-aligned

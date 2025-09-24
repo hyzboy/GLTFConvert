@@ -19,6 +19,7 @@ add_executable(GLTFConvert
     VKFormat.h
     AABB.h
     OBB.cpp OBB.h
+    BoundingBox.h BoundingSphere.cpp
     PureGLTF.cpp PureGLTF.h
     Importer.cpp Importer.h
     StaticMesh.cpp StaticMesh.h
