@@ -54,6 +54,45 @@ static void writeBounds(json& j, const BoundingBox& b)
     j = std::move(out);
 }
 
+// Helper to write all bounds as a single binary file (Bounds.bin)
+static bool WriteAllBoundsBinary(const pure::Model& sm, const std::filesystem::path& dir)
+{
+    std::filesystem::path binPath = dir / "Bounds.bin";
+    std::ofstream ofs(binPath, std::ios::binary);
+    if (!ofs) {
+        std::cerr << "[Export] Cannot open bounds binary: " << binPath << "\n";
+        return false;
+    }
+
+    auto writeVec3 = [&](const glm::dvec3& v) {
+        double d[3] = { v.x, v.y, v.z };
+        ofs.write(reinterpret_cast<const char*>(d), sizeof(d));
+    };
+    auto writeDouble = [&](double d) {
+        ofs.write(reinterpret_cast<const char*>(&d), sizeof(d));
+    };
+
+    // Fixed layout per entry: AABB(min.xyz, max.xyz) + OBB(center.xyz, axisX.xyz, axisY.xyz, axisZ.xyz, halfSize.xyz) + Sphere(center.xyz, radius)
+    for (const auto& b : sm.bounds) {
+        // AABB
+        writeVec3(b.aabb.min);
+        writeVec3(b.aabb.max);
+        // OBB
+        writeVec3(b.obb.center);
+        writeVec3(b.obb.axisX);
+        writeVec3(b.obb.axisY);
+        writeVec3(b.obb.axisZ);
+        writeVec3(b.obb.halfSize);
+        // Sphere
+        writeVec3(b.sphere.center);
+        writeDouble(b.sphere.radius);
+    }
+
+    ofs.close();
+    std::cout << "[Export] Saved: " << binPath << "\n";
+    return true;
+}
+
 bool ExportPureModel(const gltf::Model& model, const std::filesystem::path& outDir) {
     // Convert source glTF model into pure static-mesh model first
     pure::Model sm = pure::ConvertFromGLTF(model);
@@ -78,13 +117,11 @@ bool ExportPureModel(const gltf::Model& model, const std::filesystem::path& outD
     }
     root["materials"] = std::move(materials);
 
-    // Export global bounds pool once
-    json boundsArray = json::array();
-    for (const auto& b : sm.bounds) {
-        json jb; writeBounds(jb, b);
-        boundsArray.push_back(std::move(jb));
+    // Write bounds binary once and only store count in JSON
+    if (!WriteAllBoundsBinary(sm, targetDir)) {
+        std::cerr << "[Export] Failed to write bounds binary." << "\n";
     }
-    root["bounds"] = std::move(boundsArray);
+    root["bounds"] = static_cast<int64_t>(sm.bounds.size());
 
     // scenes
     json scenes = json::array();
