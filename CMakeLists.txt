@@ -17,11 +17,14 @@ find_package(Vulkan REQUIRED)
 add_executable(GLTFConvert
     main.cpp
     VKFormat.h
+    VertexAttrib.h
+    PrimitiveType.h
     AABB.h
     OBB.cpp OBB.h
-    BoundingBox.h BoundingSphere.cpp
+    BoundingBox.h BoundingSphere.cpp   
     PureGLTF.cpp PureGLTF.h
     Importer.cpp Importer.h
+    Geometry.cpp Geometry.h
     StaticMesh.cpp StaticMesh.h
     MeshBounds.cpp MeshBounds.h
     Exporter.cpp Exporter.h

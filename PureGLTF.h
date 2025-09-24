@@ -10,6 +10,9 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/quaternion.hpp>
 #include "AABB.h"
+#include "VKFormat.h"
+#include "VertexAttrib.h"
+#include "PrimitiveType.h"
 
 namespace gltf {
 
@@ -17,11 +20,17 @@ namespace gltf {
 
 struct Geometry {
     std::string mode; // e.g. TRIANGLES
+
+    PrimitiveType primitiveType = PrimitiveType::Triangles;
+
     struct Attribute {
         std::string name;
         std::size_t count = 0;
         std::string componentType; // e.g. FLOAT
         std::string type; // e.g. VEC3
+
+        VkFormat format;
+
         std::vector<std::byte> data; // raw data as-is
         // Source glTF accessor index (for dedup by accessor identity)
         std::optional<std::size_t> accessorIndex;
@@ -31,6 +40,9 @@ struct Geometry {
     // metadata for indices
     std::optional<std::size_t> indexCount; // number of indices
     std::optional<std::string> indexComponentType; // e.g. UNSIGNED_SHORT
+
+    IndexType indexType = IndexType::ERR;
+
     // Source glTF indices accessor index (for dedup)
     std::optional<std::size_t> indicesAccessorIndex;
 

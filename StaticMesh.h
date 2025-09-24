@@ -11,41 +11,14 @@
 
 #include "AABB.h"
 #include "OBB.h"
-#include "BoundingBox.h"
 #include "PureGLTF.h"
+#include "Geometry.h"
 
 namespace pure {
 
-// Invalid index constant for bounds references
-constexpr std::size_t kInvalidBoundsIndex = static_cast<std::size_t>(-1);
 
 struct Material {
     std::string name;
-};
-
-struct GeometryAttribute {
-    int64_t id = 0; // index in the attributes array
-    std::string name;
-    std::size_t count = 0;
-    std::string componentType; // e.g. FLOAT
-    std::string type; // e.g. VEC3
-    std::vector<std::byte> data; // raw attribute data
-};
-
-struct GeometryIndicesMeta {
-    std::size_t count = 0;
-    std::string componentType; // e.g. UNSIGNED_SHORT
-};
-
-struct Geometry {
-    std::string mode; // e.g. TRIANGLES
-    std::vector<GeometryAttribute> attributes; // includes raw data
-    // Index into Model::bounds pool (combined bounding info for this geometry)
-    std::size_t boundsIndex = kInvalidBoundsIndex;
-    std::optional<std::vector<std::byte>> indicesData; // raw index buffer if present
-    std::optional<GeometryIndicesMeta> indices; // metadata only
-    // Optional double-precision decoded POSITION data (local space)
-    std::optional<std::vector<glm::dvec3>> positions; 
 };
 
 struct SubMesh {
