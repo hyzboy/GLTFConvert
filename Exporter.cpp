@@ -130,6 +130,7 @@ bool ExportPureModel(const Model& model, const std::filesystem::path& outDir) {
         }
 
         if (p.indices) {
+            // still write index buffer for consumers, but do not store file name in JSON
             std::filesystem::path binName = std::to_string(i) + ".indices";
             std::filesystem::path binPath = targetDir / binName;
             std::ofstream ofs(binPath, std::ios::binary);
@@ -137,10 +138,19 @@ bool ExportPureModel(const Model& model, const std::filesystem::path& outDir) {
                 ofs.write(reinterpret_cast<const char*>(p.indices->data()), static_cast<std::streamsize>(p.indices->size()));
                 ofs.close();
                 std::cout << "[Export] Saved: " << binPath << "\n";
-                pj["indices_file"] = binName.string();
             } else {
                 std::cerr << "[Export] Write failed: " << binPath << "\n";
             }
+        }
+
+        // export index metadata instead of file name
+        if (p.indexCount && p.indexComponentType) {
+            pj["indices"] = json::object({
+                {"count", static_cast<int64_t>(*p.indexCount)},
+                {"componentType", *p.indexComponentType}
+            });
+        } else {
+            pj["indices"] = nullptr;
         }
 
         primitives.push_back(std::move(pj));

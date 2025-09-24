@@ -171,6 +171,8 @@ bool ImportFastGLTF(const std::filesystem::path& inputPath, puregltf::Model& out
                 std::vector<std::byte> buf;
                 if (CopyAccessorToBytes(asset, acc, buf)) {
                     p.indices = std::move(buf);
+                    p.indexCount = acc.count;
+                    p.indexComponentType = ComponentTypeToString(acc.componentType);
                 }
             }
 

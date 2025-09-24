@@ -63,6 +63,9 @@ struct Primitive {
     };
     std::vector<Attribute> attributes;
     std::optional<std::vector<std::byte>> indices;
+    // metadata for indices
+    std::optional<std::size_t> indexCount; // number of indices
+    std::optional<std::string> indexComponentType; // e.g. UNSIGNED_SHORT
 
     AABB localAABB; // computed from POSITION if present
 };
