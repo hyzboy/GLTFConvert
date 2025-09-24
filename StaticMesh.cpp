@@ -60,9 +60,15 @@ Model ConvertFromGLTF(const gltf::Model& src) {
         if (n.hasMatrix) {
             pn.matrix = n.matrix;
         } else {
-            MeshNodeTransform tf; tf.translation = n.translation; tf.rotation = n.rotation; tf.scale = n.scale; pn.transform = tf;
+            // restore TRS into float-based transform
+            MeshNodeTransform tf;
+            tf.translation = glm::vec3(n.translation);
+            tf.rotation = glm::quat(n.rotation);
+            tf.scale = glm::vec3(n.scale);
+            pn.transform = tf;
         }
-        pn.world_matrix = n.worldMatrix;
+        // convert double-precision world matrix to float for storage
+        pn.world_matrix = glm::mat4(n.worldMatrix);
         dst.mesh_nodes.push_back(std::move(pn));
     }
 
@@ -134,6 +140,22 @@ Model ConvertFromGLTF(const gltf::Model& src) {
             pn.subMeshes.reserve(mesh.primitives.size());
             for (auto primIndex : mesh.primitives) {
                 pn.subMeshes.push_back(static_cast<std::size_t>(primIndex)); // index into global subMeshes
+            }
+        }
+    }
+
+    // Compute per-node world-space AABB from attached subMeshes and node world_matrix
+    for (std::size_t ni = 0; ni < dst.mesh_nodes.size(); ++ni) {
+        auto& pn = dst.mesh_nodes[ni];
+        pn.aabb.reset();
+        if (pn.subMeshes.empty()) continue;
+        const glm::dmat4 world = glm::dmat4(pn.world_matrix);
+        for (auto smIndex : pn.subMeshes) {
+            const auto& sm = dst.subMeshes[smIndex];
+            if (sm.geometry == static_cast<std::size_t>(-1)) continue;
+            const auto& g = dst.geometry[sm.geometry];
+            if (!g.aabb.empty()) {
+                pn.aabb.merge(g.aabb.transformed(world));
             }
         }
     }

@@ -45,10 +45,11 @@ struct SubMesh {
     std::optional<std::size_t> material; // index into Model::materials or null
 };
 
+// Restore TRS-based transform representation (float for real-time use)
 struct MeshNodeTransform {
-    glm::dvec3 translation{0.0};
-    glm::dquat rotation{1.0, 0.0, 0.0, 0.0}; // w,x,y,z
-    glm::dvec3 scale{1.0};
+    glm::vec3 translation{0.0f};
+    glm::quat rotation{1.0f, 0.0f, 0.0f, 0.0f}; // w,x,y,z
+    glm::vec3 scale{1.0f};
 };
 
 struct MeshNode {
@@ -57,9 +58,11 @@ struct MeshNode {
 
     std::optional<glm::dmat4> matrix; // when hasMatrix in the source
     std::optional<MeshNodeTransform> transform; // when using TRS in the source
-    glm::dmat4 world_matrix{1.0};
+    glm::mat4 world_matrix{1.0f};
 
     std::vector<std::size_t> subMeshes; // indices into Model::subMeshes
+
+    ::AABB aabb; // world-space AABB for this node (empty if no geometry)
 };
 
 struct Scene {
