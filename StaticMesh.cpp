@@ -68,7 +68,7 @@ Model ConvertFromGLTF(const gltf::Model& src) {
     // scenes with aabb (scene OBB filled later after nodes computed)
     dst.scenes.reserve(src.scenes.size());
     for (const auto& s : src.scenes) {
-        pure::Scene ps; ps.name = s.name; ps.nodes = s.nodes; ps.aabb = s.worldAABB; /*ps.obb stays empty*/ dst.scenes.push_back(std::move(ps));
+        pure::Scene ps; ps.name = s.name; ps.nodes = s.nodes; ps.bounds.aabb = s.worldAABB; /*ps.bounds.obb stays empty*/ dst.scenes.push_back(std::move(ps));
     }
 
     // mesh_nodes (nodes) copy + world matrices
@@ -131,17 +131,17 @@ Model ConvertFromGLTF(const gltf::Model& src) {
             ga.data = a.data; // copy binary
             pg.attributes.push_back(std::move(ga));
         }
-        pg.aabb = g.localAABB;
+        pg.bounds.aabb = g.localAABB;
 
         // Compute and store local-space positions (double) if available, and compute OBB (decode ONCE per unique geometry)
         {
             std::vector<glm::dvec3> pos;
             if (TryDecodePositionsAsDVec3(g, pos) && !pos.empty()) {
                 pg.positions = pos; // cache in Geometry
-                pg.obb = OBB::fromPointsMinVolume(pos);
+                pg.bounds.obb = OBB::fromPointsMinVolume(pos);
             } else {
                 pg.positions.reset();
-                pg.obb.reset();
+                pg.bounds.obb.reset();
             }
         }
 
@@ -180,8 +180,8 @@ Model ConvertFromGLTF(const gltf::Model& src) {
     // Compute per-node world-space AABB and OBB from attached subMeshes and node world_matrix
     for (std::size_t ni = 0; ni < dst.mesh_nodes.size(); ++ni) {
         auto& pn = dst.mesh_nodes[ni];
-        pn.aabb.reset();
-        pn.obb.reset();
+        pn.bounds.aabb.reset();
+        pn.bounds.obb.reset();
         if (pn.subMeshes.empty()) continue;
         const glm::dmat4 world = glm::dmat4(pn.world_matrix);
 
@@ -190,8 +190,8 @@ Model ConvertFromGLTF(const gltf::Model& src) {
             const auto& sm = dst.subMeshes[smIndex];
             if (sm.geometry == static_cast<std::size_t>(-1)) continue;
             const auto& g = dst.geometry[sm.geometry];
-            if (!g.aabb.empty()) {
-                pn.aabb.merge(g.aabb.transformed(world));
+            if (!g.bounds.aabb.empty()) {
+                pn.bounds.aabb.merge(g.bounds.aabb.transformed(world));
             }
             // collect transformed positions using cached positions
             if (g.positions && !g.positions->empty()) {
@@ -202,14 +202,14 @@ Model ConvertFromGLTF(const gltf::Model& src) {
             }
         }
         if (!worldPoints.empty()) {
-            pn.obb = OBB::fromPointsMinVolume(worldPoints);
+            pn.bounds.obb = OBB::fromPointsMinVolume(worldPoints);
         }
     }
 
     // Compute per-scene OBB from all world-space points under its nodes
     for (std::size_t si = 0; si < dst.scenes.size(); ++si) {
         auto& sc = dst.scenes[si];
-        sc.obb.reset();
+        sc.bounds.obb.reset();
         std::vector<glm::dvec3> scenePts; scenePts.reserve(4096);
 
         // traverse nodes of scene and gather each node's world-space points again
@@ -235,7 +235,7 @@ Model ConvertFromGLTF(const gltf::Model& src) {
             }
             for (auto c : node.children) stack.push_back(c);
         }
-        if (!scenePts.empty()) sc.obb = OBB::fromPointsMinVolume(scenePts);
+        if (!scenePts.empty()) sc.bounds.obb = OBB::fromPointsMinVolume(scenePts);
     }
 
     return dst;

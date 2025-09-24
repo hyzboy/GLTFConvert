@@ -15,6 +15,37 @@ static std::string stem_noext(const std::filesystem::path& p) {
     return p.stem().string();
 }
 
+static void writeOBB(json& j, const ::OBB& obb)
+{
+    j = json::object({
+        {"center", json::array({obb.center.x, obb.center.y, obb.center.z})},
+        {"axisX", json::array({obb.axisX.x, obb.axisX.y, obb.axisX.z})},
+        {"axisY", json::array({obb.axisY.x, obb.axisY.y, obb.axisY.z})},
+        {"axisZ", json::array({obb.axisZ.x, obb.axisZ.y, obb.axisZ.z})},
+        {"halfSize", json::array({obb.halfSize.x, obb.halfSize.y, obb.halfSize.z})}
+    });
+}
+
+static void writeBounds(json& j, const BoundingBox& b)
+{
+    json out = json::object();
+    if (!b.aabb.empty()) {
+        out["aabb"] = json::object({
+            {"min", json::array({b.aabb.min.x, b.aabb.min.y, b.aabb.min.z})},
+            {"max", json::array({b.aabb.max.x, b.aabb.max.y, b.aabb.max.z})}
+        });
+    } else {
+        out["aabb"] = nullptr;
+    }
+    if (!b.obb.empty()) {
+        json jobb; writeOBB(jobb, b.obb);
+        out["obb"] = std::move(jobb);
+    } else {
+        out["obb"] = nullptr;
+    }
+    j = std::move(out);
+}
+
 bool ExportPureModel(const gltf::Model& model, const std::filesystem::path& outDir) {
     // Convert source glTF model into pure static-mesh model first
     pure::Model sm = pure::ConvertFromGLTF(model);
@@ -29,18 +60,6 @@ bool ExportPureModel(const gltf::Model& model, const std::filesystem::path& outD
 
     json root = json::object();
     root["gltf_source"] = sm.gltf_source;
-
-    auto writeOBB = [](json& j, const ::OBB& obb)
-    {
-        // Write center, axes, halfSize
-        j = json::object({
-            {"center", json::array({obb.center.x, obb.center.y, obb.center.z})},
-            {"axisX", json::array({obb.axisX.x, obb.axisX.y, obb.axisX.z})},
-            {"axisY", json::array({obb.axisY.x, obb.axisY.y, obb.axisY.z})},
-            {"axisZ", json::array({obb.axisZ.x, obb.axisZ.y, obb.axisZ.z})},
-            {"halfSize", json::array({obb.halfSize.x, obb.halfSize.y, obb.halfSize.z})}
-        });
-    };
 
     // materials (names only for now)
     json materials = json::array();
@@ -59,21 +78,9 @@ bool ExportPureModel(const gltf::Model& model, const std::filesystem::path& outD
         json ns = json::array();
         for (auto n : sc.nodes) ns.push_back(static_cast<int64_t>(n));
         s["nodes"] = std::move(ns);
-        if (!sc.aabb.empty()) {
-            s["aabb"] = json::object({
-                {"min", json::array({sc.aabb.min.x, sc.aabb.min.y, sc.aabb.min.z})},
-                {"max", json::array({sc.aabb.max.x, sc.aabb.max.y, sc.aabb.max.z})}
-            });
-        } else {
-            s["aabb"] = nullptr;
-        }
 
-        if(!sc.obb.empty())
-        {
-            json jobb;
-            writeOBB(jobb, sc.obb);
-            s["obb"] = std::move(jobb);
-        }
+        json jb; writeBounds(jb, sc.bounds);
+        s["bounds"] = std::move(jb);
 
         scenes.push_back(std::move(s));
     }
@@ -117,22 +124,8 @@ bool ExportPureModel(const gltf::Model& model, const std::filesystem::path& outD
         for (auto primIndex : n.subMeshes) sms.push_back(static_cast<int64_t>(primIndex));
         j["subMeshes"] = std::move(sms);
 
-        // AABB and OBB
-        if (!n.aabb.empty()) {
-            j["aabb"] = json::object({
-                {"min", json::array({n.aabb.min.x, n.aabb.min.y, n.aabb.min.z})},
-                {"max", json::array({n.aabb.max.x, n.aabb.max.y, n.aabb.max.z})}
-            });
-        } else {
-            j["aabb"] = nullptr;
-        }
-
-        if(!n.obb.empty())
-        {
-            json jobb;
-            writeOBB(jobb, n.obb);
-            j["obb"] = std::move(jobb);
-        }
+        json jb; writeBounds(jb, n.bounds);
+        j["bounds"] = std::move(jb);
 
         meshNodes.push_back(std::move(j));
     }
@@ -170,21 +163,8 @@ bool ExportPureModel(const gltf::Model& model, const std::filesystem::path& outD
         }
         pj["attributes"] = std::move(attrs);
 
-        if (!g.aabb.empty()) {
-            pj["aabb"] = json::object({
-                {"min", json::array({g.aabb.min.x, g.aabb.min.y, g.aabb.min.z})},
-                {"max", json::array({g.aabb.max.x, g.aabb.max.y, g.aabb.max.z})}
-            });
-        } else {
-            pj["aabb"] = nullptr;
-        }
-
-        if(!g.obb.empty())
-        {
-            json jobb;
-            writeOBB(jobb, g.obb);
-            pj["obb"] = std::move(jobb);
-        }
+        json jb; writeBounds(jb, g.bounds);
+        pj["bounds"] = std::move(jb);
 
         if (g.indicesData.has_value()) {
             // write index buffer for consumers, but do not store file name in JSON
