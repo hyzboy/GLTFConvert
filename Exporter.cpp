@@ -4,8 +4,11 @@
 #include <fstream>
 #include <iostream>
 #include <algorithm>
+#include <cstdio>
 
 #include "StaticMesh.h"
+#include "VKFormat.h"
+#include "VertexAttrib.h"
 
 using nlohmann::json;
 
@@ -13,6 +16,52 @@ namespace exporters {
 
 static std::string stem_noext(const std::filesystem::path& p) {
     return p.stem().string();
+}
+
+static const char* VkFormatToString(VkFormat f) {
+    switch (f) {
+        case VK_FORMAT_UNDEFINED: return "VK_FORMAT_UNDEFINED";
+        case VK_FORMAT_R8_UNORM: return "VK_FORMAT_R8_UNORM";
+        case VK_FORMAT_R8_SNORM: return "VK_FORMAT_R8_SNORM";
+        case VK_FORMAT_R8_UINT: return "VK_FORMAT_R8_UINT";
+        case VK_FORMAT_R8_SINT: return "VK_FORMAT_R8_SINT";
+        case VK_FORMAT_R16_UNORM: return "VK_FORMAT_R16_UNORM";
+        case VK_FORMAT_R16_SINT: return "VK_FORMAT_R16_SINT";
+        case VK_FORMAT_R16_UINT: return "VK_FORMAT_R16_UINT";
+        case VK_FORMAT_R16_SFLOAT: return "VK_FORMAT_R16_SFLOAT";
+        case VK_FORMAT_R32_UINT: return "VK_FORMAT_R32_UINT";
+        case VK_FORMAT_R32_SINT: return "VK_FORMAT_R32_SINT";
+        case VK_FORMAT_R32_SFLOAT: return "VK_FORMAT_R32_SFLOAT";
+        case VK_FORMAT_R32G32_SFLOAT: return "VK_FORMAT_R32G32_SFLOAT";
+        case VK_FORMAT_R32G32B32_SFLOAT: return "VK_FORMAT_R32G32B32_SFLOAT";
+        case VK_FORMAT_R32G32B32A32_SFLOAT: return "VK_FORMAT_R32G32B32A32_SFLOAT";
+        case VK_FORMAT_R64_SFLOAT: return "VK_FORMAT_R64_SFLOAT";
+        case VK_FORMAT_R64G64_SFLOAT: return "VK_FORMAT_R64G64_SFLOAT";
+        case VK_FORMAT_R64G64B64_SFLOAT: return "VK_FORMAT_R64G64B64_SFLOAT";
+        case VK_FORMAT_R64G64B64A64_SFLOAT: return "VK_FORMAT_R64G64B64A64_SFLOAT";
+        case VK_FORMAT_R8G8_UNORM: return "VK_FORMAT_R8G8_UNORM";
+        case VK_FORMAT_R8G8B8A8_UNORM: return "VK_FORMAT_R8G8B8A8_UNORM";
+        case VK_FORMAT_B8G8R8A8_UNORM: return "VK_FORMAT_B8G8R8A8_UNORM";
+        case VK_FORMAT_R16G16_SFLOAT: return "VK_FORMAT_R16G16_SFLOAT";
+        case VK_FORMAT_R16G16B16A16_SFLOAT: return "VK_FORMAT_R16G16B16A16_SFLOAT";
+        // add more cases as needed
+        default: {
+            static thread_local char buf[64];
+            std::snprintf(buf, sizeof(buf), "VkFormat(%d)", static_cast<int>(f));
+            return buf;
+        }
+    }
+}
+
+static std::string IndexTypeToString(IndexType it) {
+    switch (it) {
+        case AUTO: return "AUTO";
+        case U16: return "U16";
+        case U32: return "U32";
+        case U8: return "U8";
+        case ERR: return "ERR";
+        default: return std::to_string(static_cast<int>(it));
+    }
 }
 
 static void writeOBB(json& j, const ::OBB& obb)
@@ -226,7 +275,8 @@ bool ExportPureModel(const gltf::Model& model, const std::filesystem::path& outD
                 {"name", a.name},
                 {"count", static_cast<int64_t>(a.count)},
                 {"componentType", a.componentType},
-                {"type", a.type}
+                {"type", a.type},
+                {"format", VkFormatToString(a.format)}
             });
             attrs.push_back(std::move(aj));
         }
@@ -254,7 +304,8 @@ bool ExportPureModel(const gltf::Model& model, const std::filesystem::path& outD
         if (g.indices.has_value()) {
             pj["indices"] = json::object({
                 {"count", static_cast<int64_t>(g.indices->count)},
-                {"componentType", g.indices->componentType}
+                {"componentType", g.indices->componentType},
+                {"indexType", IndexTypeToString(g.indices->indexType)}
             });
         } else {
             pj["indices"] = nullptr;

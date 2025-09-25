@@ -175,6 +175,7 @@ Model ConvertFromGLTF(const gltf::Model& src) {
             ga.count = a.count;
             ga.componentType = a.componentType;
             ga.type = a.type;
+            ga.format = a.format;
             ga.data = a.data; // copy binary
             pg.attributes.push_back(std::move(ga));
         }
@@ -187,6 +188,8 @@ Model ConvertFromGLTF(const gltf::Model& src) {
         }
         if (g.indexCount && g.indexComponentType) {
             pg.indices = pure::GeometryIndicesMeta{ *g.indexCount, *g.indexComponentType };
+
+            pg.indices->indexType = g.indexType;
         }
         dst.geometry.push_back(std::move(pg));
     }
