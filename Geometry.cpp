@@ -1,15 +1,15 @@
-#include"Geometry.h"
+﻿#include"Geometry.h"
 #include<fstream>
+#include<iostream>
 
 namespace pure
 {
-    constexpr const char GeometryFileMagic[] = "Geo\x1A";
+    constexpr const char GeometryFileMagic[] = "Geometry\x1A";
     constexpr const size_t GeometryFileMagicBytes=sizeof(GeometryFileMagic)-1;
 
 #pragma pack(push,1)
     struct GeometryFileHeader
     {
-        char magic[4];           // "Geo\x1A"
         uint16_t version;        // 1
         uint8_t  primitiveType;  // PrimitiveType as uint8_t
         uint32_t vertexCount;    // Number of vertices
@@ -23,11 +23,14 @@ namespace pure
         std::ofstream ofs(filename,std::ios::binary);
 
         if(!ofs)
+        {
+            std::cerr<<"Error: Cannot open file "<<filename<<" for writing."<<std::endl;
             return false;
+        }
+
+        ofs.write(GeometryFileMagic,GeometryFileMagicBytes);
 
         GeometryFileHeader header;
-
-        memcpy(header.magic,GeometryFileMagic,GeometryFileMagicBytes);
 
         header.version = 1;
 
@@ -37,8 +40,6 @@ namespace pure
         header.attributeCount   = static_cast<uint8_t >(geometry.attributes.size());
 
         ofs.write((char *)&header,sizeof(GeometryFileHeader));
-        
-
 
         const uint8_t attributeCount = static_cast<uint8_t>(geometry.attributes.size());
 
@@ -51,6 +52,15 @@ namespace pure
         {
             attribute_format[i] = static_cast<uint8_t>(geometry.attributes[i].format);
             attribute_name_length[i] = static_cast<uint8_t>(geometry.attributes[i].name.size());
+
+            if(geometry.attributes[i].count != header.vertexCount)
+            {
+                delete[] attribute_format;
+                delete[] attribute_name_length;
+
+                std::cerr<<"Error: Attribute count mismatch in attribute "<<geometry.attributes[i].name<<std::endl;
+                return false;
+            }
         }
 
         ofs.write(reinterpret_cast<const char *>(attribute_format),attributeCount);
@@ -71,6 +81,13 @@ namespace pure
             if(stride*header.vertexCount==attr.data.size())
             {
                 ofs.write((char *)attr.data.data(),attr.data.size());
+            }
+            else
+            {
+                delete[] attribute_format;
+                delete[] attribute_name_length;
+                std::cerr<<"Error: Attribute data size mismatch in attribute "<<attr.name<<std::endl;
+                return false;
             }
         }
 
