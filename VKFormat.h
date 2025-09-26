@@ -475,3 +475,27 @@ constexpr const char *VulkanBaseTypeName[]
     "SFLOAT",
     "SRGB"
 };//
+
+
+struct VulkanFormat
+{
+    VkFormat            format;         ///<Vulkan格式，此值保留仅为参考
+
+    uint32_t            bytes;          ///<每象素字节数
+
+    char                name[16];       ///<名称
+
+    TextureCompressType compress_type;  ///<压缩类型
+    VulkanBaseType      color;          ///<颜色数据类型
+    VulkanBaseType      depth,stencil;  ///<是否含有depth,stencil数据
+};
+
+const VulkanFormat *GetVulkanFormat(const VkFormat &format);
+const VulkanFormat *GetVulkanFormatList(uint32_t &);
+
+inline uint32_t GetStrideByFormat(const VkFormat &format)
+{
+    const VulkanFormat *vcf = GetVulkanFormat(format);
+
+    return (vcf ? vcf->bytes : 0);
+}

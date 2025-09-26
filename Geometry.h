@@ -45,4 +45,6 @@ namespace pure
         // Optional double-precision decoded POSITION data (local space)
         std::optional<std::vector<glm::dvec3>> positions;
     };
+
+    bool SaveGeometry(const Geometry &geometry,const std::string &filename);
 }//namespace pure

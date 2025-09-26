@@ -9,19 +9,22 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 find_package(glm REQUIRED)
 find_package(fastgltf REQUIRED)
 find_package(nlohmann_json REQUIRED)
+find_path(V_HACD_INCLUDE_DIRS "VHACD.h")
 
 # Find Vulkan SDK (headers only; we won't link the library)
 find_package(Vulkan REQUIRED)
 
+include_directories(${V_HACD_INCLUDE_DIRS})
+
 # Add executable (include new modules for pure glTF data, importer and exporter)
 add_executable(GLTFConvert
     main.cpp
-    VKFormat.h
+    VKFormat.cpp VKFormat.h
     VertexAttrib.h
     PrimitiveType.h
     AABB.h
     OBB.cpp OBB.h
-    BoundingBox.h BoundingSphere.cpp   
+    BoundingBox.h BoundingSphere.cpp
     PureGLTF.cpp PureGLTF.h
     Importer.cpp Importer.h
     Geometry.cpp Geometry.h
