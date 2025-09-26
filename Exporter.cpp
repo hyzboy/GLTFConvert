@@ -1,4 +1,4 @@
-#include "Exporter.h"
+﻿#include "Exporter.h"
 
 #include <nlohmann/json.hpp>
 #include <fstream>
@@ -254,6 +254,16 @@ bool ExportPureModel(const gltf::Model& model, const std::filesystem::path& outD
 
     for (std::size_t u = 0; u < sm.geometry.size(); ++u) {
         const auto& g = sm.geometry[u];
+
+        {
+            std::filesystem::path binName = std::to_string(u) + ".geometry";
+            std::filesystem::path binPath = targetDir / binName;
+
+            if (!pure::SaveGeometry(g, binPath.string())) {
+                std::cerr << "[Export] Failed to write geometry binary: " << binPath << "\n";
+            }
+        }
+
         json pj = json::object();
         pj["mode"] = g.mode;
         json attrs = json::array();
