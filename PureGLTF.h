@@ -109,8 +109,6 @@ struct Model {
     void computeWorldMatrices();
     // compute per-scene AABBs using node world matrices and primitive localAABBs
     void computeSceneAABBs();
-    // Apply global basis change to Z-up (rotate +90deg around X) to all nodes, then recompute derived data
-    void convertToZUp();
 };
 
 } // namespace gltf

@@ -23,3 +23,64 @@ BoundingSphere SphereFromPoints(const std::vector<glm::dvec3> &pts) {
     s.radius = r;
     return s;
 }
+
+void Write(std::ostream &ofs,const BoundingBox &bounds)
+{
+    {
+        float fmin[3];
+        float fmax[3];
+        fmin[0] = static_cast<float>(bounds.aabb.min.x);
+        fmin[1] = static_cast<float>(bounds.aabb.min.y);
+        fmin[2] = static_cast<float>(bounds.aabb.min.z);
+        fmax[0] = static_cast<float>(bounds.aabb.max.x);
+        fmax[1] = static_cast<float>(bounds.aabb.max.y);
+        fmax[2] = static_cast<float>(bounds.aabb.max.z);
+        ofs.write(reinterpret_cast<const char *>(fmin),sizeof(fmin));
+        ofs.write(reinterpret_cast<const char *>(fmax),sizeof(fmax));
+    }
+
+    {
+        float center[3];
+        float axisX[3];
+        float axisY[3];
+        float axisZ[3];
+        float halfSize[3];
+
+        center[0] = static_cast<float>(bounds.obb.center.x);
+        center[1] = static_cast<float>(bounds.obb.center.y);
+        center[2] = static_cast<float>(bounds.obb.center.z);
+
+        axisX[0] = static_cast<float>(bounds.obb.axisX.x);
+        axisX[1] = static_cast<float>(bounds.obb.axisX.y);
+        axisX[2] = static_cast<float>(bounds.obb.axisX.z);
+
+        axisY[0] = static_cast<float>(bounds.obb.axisY.x);
+        axisY[1] = static_cast<float>(bounds.obb.axisY.y);
+        axisY[2] = static_cast<float>(bounds.obb.axisY.z);
+
+        axisZ[0] = static_cast<float>(bounds.obb.axisZ.x);
+        axisZ[1] = static_cast<float>(bounds.obb.axisZ.y);
+        axisZ[2] = static_cast<float>(bounds.obb.axisZ.z);
+
+        halfSize[0] = static_cast<float>(bounds.obb.halfSize.x);
+        halfSize[1] = static_cast<float>(bounds.obb.halfSize.y);
+        halfSize[2] = static_cast<float>(bounds.obb.halfSize.z);
+
+        ofs.write(reinterpret_cast<const char *>(center),sizeof(center));
+        ofs.write(reinterpret_cast<const char *>(axisX),sizeof(axisX));
+        ofs.write(reinterpret_cast<const char *>(axisY),sizeof(axisY));
+        ofs.write(reinterpret_cast<const char *>(axisZ),sizeof(axisZ));
+        ofs.write(reinterpret_cast<const char *>(halfSize),sizeof(halfSize));
+    }
+
+    {
+        float center[3];
+        float radius;
+        center[0] = static_cast<float>(bounds.sphere.center.x);
+        center[1] = static_cast<float>(bounds.sphere.center.y);
+        center[2] = static_cast<float>(bounds.sphere.center.z);
+        radius = static_cast<float>(bounds.sphere.radius);
+        ofs.write(reinterpret_cast<const char *>(center),sizeof(center));
+        ofs.write(reinterpret_cast<const char *>(&radius),sizeof(radius));
+    }
+}

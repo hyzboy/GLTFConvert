@@ -259,7 +259,10 @@ bool ExportPureModel(const gltf::Model& model, const std::filesystem::path& outD
             std::filesystem::path binName = std::to_string(u) + ".geometry";
             std::filesystem::path binPath = targetDir / binName;
 
-            if (!pure::SaveGeometry(g, binPath.string())) {
+            const BoundingBox &geo_bounds = (g.boundsIndex != pure::kInvalidBoundsIndex) ? sm.bounds[g.boundsIndex] : BoundingBox{};
+
+            if (!pure::SaveGeometry(g, geo_bounds, binPath.string()))
+            {
                 std::cerr << "[Export] Failed to write geometry binary: " << binPath << "\n";
             }
         }

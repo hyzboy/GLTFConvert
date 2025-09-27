@@ -46,5 +46,5 @@ namespace pure
         std::optional<std::vector<glm::dvec3>> positions;
     };
 
-    bool SaveGeometry(const Geometry &geometry,const std::string &filename);
+    bool SaveGeometry(const Geometry &geometry,const BoundingBox &,const std::string &filename);
 }//namespace pure

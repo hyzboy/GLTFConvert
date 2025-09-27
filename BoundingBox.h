@@ -2,6 +2,7 @@
 
 #include "AABB.h"
 #include "OBB.h"
+#include <ostream>
 
 struct BoundingSphere {
     glm::dvec3 center{0.0};
@@ -29,3 +30,5 @@ struct BoundingBox {
     bool emptyOBB()  const { return obb.empty(); }
     bool emptySphere() const { return sphere.empty(); }
 };
+
+void Write(std::ostream &os,const BoundingBox &b);

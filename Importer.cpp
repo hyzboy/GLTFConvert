@@ -340,7 +340,8 @@ bool ImportFastGLTF(const std::filesystem::path& inputPath, gltf::Model& outMode
     }
 
     // compute derived data
-    outModel.convertToZUp();
+    outModel.computeWorldMatrices();
+    outModel.computeSceneAABBs();
 
     return true;
 }
