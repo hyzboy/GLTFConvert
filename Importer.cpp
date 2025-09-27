@@ -182,7 +182,7 @@ static bool CopyAccessorToBytes(const fastgltf::Asset& asset, const fastgltf::Ac
     return ok;
 }
 
-// ---- Math helpers ----------------------------------------------------------
+// ---- Math/helpers & orientation change ------------------------------------
 static std::optional<std::pair<glm::dvec3, glm::dvec3>> ComputeAABBFromAccessorFloat(const fastgltf::Asset& asset, const fastgltf::Accessor& acc) {
     if (acc.type != fastgltf::AccessorType::Vec3) return std::nullopt;
     if (acc.componentType != fastgltf::ComponentType::Float && acc.componentType != fastgltf::ComponentType::Double)
@@ -206,6 +206,98 @@ static std::optional<std::pair<glm::dvec3, glm::dvec3>> ComputeAABBFromAccessorF
     }
     if (!any) return std::nullopt;
     return std::make_pair(mn, mx);
+}
+
+// Rotate Y-up to Z-up: x' = x, y' = -z, z' = y
+inline void RotateYUpToZUp(float& x, float& y, float& z) {
+    float nx = x;
+    float ny = -z;
+    float nz = y;
+    x = nx; y = ny; z = nz;
+}
+inline void RotateYUpToZUp(double& x, double& y, double& z) {
+    double nx = x;
+    double ny = -z;
+    double nz = y;
+    x = nx; y = ny; z = nz;
+}
+
+static void ApplyYUpToZUp(Model& model) {
+    // Rotation matrix for bounds
+    glm::dmat4 rot(1.0);
+    rot = glm::rotate(rot, glm::radians(90.0), glm::dvec3(1.0, 0.0, 0.0));
+
+    for (auto& prim : model.primitives) {
+        auto& geom = prim.geometry;
+        // Transform attributes
+        for (auto& attr : geom.attributes) {
+            const std::string& name = attr.name;
+            // POSITION / NORMAL / TANGENT / BITANGENT
+            if (name == "POSITION" || name == "NORMAL" || name == "TANGENT" || name == "BITANGENT") {
+                if (attr.data.empty() || attr.count == 0) continue;
+
+                if (name == "TANGENT") {
+                    // Expect vec4: rotate xyz, keep w
+                    if (attr.format == PF_RGBA32F) {
+                        float* f = reinterpret_cast<float*>(attr.data.data());
+                        for (std::size_t i = 0; i < attr.count; ++i) {
+                            float& x = f[i * 4 + 0];
+                            float& y = f[i * 4 + 1];
+                            float& z = f[i * 4 + 2];
+                            // w = f[i*4+3];
+                            RotateYUpToZUp(x, y, z);
+                        }
+                    } else if (attr.format == PF_RGBA64F) {
+                        double* d = reinterpret_cast<double*>(attr.data.data());
+                        for (std::size_t i = 0; i < attr.count; ++i) {
+                            double& x = d[i * 4 + 0];
+                            double& y = d[i * 4 + 1];
+                            double& z = d[i * 4 + 2];
+                            RotateYUpToZUp(x, y, z);
+                        }
+                    }
+                } else if (name == "POSITION" || name == "NORMAL" || name == "BITANGENT") {
+                    // Expect vec3
+                    if (attr.format == PF_RGB32F) {
+                        float* f = reinterpret_cast<float*>(attr.data.data());
+                        for (std::size_t i = 0; i < attr.count; ++i) {
+                            float& x = f[i * 3 + 0];
+                            float& y = f[i * 3 + 1];
+                            float& z = f[i * 3 + 2];
+                            RotateYUpToZUp(x, y, z);
+                        }
+                    } else if (attr.format == PF_RGB64F) {
+                        double* d = reinterpret_cast<double*>(attr.data.data());
+                        for (std::size_t i = 0; i < attr.count; ++i) {
+                            double& x = d[i * 3 + 0];
+                            double& y = d[i * 3 + 1];
+                            double& z = d[i * 3 + 2];
+                            RotateYUpToZUp(x, y, z);
+                        }
+                    }
+                }
+            }
+        }
+
+        // Transform local AABB if available
+        if (!geom.localAABB.empty()) {
+            geom.localAABB = geom.localAABB.transformed(rot);
+        }
+    }
+}
+
+// Adjust all node local transforms M -> R * M * R^-1 so that geometry (already rotated by R) composes correctly
+static void ApplyYUpToZUpNodeTransforms(Model& model) {
+    glm::dmat4 R(1.0);
+    R = glm::rotate(R, glm::radians(90.0), glm::dvec3(1.0, 0.0, 0.0));
+    glm::dmat4 Rinv = glm::transpose(R); // orthonormal rotation
+
+    for (auto& n : model.nodes) {
+        glm::dmat4 local = n.localMatrix();
+        glm::dmat4 converted = R * local * Rinv;
+        n.hasMatrix = true;
+        n.matrix = converted;
+    }
 }
 
 // ---- Import helpers --------------------------------------------------------
@@ -364,8 +456,16 @@ bool ImportFastGLTF(const std::filesystem::path& inputPath, gltf::Model& outMode
     ImportNodes(asset, outModel);
     ImportScenes(asset, outModel);
 
+    // Adjust node local transforms for Y-up -> Z-up before computing world matrices
+    ApplyYUpToZUpNodeTransforms(outModel);
+
     // compute derived data
     outModel.computeWorldMatrices();
+
+    // Convert geometry data from Y-up to Z-up (positions/normals/tangent/bitangent) and update local bounds
+    ApplyYUpToZUp(outModel);
+
+    // Recompute scene AABBs after orientation change
     outModel.computeSceneAABBs();
 
     return true;
