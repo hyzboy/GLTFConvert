@@ -4,11 +4,14 @@
 #include <fastgltf/tools.hpp>
 #include <iostream>
 #include <fstream>
+#include <cstring>
 
 using namespace gltf;
 
 namespace importers {
 
+namespace {
+// ---- Conversions -----------------------------------------------------------
 static std::string ModeToString(fastgltf::PrimitiveType t) {
     switch (t) {
         case fastgltf::PrimitiveType::Points: return "POINTS";
@@ -139,6 +142,7 @@ static VkFormat AccessorTypeToVkFormat(fastgltf::AccessorType at, fastgltf::Comp
     return PF_UNDEFINED;
 }
 
+// ---- Buffer helpers --------------------------------------------------------
 static bool CopyAccessorToBytes(const fastgltf::Asset& asset, const fastgltf::Accessor& accessor, std::vector<std::byte>& out)
 {
     if (!accessor.bufferViewIndex) return false;
@@ -178,6 +182,7 @@ static bool CopyAccessorToBytes(const fastgltf::Asset& asset, const fastgltf::Ac
     return ok;
 }
 
+// ---- Math helpers ----------------------------------------------------------
 static std::optional<std::pair<glm::dvec3, glm::dvec3>> ComputeAABBFromAccessorFloat(const fastgltf::Asset& asset, const fastgltf::Accessor& acc) {
     if (acc.type != fastgltf::AccessorType::Vec3) return std::nullopt;
     if (acc.componentType != fastgltf::ComponentType::Float && acc.componentType != fastgltf::ComponentType::Double)
@@ -203,31 +208,8 @@ static std::optional<std::pair<glm::dvec3, glm::dvec3>> ComputeAABBFromAccessorF
     return std::make_pair(mn, mx);
 }
 
-bool ImportFastGLTF(const std::filesystem::path& inputPath, gltf::Model& outModel) {
-    fastgltf::Parser parser{};
-    auto data_res = fastgltf::GltfDataBuffer::FromPath(inputPath);
-    if (data_res.error() != fastgltf::Error::None) {
-        std::cerr << "[Import] Read failed: " << fastgltf::getErrorMessage(data_res.error()) << "\n";
-        return false;
-    }
-    auto data = std::move(data_res.get());
-
-    constexpr fastgltf::Options options = fastgltf::Options::LoadExternalBuffers
-                                        | fastgltf::Options::LoadGLBBuffers
-                                        | fastgltf::Options::DecomposeNodeMatrices
-                                        | fastgltf::Options::GenerateMeshIndices;
-
-    auto parent = inputPath.parent_path();
-    auto asset_res = parser.loadGltf(data, parent, options);
-    if (asset_res.error() != fastgltf::Error::None) {
-        std::cerr << "[Import] Parse failed: " << fastgltf::getErrorMessage(asset_res.error()) << "\n";
-        return false;
-    }
-    fastgltf::Asset asset = std::move(asset_res.get());
-
-    outModel.source = std::filesystem::absolute(inputPath).string();
-
-    // materials
+// ---- Import helpers --------------------------------------------------------
+static void ImportMaterials(const fastgltf::Asset& asset, gltf::Model& outModel) {
     outModel.materials.clear();
     outModel.materials.reserve(asset.materials.size());
     for (const auto& m : asset.materials) {
@@ -235,8 +217,10 @@ bool ImportFastGLTF(const std::filesystem::path& inputPath, gltf::Model& outMode
         if (!m.name.empty()) om.name.assign(m.name.begin(), m.name.end());
         outModel.materials.emplace_back(std::move(om));
     }
+}
 
-    // primitives
+static void ImportPrimitives(const fastgltf::Asset& asset, gltf::Model& outModel) {
+    // Insert primitives in asset order so mesh->primitive mapping can be rebuilt by a linear scan
     for (const auto& mesh : asset.meshes) {
         for (const auto& prim : mesh.primitives) {
             Primitive p{};
@@ -252,9 +236,7 @@ bool ImportFastGLTF(const std::filesystem::path& inputPath, gltf::Model& outMode
                 a.count = acc.count;
                 a.componentType = ComponentTypeToString(acc.componentType);
                 a.type = AccessorTypeToString(acc.type);
-
-                a.format = AccessorTypeToVkFormat(acc.type,acc.componentType);
-
+                a.format = AccessorTypeToVkFormat(acc.type, acc.componentType);
                 a.accessorIndex = attr.accessorIndex; // record accessor identity for dedup
                 if (!CopyAccessorToBytes(asset, acc, a.data)) {
                     a.data.clear();
@@ -278,7 +260,6 @@ bool ImportFastGLTF(const std::filesystem::path& inputPath, gltf::Model& outMode
                     p.geometry.indexCount = acc.count;
                     p.geometry.indexComponentType = ComponentTypeToString(acc.componentType);
                     p.geometry.indicesAccessorIndex = prim.indicesAccessor; // record indices accessor identity
-
                     p.geometry.indexType = ComponentTypeToIndexType(acc.componentType);
                 }
             }
@@ -291,9 +272,13 @@ bool ImportFastGLTF(const std::filesystem::path& inputPath, gltf::Model& outMode
             outModel.primitives.emplace_back(std::move(p));
         }
     }
+}
 
-    // meshes -> indices into primitives
+static void ImportMeshes(const fastgltf::Asset& asset, gltf::Model& outModel) {
+    // Rebuild mesh->primitives indices by scanning in the same order used by ImportPrimitives
     std::size_t primCursor = 0;
+    outModel.meshes.clear();
+    outModel.meshes.reserve(asset.meshes.size());
     for (const auto& mesh : asset.meshes) {
         Mesh m{};
         if (!mesh.name.empty()) m.name.assign(mesh.name.begin(), mesh.name.end());
@@ -302,8 +287,9 @@ bool ImportFastGLTF(const std::filesystem::path& inputPath, gltf::Model& outMode
         }
         outModel.meshes.emplace_back(std::move(m));
     }
+}
 
-    // nodes
+static void ImportNodes(const fastgltf::Asset& asset, gltf::Model& outModel) {
     outModel.nodes.resize(asset.nodes.size());
     for (std::size_t i = 0; i < asset.nodes.size(); ++i) {
         const auto& n = asset.nodes[i];
@@ -329,8 +315,9 @@ bool ImportFastGLTF(const std::filesystem::path& inputPath, gltf::Model& outMode
             on.matrix = m;
         }
     }
+}
 
-    // scenes
+static void ImportScenes(const fastgltf::Asset& asset, gltf::Model& outModel) {
     outModel.scenes.resize(asset.scenes.size());
     for (std::size_t i = 0; i < asset.scenes.size(); ++i) {
         const auto& sc = asset.scenes[i];
@@ -338,6 +325,44 @@ bool ImportFastGLTF(const std::filesystem::path& inputPath, gltf::Model& outMode
         if (!sc.name.empty()) os.name.assign(sc.name.begin(), sc.name.end());
         os.nodes.assign(sc.nodeIndices.begin(), sc.nodeIndices.end());
     }
+}
+
+} // anonymous namespace
+
+bool ImportFastGLTF(const std::filesystem::path& inputPath, gltf::Model& outModel) {
+    fastgltf::Parser parser{};
+    auto data_res = fastgltf::GltfDataBuffer::FromPath(inputPath);
+    if (data_res.error() != fastgltf::Error::None) {
+        std::cerr << "[Import] Read failed: " << fastgltf::getErrorMessage(data_res.error()) << "\n";
+        return false;
+    }
+    auto data = std::move(data_res.get());
+
+    constexpr fastgltf::Options options = fastgltf::Options::LoadExternalBuffers
+                                        | fastgltf::Options::LoadGLBBuffers
+                                        | fastgltf::Options::DecomposeNodeMatrices
+                                        | fastgltf::Options::GenerateMeshIndices;
+
+    auto parent = inputPath.parent_path();
+    auto asset_res = parser.loadGltf(data, parent, options);
+    if (asset_res.error() != fastgltf::Error::None) {
+        std::cerr << "[Import] Parse failed: " << fastgltf::getErrorMessage(asset_res.error()) << "\n";
+        return false;
+    }
+    fastgltf::Asset asset = std::move(asset_res.get());
+
+    outModel.source = std::filesystem::absolute(inputPath).string();
+
+    // Import parts
+    ImportMaterials(asset, outModel);
+
+    outModel.primitives.clear();
+    outModel.primitives.reserve([&]{ std::size_t c = 0; for (auto& m : asset.meshes) c += m.primitives.size(); return c; }());
+    ImportPrimitives(asset, outModel);
+
+    ImportMeshes(asset, outModel);
+    ImportNodes(asset, outModel);
+    ImportScenes(asset, outModel);
 
     // compute derived data
     outModel.computeWorldMatrices();
