@@ -249,87 +249,21 @@ bool ExportPureModel(const gltf::Model& model, const std::filesystem::path& outD
         root["trs_count"] = static_cast<int64_t>(sm.trsPool.size());
     }
 
-    // geometry (pure geometry) and binary dumps
-    json geometry = json::array();
-
+    // Only export consolidated .geometry files; drop per-attribute/indices files and geometry JSON
     for (std::size_t u = 0; u < sm.geometry.size(); ++u) {
         const auto& g = sm.geometry[u];
+        std::filesystem::path binName = std::to_string(u) + ".geometry";
+        std::filesystem::path binPath = targetDir / binName;
 
+        const BoundingBox &geo_bounds = (g.boundsIndex != pure::kInvalidBoundsIndex) ? sm.bounds[g.boundsIndex] : BoundingBox{};
+
+        if (!pure::SaveGeometry(g, geo_bounds, binPath.string()))
         {
-            std::filesystem::path binName = std::to_string(u) + ".geometry";
-            std::filesystem::path binPath = targetDir / binName;
-
-            const BoundingBox &geo_bounds = (g.boundsIndex != pure::kInvalidBoundsIndex) ? sm.bounds[g.boundsIndex] : BoundingBox{};
-
-            if (!pure::SaveGeometry(g, geo_bounds, binPath.string()))
-            {
-                std::cerr << "[Export] Failed to write geometry binary: " << binPath << "\n";
-            }
+            std::cerr << "[Export] Failed to write geometry binary: " << binPath << "\n";
         }
-
-        json pj = json::object();
-        pj["mode"] = g.mode;
-        json attrs = json::array();
-        for (const auto& a : g.attributes) {
-            // write attribute blob named by unique geometry index
-            std::filesystem::path binName = std::to_string(u) + "." + a.name;
-            std::filesystem::path binPath = targetDir / binName;
-            std::ofstream ofs(binPath, std::ios::binary);
-            if (ofs) {
-                ofs.write(reinterpret_cast<const char*>(a.data.data()), static_cast<std::streamsize>(a.data.size()));
-                ofs.close();
-                std::cout << "[Export] Saved: " << binPath << "\n";
-            } else {
-                std::cerr << "[Export] Write failed: " << binPath << "\n";
-            }
-
-            json aj = json::object({
-                {"id", static_cast<int64_t>(a.id)},
-                {"name", a.name},
-                {"count", static_cast<int64_t>(a.count)},
-                {"componentType", a.componentType},
-                {"type", a.type},
-                {"format", VkFormatToString(a.format)}
-            });
-            attrs.push_back(std::move(aj));
-        }
-        pj["attributes"] = std::move(attrs);
-
-        // reference bounds by index
-        pj["bounds"] = (g.boundsIndex == pure::kInvalidBoundsIndex) ? json(nullptr) : json(static_cast<int64_t>(g.boundsIndex));
-
-        if (g.indicesData.has_value()) {
-            // write index buffer for consumers, but do not store file name in JSON
-            std::filesystem::path binName = std::to_string(u) + ".indices";
-            std::filesystem::path binPath = targetDir / binName;
-            std::ofstream ofs(binPath, std::ios::binary);
-            if (ofs) {
-                const auto& ib = *g.indicesData;
-                ofs.write(reinterpret_cast<const char*>(ib.data()), static_cast<std::streamsize>(ib.size()));
-                ofs.close();
-                std::cout << "[Export] Saved: " << binPath << "\n";
-            } else {
-                std::cerr << "[Export] Write failed: " << binPath << "\n";
-            }
-        }
-
-        // export index metadata instead of file name
-        if (g.indices.has_value()) {
-            pj["indices"] = json::object({
-                {"count", static_cast<int64_t>(g.indices->count)},
-                {"componentType", g.indices->componentType},
-                {"indexType", IndexTypeToString(g.indices->indexType)}
-            });
-        } else {
-            pj["indices"] = nullptr;
-        }
-
-        geometry.push_back(std::move(pj));
     }
 
-    root["geometry"] = std::move(geometry);
-
-    // Global SubMeshes list
+    // Global SubMeshes list (kept; references geometry indices that map to <index>.geometry files)
     json subMeshes = json::array();
     for (const auto& p : sm.subMeshes) {
         json sj = json::object();
