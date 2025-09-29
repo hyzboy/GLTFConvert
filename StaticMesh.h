@@ -13,30 +13,15 @@
 #include "OBB.h"
 #include "PureGLTF.h"
 #include "Geometry.h"
+#include "SubMesh.h"
+#include "MeshNodeTransform.h"
+#include "MatrixEntry.h"
 
 namespace pure {
 
 
 struct Material {
     std::string name;
-};
-
-struct SubMesh {
-    std::size_t geometry = static_cast<std::size_t>(-1); // index into Model::geometry
-    std::optional<std::size_t> material; // index into Model::materials or null
-};
-
-// Restore TRS-based transform representation (float for real-time use)
-struct MeshNodeTransform {
-    glm::vec3 translation{0.0f};
-    glm::quat rotation{1.0f, 0.0f, 0.0f, 0.0f}; // w,x,y,z
-    glm::vec3 scale{1.0f};
-};
-
-// Matrix pool entry: local/world matrices
-struct MatrixEntry {
-    glm::mat4 local{1.0f};
-    glm::mat4 world{1.0f};
 };
 
 struct MeshNode {
@@ -86,21 +71,6 @@ struct Model {
     // Add or find in matrix pool (local+world pair); returns index
     std::size_t internMatrix(const MatrixEntry& m);
 };
-
-// Scene-local remapped data for a single scene
-struct SceneLocal {
-    std::string name;
-    std::vector<MeshNode> nodes;                 // scene-local nodes with remapped indices
-    std::vector<std::size_t> roots;              // root node indices into `nodes`
-    std::vector<SubMesh> subMeshes;              // scene-local subMesh pool (geometry indices are global)
-    std::vector<MatrixEntry> matrixPool;         // scene-local matrices
-    std::vector<MeshNodeTransform> trsPool;      // scene-local TRS
-    std::vector<BoundingBox> bounds;             // scene-local bounds pool
-    std::size_t sceneBoundsIndex = kInvalidBoundsIndex; // index into `bounds` or kInvalidBoundsIndex
-};
-
-// Build scene-local data (remap node/submesh/matrix/TRS/bounds indices to compact scene-local pools)
-SceneLocal BuildSceneLocal(const Model& sm, std::size_t sceneIndex);
 
 // Helpers to access matrices from the matrix pool
 inline glm::mat4 GetNodeWorldMatrix(const Model& m, const MeshNode& n) {

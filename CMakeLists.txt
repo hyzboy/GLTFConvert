@@ -32,6 +32,12 @@ add_executable(GLTFConvert
     MeshBounds.cpp MeshBounds.h
     Exporter.cpp Exporter.h
     SceneBinary.cpp SceneBinary.h
+    # new split scene-local module and split headers
+    SceneLocal.cpp SceneLocal.h
+    MeshNodeTransform.h
+    SubMesh.h
+    MatrixEntry.h
+    PureMaterial.h
 )
 
 # GLM SIMD/AVX2 优化相关宏定义

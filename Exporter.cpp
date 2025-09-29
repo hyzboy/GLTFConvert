@@ -11,6 +11,7 @@
 
 #include "StaticMesh.h"
 #include "SceneBinary.h"
+#include "SceneLocal.h"
 
 using nlohmann::json;
 
