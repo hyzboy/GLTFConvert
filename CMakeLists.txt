@@ -31,6 +31,7 @@ add_executable(GLTFConvert
     StaticMesh.cpp StaticMesh.h
     MeshBounds.cpp MeshBounds.h
     Exporter.cpp Exporter.h
+    SceneBinary.cpp SceneBinary.h
 )
 
 # GLM SIMD/AVX2 优化相关宏定义

@@ -1,12 +1,12 @@
 #pragma once
 
 #include <filesystem>
-#include "PureGLTF.h"
+#include <string>
+#include <vector>
+
+#include "StaticMesh.h"
 
 namespace exporters {
-
-// Export the pure Model into our JSON + binary attribute blobs layout
-bool ExportPureModel(const gltf::Model& model, const std::filesystem::path& outDir);
 
 // Write a single Scene.bin that contains scene-local nodes, submeshes (geometry file names),
 // matrices and TRS pools. BoundingBox and Material are not stored.
