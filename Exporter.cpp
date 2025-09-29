@@ -219,137 +219,12 @@ bool ExportPureModel(const gltf::Model& model, const std::filesystem::path& outD
     jsonOut.close();
     std::cout << "[Export] Saved: " << jsonPath << "\n";
 
-    // Per-scene independent exports with remapped indices for nodes/subMeshes/bounds/matrices/trs
+    // Per-scene independent exports using SceneLocal to simplify logic
     for (std::size_t si = 0; si < sm.scenes.size(); ++si) {
         const auto& sc = sm.scenes[si];
+        pure::SceneLocal sl = pure::BuildSceneLocal(sm, si);
 
-        // 1) Collect reachable nodes from scene roots
-        std::vector<uint8_t> nodeUsed(sm.mesh_nodes.size(), 0);
-        std::vector<std::size_t> nodeOrder; nodeOrder.reserve(sm.mesh_nodes.size());
-        std::vector<std::size_t> stack(sc.nodes.begin(), sc.nodes.end());
-        while (!stack.empty()) {
-            auto ni = stack.back(); stack.pop_back();
-            if (ni >= sm.mesh_nodes.size()) continue;
-            if (nodeUsed[ni]) continue;
-            nodeUsed[ni] = 1;
-            nodeOrder.push_back(ni);
-            for (auto c : sm.mesh_nodes[ni].children) {
-                stack.push_back(c);
-            }
-        }
-        // Stable order by original index to have deterministic mapping
-        std::sort(nodeOrder.begin(), nodeOrder.end());
-
-        // 2) Build remap tables
-        std::unordered_map<std::size_t, std::size_t> nodeRemap; nodeRemap.reserve(nodeOrder.size());
-        for (std::size_t i = 0; i < nodeOrder.size(); ++i) nodeRemap[nodeOrder[i]] = i;
-
-        std::unordered_map<std::size_t, std::size_t> subMeshRemap; // old -> new
-        std::unordered_map<std::size_t, std::size_t> matrixRemap;  // old (0-based) -> new (0-based)
-        std::unordered_map<std::size_t, std::size_t> trsRemap;     // old (0-based) -> new (0-based)
-        std::unordered_map<std::size_t, std::size_t> boundsRemap;  // old -> new
-
-        // Collect used submeshes, matrices, trs, bounds from nodes
-        for (auto oldNi : nodeOrder) {
-            const auto& n = sm.mesh_nodes[oldNi];
-            // subMeshes
-            for (auto smi : n.subMeshes) subMeshRemap.try_emplace(smi, subMeshRemap.size());
-            // matrices
-            if (n.matrixIndexPlusOne != 0) {
-                const auto oldM = n.matrixIndexPlusOne - 1;
-                if (matrixRemap.find(oldM) == matrixRemap.end()) {
-                    matrixRemap.emplace(oldM, matrixRemap.size());
-                }
-            }
-            // trs
-            if (n.trsIndexPlusOne != 0) {
-                const auto oldT = n.trsIndexPlusOne - 1;
-                if (trsRemap.find(oldT) == trsRemap.end()) {
-                    trsRemap.emplace(oldT, trsRemap.size());
-                }
-            }
-            // bounds
-            if (n.boundsIndex != pure::kInvalidBoundsIndex) {
-                boundsRemap.try_emplace(n.boundsIndex, boundsRemap.size());
-            }
-        }
-        // include scene bounds
-        if (sc.boundsIndex != pure::kInvalidBoundsIndex) boundsRemap.try_emplace(sc.boundsIndex, boundsRemap.size());
-
-        // 3) Build local pools by remap order (ensure indices 0..N-1 contiguous)
-        // subMeshes
-        std::vector<pure::SubMesh> localSubMeshes(subMeshRemap.size());
-        for (const auto& [oldIdx, newIdx] : subMeshRemap) {
-            localSubMeshes[newIdx] = sm.subMeshes[oldIdx];
-        }
-        // matrices
-        std::vector<pure::MatrixEntry> localMatrices(matrixRemap.size());
-        for (const auto& [oldIdx, newIdx] : matrixRemap) {
-            localMatrices[newIdx] = sm.matrixPool[oldIdx];
-        }
-        // trs
-        std::vector<pure::MeshNodeTransform> localTRS(trsRemap.size());
-        for (const auto& [oldIdx, newIdx] : trsRemap) {
-            localTRS[newIdx] = sm.trsPool[oldIdx];
-        }
-        // bounds
-        std::vector<BoundingBox> localBounds(boundsRemap.size());
-        for (const auto& [oldIdx, newIdx] : boundsRemap) {
-            localBounds[newIdx] = sm.bounds[oldIdx];
-        }
-
-        // 4) Build local nodes with remapped indices
-        std::vector<pure::MeshNode> localNodes; localNodes.reserve(nodeOrder.size());
-        for (auto oldNi : nodeOrder) {
-            const auto& on = sm.mesh_nodes[oldNi];
-            pure::MeshNode nn = on; // copy
-            // remap children
-            std::vector<std::size_t> newChildren; newChildren.reserve(on.children.size());
-            for (auto oc : on.children) {
-                auto it = nodeRemap.find(oc);
-                if (it != nodeRemap.end()) newChildren.push_back(it->second);
-            }
-            nn.children = std::move(newChildren);
-            // remap subMeshes
-            std::vector<std::size_t> newSM; newSM.reserve(on.subMeshes.size());
-            for (auto osm : on.subMeshes) newSM.push_back(subMeshRemap[osm]);
-            nn.subMeshes = std::move(newSM);
-            // remap matrix/trs (plus one semantics)
-            if (nn.matrixIndexPlusOne != 0) {
-                const auto oldM = nn.matrixIndexPlusOne - 1;
-                nn.matrixIndexPlusOne = matrixRemap[oldM] + 1;
-            }
-            if (nn.trsIndexPlusOne != 0) {
-                const auto oldT = nn.trsIndexPlusOne - 1;
-                nn.trsIndexPlusOne = trsRemap[oldT] + 1;
-            }
-            // remap bounds
-            if (nn.boundsIndex != pure::kInvalidBoundsIndex) {
-                nn.boundsIndex = boundsRemap[nn.boundsIndex];
-            }
-            localNodes.push_back(std::move(nn));
-        }
-
-        // 5) Remap scene roots and bounds
-        json sceneJson = json::object();
-        if (!sc.name.empty()) sceneJson["name"] = sc.name;
-        json roots = json::array();
-        std::vector<std::size_t> sceneRootIndices; sceneRootIndices.reserve(sc.nodes.size());
-        for (auto r : sc.nodes) {
-            auto it = nodeRemap.find(r);
-            if (it != nodeRemap.end()) {
-                roots.push_back(static_cast<int64_t>(it->second));
-                sceneRootIndices.push_back(it->second);
-            }
-        }
-        sceneJson["nodes"] = std::move(roots);
-        if (sc.boundsIndex != pure::kInvalidBoundsIndex) {
-            sceneJson["bounds"] = static_cast<int64_t>(boundsRemap[sc.boundsIndex]);
-        } else {
-            sceneJson["bounds"] = nullptr;
-        }
-
-        // 6) Write scene folder outputs
+        // scene folder
         std::string sceneFolderName;
         {
             std::string sane = SanitizeName(sc.name);
@@ -359,12 +234,12 @@ bool ExportPureModel(const gltf::Model& model, const std::filesystem::path& outD
         std::filesystem::path sceneDir = targetDir / sceneFolderName;
         std::filesystem::create_directories(sceneDir, ec);
 
-        // 6.1) Matrices.bin (scene-local)
+        // Matrices.bin
         {
             std::filesystem::path binPath = sceneDir / "Matrices.bin";
             std::ofstream ofs(binPath, std::ios::binary);
             if (ofs) {
-                for (const auto& m : localMatrices) {
+                for (const auto& m : sl.matrixPool) {
                     ofs.write(reinterpret_cast<const char*>(&m.local), sizeof(glm::mat4));
                     ofs.write(reinterpret_cast<const char*>(&m.world), sizeof(glm::mat4));
                 }
@@ -372,14 +247,14 @@ bool ExportPureModel(const gltf::Model& model, const std::filesystem::path& outD
                 std::cout << "[Export] Saved: " << binPath << "\n";
             }
         }
-        // 6.2) TRS.bin (scene-local)
+        // TRS.bin
         {
             std::filesystem::path binPath = sceneDir / "TRS.bin";
             std::ofstream ofs(binPath, std::ios::binary);
             if (ofs) {
-                for (const auto& t : localTRS) {
+                for (const auto& t : sl.trsPool) {
                     const float tvals[3] = { t.translation.x, t.translation.y, t.translation.z };
-                    const float rvals[4] = { t.rotation.x, t.rotation.y, t.rotation.z, t.rotation.w }; // xyzw
+                    const float rvals[4] = { t.rotation.x, t.rotation.y, t.rotation.z, t.rotation.w };
                     const float svals[3] = { t.scale.x, t.scale.y, t.scale.z };
                     ofs.write(reinterpret_cast<const char*>(tvals), sizeof(tvals));
                     ofs.write(reinterpret_cast<const char*>(rvals), sizeof(rvals));
@@ -389,10 +264,10 @@ bool ExportPureModel(const gltf::Model& model, const std::filesystem::path& outD
                 std::cout << "[Export] Saved: " << binPath << "\n";
             }
         }
-        // 6.3) Bounds.bin (scene-local)
-        WriteBoundsBinaryTo(localBounds, sceneDir);
+        // Bounds.bin
+        WriteBoundsBinaryTo(sl.bounds, sceneDir);
 
-        // 6.4) Scene JSON
+        // Scene JSON
         json sroot = json::object();
         sroot["gltf_source"] = sm.gltf_source;
         // keep materials for reference (no remap)
@@ -405,15 +280,15 @@ bool ExportPureModel(const gltf::Model& model, const std::filesystem::path& outD
         sroot["materials"] = std::move(sceneMaterials);
 
         // pools counts
-        sroot["matrices"] = static_cast<int64_t>(localMatrices.size());
-        sroot["trs_count"] = static_cast<int64_t>(localTRS.size());
-        sroot["bounds"] = static_cast<int64_t>(localBounds.size());
+        sroot["matrices"] = static_cast<int64_t>(sl.matrixPool.size());
+        sroot["trs_count"] = static_cast<int64_t>(sl.trsPool.size());
+        sroot["bounds"] = static_cast<int64_t>(sl.bounds.size());
 
         // subMeshes (scene-local)
         json localSM = json::array();
-        for (const auto& p : localSubMeshes) {
+        for (const auto& p : sl.subMeshes) {
             json sj = json::object();
-            sj["geometry"] = static_cast<int64_t>(p.geometry); // geometry remains global index
+            sj["geometry"] = static_cast<int64_t>(p.geometry);
             if (p.material) sj["material"] = static_cast<int64_t>(*p.material); else sj["material"] = nullptr;
             localSM.push_back(std::move(sj));
         }
@@ -421,7 +296,7 @@ bool ExportPureModel(const gltf::Model& model, const std::filesystem::path& outD
 
         // nodes (scene-local)
         json localNodeArr = json::array();
-        for (const auto& n : localNodes) {
+        for (const auto& n : sl.nodes) {
             json j = json::object();
             if (!n.name.empty()) j["name"] = n.name;
             json ch = json::array();
@@ -438,6 +313,12 @@ bool ExportPureModel(const gltf::Model& model, const std::filesystem::path& outD
         sroot["mesh_nodes"] = std::move(localNodeArr);
 
         // scene object (single)
+        json sceneJson = json::object();
+        if (!sc.name.empty()) sceneJson["name"] = sc.name;
+        json roots = json::array();
+        for (auto r : sl.roots) roots.push_back(static_cast<int64_t>(r));
+        sceneJson["nodes"] = std::move(roots);
+        if (sl.sceneBoundsIndex != pure::kInvalidBoundsIndex) sceneJson["bounds"] = static_cast<int64_t>(sl.sceneBoundsIndex); else sceneJson["bounds"] = nullptr;
         sroot["scene"] = std::move(sceneJson);
 
         std::filesystem::path sjsonPath = sceneDir / "StaticMesh.json";
@@ -450,8 +331,8 @@ bool ExportPureModel(const gltf::Model& model, const std::filesystem::path& outD
         sjsonOut.close();
         std::cout << "[Export] Saved: " << sjsonPath << "\n";
 
-        // 6.5) Scene.bin (single binary scene output per request)
-        WriteSceneBinary(sceneDir, sc.name, sceneRootIndices, baseName, localNodes, localSubMeshes, localMatrices, localTRS);
+        // Scene.bin (binary, no materials/bounds; geometry file names only)
+        WriteSceneBinary(sceneDir, sc.name, sl.roots, baseName, sl.nodes, sl.subMeshes, sl.matrixPool, sl.trsPool);
     }
 
     return true;

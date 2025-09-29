@@ -8,16 +8,4 @@ namespace exporters {
 // Export the pure Model into our JSON + binary attribute blobs layout
 bool ExportPureModel(const gltf::Model& model, const std::filesystem::path& outDir);
 
-// Write a single Scene.bin that contains scene-local nodes, submeshes (geometry file names),
-// matrices and TRS pools. BoundingBox and Material are not stored.
-bool WriteSceneBinary(
-    const std::filesystem::path& sceneDir,
-    const std::string& sceneName,
-    const std::vector<std::size_t>& sceneRootIndices,
-    const std::string& baseName,
-    const std::vector<pure::MeshNode>& nodes,
-    const std::vector<pure::SubMesh>& subMeshes,
-    const std::vector<pure::MatrixEntry>& matrices,
-    const std::vector<pure::MeshNodeTransform>& trs);
-
 } // namespace exporters

@@ -87,6 +87,21 @@ struct Model {
     std::size_t internMatrix(const MatrixEntry& m);
 };
 
+// Scene-local remapped data for a single scene
+struct SceneLocal {
+    std::string name;
+    std::vector<MeshNode> nodes;                 // scene-local nodes with remapped indices
+    std::vector<std::size_t> roots;              // root node indices into `nodes`
+    std::vector<SubMesh> subMeshes;              // scene-local subMesh pool (geometry indices are global)
+    std::vector<MatrixEntry> matrixPool;         // scene-local matrices
+    std::vector<MeshNodeTransform> trsPool;      // scene-local TRS
+    std::vector<BoundingBox> bounds;             // scene-local bounds pool
+    std::size_t sceneBoundsIndex = kInvalidBoundsIndex; // index into `bounds` or kInvalidBoundsIndex
+};
+
+// Build scene-local data (remap node/submesh/matrix/TRS/bounds indices to compact scene-local pools)
+SceneLocal BuildSceneLocal(const Model& sm, std::size_t sceneIndex);
+
 // Helpers to access matrices from the matrix pool
 inline glm::mat4 GetNodeWorldMatrix(const Model& m, const MeshNode& n) {
     if (n.matrixIndexPlusOne == 0) return glm::mat4(1.0f);
