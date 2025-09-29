@@ -252,7 +252,7 @@ bool ExportPureModel(const gltf::Model& model, const std::filesystem::path& outD
     // Only export consolidated .geometry files; drop per-attribute/indices files and geometry JSON
     for (std::size_t u = 0; u < sm.geometry.size(); ++u) {
         const auto& g = sm.geometry[u];
-        std::filesystem::path binName = std::to_string(u) + ".geometry";
+        std::filesystem::path binName = baseName+"."+std::to_string(u) + ".geometry";
         std::filesystem::path binPath = targetDir / binName;
 
         const BoundingBox &geo_bounds = (g.boundsIndex != pure::kInvalidBoundsIndex) ? sm.bounds[g.boundsIndex] : BoundingBox{};
