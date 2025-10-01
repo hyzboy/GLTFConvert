@@ -16,6 +16,21 @@ find_package(Vulkan REQUIRED)
 
 #include_directories(${V_HACD_INCLUDE_DIRS})
 
+# Option: use static C runtime
+option(USE_STATIC_CRT "Use static C runtime (MSVC: /MT, others: -static-libgcc -static-libstdc++)" ON)
+
+find_path(MINIPACK_WRITER NAMES mini_pack_writer.h)
+
+if (MINIPACK_WRITER)
+    message(STATUS "Found mini_pack_writer.h: ${MINIPACK_WRITER}")
+    include_directories(${MINIPACK_WRITER})
+
+    link_directories(${MINIPACK_WRITER}/$<CONFIG>)
+
+else()
+    message(FATAL_ERROR "mini_pack_writer.h not found. Please ensure the MiniPack library is available.")
+endif()
+
 # Add executable (include new modules for pure glTF data, importer and exporter)
 add_executable(GLTFConvert
     main.cpp
@@ -44,22 +59,43 @@ add_executable(GLTFConvert
 # 强制所有源文件启用 GLM 对齐和 SIMD
 # 仅对 GLTFConvert 目标生效
 # 宏定义
- target_compile_definitions(GLTFConvert PRIVATE GLM_FORCE_DEFAULT_ALIGNED_GENTYPES GLM_FORCE_INTRINSICS)
+add_compile_definitions(GLM_FORCE_DEFAULT_ALIGNED_GENTYPES GLM_FORCE_INTRINSICS)
 # 编译器指令
 if (MSVC)
-    target_compile_options(GLTFConvert PRIVATE /arch:AVX2 /fp:fast /openmp:llvm)
+    add_compile_options(/arch:AVX2 /fp:fast /openmp:llvm)
+
+    if(USE_STATIC_CRT)
+        message(STATUS "Using static runtime on MSVC toolchain")
+
+        if($<CONFIG> STREQUAL "Debug")
+            add_compile_options(/Zi /Od /RTC1 /MTd)
+        else()
+            add_compile_options(/O2 /Oi /Ot /MT)
+        endif()
+    endif(USE_STATIC_CRT)
+
 elseif (CMAKE_CXX_COMPILER_ID MATCHES "Clang" OR CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
-    target_compile_options(GLTFConvert PRIVATE -mavx2 -O3 -ffast-math -fopenmp)
+    # Non-MSVC: if requested, instruct linker to use static libgcc/libstdc++ where possible
+    if(USE_STATIC_CRT)
+        message(STATUS "Requesting static libgcc/libstdc++ on non-MSVC toolchains")
+        set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -static-libgcc -static-libstdc++")
+        set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -static-libgcc -static-libstdc++")
+        set(CMAKE_MODULE_LINKER_FLAGS "${CMAKE_MODULE_LINKER_FLAGS} -static-libgcc -static-libstdc++")
+    else()
+        message(STATUS "Using dynamic runtime on non-MSVC toolchains")
+    endif()
+
+    add_compile_options(-mavx2 -O3 -ffast-math -fopenmp)
 endif()
 
 # Add Vulkan include directories so headers like <vulkan/vulkan.h> are found
 if (Vulkan_FOUND)
     if (DEFINED Vulkan_INCLUDE_DIRS)
-        target_include_directories(GLTFConvert PRIVATE ${Vulkan_INCLUDE_DIRS})
+        include_directories(${Vulkan_INCLUDE_DIRS})
     elseif (TARGET Vulkan::Vulkan)
         get_target_property(_vulkan_includes Vulkan::Vulkan INTERFACE_INCLUDE_DIRECTORIES)
         if(_vulkan_includes)
-            target_include_directories(GLTFConvert PRIVATE ${_vulkan_includes})
+            add_include_directories(${_vulkan_includes})
         endif()
     endif()
 endif()
@@ -69,4 +105,5 @@ target_link_libraries(GLTFConvert
     glm::glm
     fastgltf::fastgltf
     nlohmann_json::nlohmann_json
+    minipack_writer
 )
