@@ -21,15 +21,15 @@ option(USE_STATIC_CRT "Use static C runtime (MSVC: /MT, others: -static-libgcc -
 
 find_path(MINIPACK_WRITER NAMES mini_pack_writer.h)
 
-if (MINIPACK_WRITER)
-    message(STATUS "Found mini_pack_writer.h: ${MINIPACK_WRITER}")
-    include_directories(${MINIPACK_WRITER})
-
-    link_directories(${MINIPACK_WRITER}/$<CONFIG>)
-
-else()
-    message(FATAL_ERROR "mini_pack_writer.h not found. Please ensure the MiniPack library is available.")
-endif()
+# Define imported library for MiniPack (adjust paths if your actual layout differs)
+add_library(minipack_writer STATIC IMPORTED GLOBAL)
+set_target_properties(minipack_writer PROPERTIES
+    IMPORTED_LOCATION_DEBUG         "${MINIPACK_WRITER}/Debug/minipack_writer.lib"
+    IMPORTED_LOCATION_RELEASE       "${MINIPACK_WRITER}/Release/minipack_writer.lib"
+    IMPORTED_LOCATION_RELWITHDEBINFO "${MINIPACK_WRITER}/RelWithDebInfo/minipack_writer.lib"
+    IMPORTED_LOCATION_MINSIZEREL    "${MINIPACK_WRITER}/MinSizeRel/minipack_writer.lib"
+    INTERFACE_INCLUDE_DIRECTORIES   "${MINIPACK_WRITER}"
+)
 
 # Add executable (include new modules for pure glTF data, importer and exporter)
 add_executable(GLTFConvert
@@ -55,37 +55,57 @@ add_executable(GLTFConvert
     PureMaterial.h
 )
 
-# GLM SIMD/AVX2 优化相关宏定义
-# 强制所有源文件启用 GLM 对齐和 SIMD
-# 仅对 GLTFConvert 目标生效
-# 宏定义
-add_compile_definitions(GLM_FORCE_DEFAULT_ALIGNED_GENTYPES GLM_FORCE_INTRINSICS)
-# 编译器指令
-if (MSVC)
-    add_compile_options(/arch:AVX2 /fp:fast /openmp:llvm)
+# GLM SIMD/AVX2 宏定义（仅作用于目标）
+target_compile_definitions(GLTFConvert PRIVATE
+    GLM_FORCE_DEFAULT_ALIGNED_GENTYPES
+    GLM_FORCE_INTRINSICS
+)
 
+if (MINIPACK_WRITER)
+    message(STATUS "Found mini_pack_writer.h: ${MINIPACK_WRITER}")
+    target_include_directories(GLTFConvert PRIVATE "${MINIPACK_WRITER}")
+else()
+    message(FATAL_ERROR "mini_pack_writer.h not found. Please ensure the MiniPack library is available.")
+endif()
+
+# 编译器指令（目标级 + 生成期表达式）
+# MSVC: 通用与按配置选项
+if (MSVC)
     if(USE_STATIC_CRT)
         message(STATUS "Using static runtime on MSVC toolchain")
+        # /MT (Release) 与 /MTd (Debug)
+        set_property(TARGET GLTFConvert PROPERTY
+            MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>"
+        )
+    else()
+        # /MD (Release) 与 /MDd (Debug)
+        set_property(TARGET GLTFConvert PROPERTY
+            MSVC_RUNTIME_LIBRARY "MultiThreadedDLL$<$<CONFIG:Debug>:Debug>"
+        )
+    endif()
+endif()
 
-        if($<CONFIG> STREQUAL "Debug")
-            add_compile_options(/Zi /Od /RTC1 /MTd)
-        else()
-            add_compile_options(/O2 /Oi /Ot /MT)
-        endif()
-    endif(USE_STATIC_CRT)
+# 统一设置目标编译选项（使用生成期表达式区分编译器与配置）
+target_compile_options(GLTFConvert PRIVATE
+    # MSVC 通用
+    $<$<CXX_COMPILER_ID:MSVC>:/arch:AVX2 /fp:fast /openmp:llvm>
+    # MSVC Debug/Release 特定
+    $<$<AND:$<CXX_COMPILER_ID:MSVC>,$<CONFIG:Debug>>:/Zi /Od /RTC1>
+    $<$<AND:$<CXX_COMPILER_ID:MSVC>,$<CONFIG:Release>>:/O2 /Oi /Ot>
+    # GCC/Clang
+    $<$<OR:$<CXX_COMPILER_ID:GNU>,$<CXX_COMPILER_ID:Clang>>:-mavx2 -O3 -ffast-math -fopenmp>
+)
 
-elseif (CMAKE_CXX_COMPILER_ID MATCHES "Clang" OR CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
-    # Non-MSVC: if requested, instruct linker to use static libgcc/libstdc++ where possible
+# 非 MSVC：若请求静态运行时库，设置链接器标志
+if (CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
     if(USE_STATIC_CRT)
         message(STATUS "Requesting static libgcc/libstdc++ on non-MSVC toolchains")
-        set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -static-libgcc -static-libstdc++")
+        set(CMAKE_EXE_LINKER_FLAGS    "${CMAKE_EXE_LINKER_FLAGS} -static-libgcc -static-libstdc++")
         set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -static-libgcc -static-libstdc++")
         set(CMAKE_MODULE_LINKER_FLAGS "${CMAKE_MODULE_LINKER_FLAGS} -static-libgcc -static-libstdc++")
     else()
         message(STATUS "Using dynamic runtime on non-MSVC toolchains")
     endif()
-
-    add_compile_options(-mavx2 -O3 -ffast-math -fopenmp)
 endif()
 
 # Add Vulkan include directories so headers like <vulkan/vulkan.h> are found
@@ -95,7 +115,7 @@ if (Vulkan_FOUND)
     elseif (TARGET Vulkan::Vulkan)
         get_target_property(_vulkan_includes Vulkan::Vulkan INTERFACE_INCLUDE_DIRECTORIES)
         if(_vulkan_includes)
-            add_include_directories(${_vulkan_includes})
+            include_directories(${_vulkan_includes})
         endif()
     endif()
 endif()
