@@ -1,0 +1,36 @@
+#pragma once
+#include <string>
+#include <vector>
+#include <optional>
+#include <cstdint>
+#include <glm/glm.hpp>
+#include "math/AABB.h"
+#include "math/OBB.h"
+#include "pure/Material.h"
+#include "pure/MeshNode.h"
+#include "pure/Scene.h"
+#include "pure/Geometry.h"
+#include "SubMesh.h"
+#include "math/MeshNodeTransform.h"
+#include "pure/BoundsIndex.h"
+
+namespace pure {
+struct Model {
+    std::string gltf_source;
+    std::vector<Material> materials;
+    std::vector<Scene> scenes;
+    std::vector<MeshNode> mesh_nodes;
+    std::vector<Geometry> geometry;
+    std::vector<SubMesh> subMeshes;
+    std::vector<BoundingBox> bounds;
+    std::vector<glm::mat4> matrixData;
+    std::vector<MeshNodeTransform> trsPool;
+    int32_t internBounds(const BoundingBox& b);
+    int32_t internTRS(const MeshNodeTransform& t);
+    int32_t internMatrix(const glm::mat4& m);
+};
+
+glm::mat4 GetNodeWorldMatrix(const Model& m, const MeshNode& n);
+glm::mat4 GetNodeLocalMatrix(const Model& m, const MeshNode& n);
+const std::optional<MeshNodeTransform>& GetNodeTRS(const Model& m, const MeshNode& n);
+}

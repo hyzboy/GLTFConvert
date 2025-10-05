@@ -69,6 +69,11 @@ set(PURE_GEOM_FILES
     pure/GeometryAttribute.h
     pure/GeometryIndicesMeta.h
     pure/Geometry.h
+    pure/Material.h
+    pure/MeshNode.h
+    pure/Scene.h
+    pure/ModelCore.h
+    pure/ModelCore.cpp
 )
 SOURCE_GROUP("pure" FILES ${PURE_GEOM_FILES})
 
