@@ -59,8 +59,8 @@ bool WriteSceneBinary(
 
     // Scene name
     {
+        // MiniPack entry already records its length; no need to prefix with an extra u32 length.
         std::vector<uint8_t> nameBuf;
-        AppendU32(nameBuf, static_cast<uint32_t>(sceneName.size()));
         if(!sceneName.empty()) AppendBytes(nameBuf, sceneName.data(), sceneName.size());
         if(!builder.add_entry_from_buffer("Name", nameBuf.data(), static_cast<uint32_t>(nameBuf.size()), err))
         {
@@ -71,8 +71,9 @@ bool WriteSceneBinary(
 
     // Roots
     {
+        // Header.rootCount contains the number of roots; write raw u32 indices in sequence without a leading count.
         std::vector<uint8_t> rootsBuf;
-        AppendU32(rootsBuf, static_cast<uint32_t>(sceneRootIndices.size()));
+        rootsBuf.reserve(sceneRootIndices.size() * 4);
         for (auto r : sceneRootIndices) AppendU32(rootsBuf, static_cast<uint32_t>(r));
         if(!builder.add_entry_from_buffer("Roots", rootsBuf.data(), static_cast<uint32_t>(rootsBuf.size()), err))
         {
