@@ -8,13 +8,12 @@
 #include"common/VertexAttrib.h"
 #include"common/IndexType.h"
 #include"common/PrimitiveType.h"
+#include"pure/BoundsIndex.h"
 
 namespace pure
 {
-    // Invalid index constant for bounds references
-    constexpr int32_t kInvalidBoundsIndex = static_cast<int32_t>(-1);
-
-    struct GeometryAttribute {
+    struct GeometryAttribute
+    {
         int64_t id = 0; // index in the attributes array
         std::string name;
         std::size_t count = 0;
