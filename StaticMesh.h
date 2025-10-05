@@ -11,8 +11,8 @@
 
 #include "math/AABB.h"
 #include "math/OBB.h"
-#include "gltf/Model.h" // now defines GLTFModel
-#include "pure/Geometry.h" // updated include path
+#include "gltf/Model.h"
+#include "pure/Geometry.h"
 #include "SubMesh.h"
 #include "math/MeshNodeTransform.h"
 
@@ -87,6 +87,6 @@ inline const std::optional<MeshNodeTransform>& GetNodeTRS(const Model& m, const 
     return holder.opt;
 }
 
-Model ConvertFromGLTF(const gltf::GLTFModel& src);
+Model ConvertFromGLTF(const GLTFModel& src);
 
 } // namespace pure

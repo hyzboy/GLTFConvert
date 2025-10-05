@@ -4,11 +4,7 @@
 #include <vector>
 #include <cstddef>
 
-namespace gltf {
-
 struct GLTFMesh {
     std::string name;
-    std::vector<std::size_t> primitives; // indices into Model::primitives
+    std::vector<std::size_t> primitives; // indices into GLTFModel::primitives
 };
-
-} // namespace gltf

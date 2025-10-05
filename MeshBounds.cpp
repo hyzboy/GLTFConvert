@@ -5,7 +5,7 @@
 namespace pure {
 
 // local helper: decode POSITION to double3
-static bool TryDecodePositionsAsDVec3(const gltf::GLTFGeometry& g, std::vector<glm::dvec3>& out) {
+static bool TryDecodePositionsAsDVec3(const GLTFGeometry& g, std::vector<glm::dvec3>& out) {
     out.clear();
     for (const auto& a : g.attributes) {
         if (a.name == "POSITION" && a.componentType == "FLOAT" && (a.type == "VEC3" || a.type == "VEC4")) {
@@ -25,7 +25,7 @@ static bool TryDecodePositionsAsDVec3(const gltf::GLTFGeometry& g, std::vector<g
     return false;
 }
 
-void ComputeGeometryBoundsFromGLTF(pure::Model& model, const gltf::GLTFGeometry& srcGeom, pure::Geometry& dstGeom) {
+void ComputeGeometryBoundsFromGLTF(pure::Model& model, const GLTFGeometry& srcGeom, pure::Geometry& dstGeom) {
     BoundingBox bb; // local aggregate
     bb.aabb = srcGeom.localAABB; // AABB comes from glTF primitive local AABB
 

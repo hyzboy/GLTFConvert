@@ -9,7 +9,7 @@
 namespace pure {
 
 // 从 glTF 几何体解码 POSITION 并填充 pure::Geometry 的本地空间包围体（AABB/OBB/Sphere）到全局 bounds 池
-void ComputeGeometryBoundsFromGLTF(pure::Model& model, const gltf::GLTFGeometry& srcGeom, pure::Geometry& dstGeom);
+void ComputeGeometryBoundsFromGLTF(pure::Model& model, const GLTFGeometry& srcGeom, pure::Geometry& dstGeom);
 
 // 基于 subMeshes 与 world_matrix 计算单个节点的世界空间包围体（写入全局 bounds 池并赋索引）
 void ComputeMeshNodeBounds(pure::Model& model, int32_t nodeIndex);

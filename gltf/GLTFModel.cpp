@@ -2,8 +2,6 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/quaternion.hpp>
 
-namespace gltf {
-
 glm::dmat4 GLTFNode::localMatrix() const {
     if (hasMatrix) return matrix;
     glm::dmat4 m(1.0);
@@ -67,4 +65,3 @@ void GLTFModel::computeSceneAABBs() {
         }
     }
 }
-} // namespace gltf

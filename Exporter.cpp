@@ -387,8 +387,8 @@ static bool ExportScene(
 // Public entry
 // ------------------------------------------------------------
 bool ExportPureModel(
-    const gltf::GLTFModel         &model,
-    const std::filesystem::path  &outDir
+    const GLTFModel             &model,
+    const std::filesystem::path &outDir
 )
 {
     pure::Model sm = pure::ConvertFromGLTF(model);

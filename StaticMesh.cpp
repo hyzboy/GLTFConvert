@@ -6,7 +6,7 @@
 
 namespace pure
 {
-    static bool SameGeometryByAccessorId(const gltf::GLTFGeometry &a,const gltf::GLTFGeometry &b)
+    static bool SameGeometryByAccessorId(const GLTFGeometry &a,const GLTFGeometry &b)
     {
         if (a.mode != b.mode)
             return false;
@@ -16,7 +16,7 @@ namespace pure
             return false;
         if (a.attributes.size() != b.attributes.size())
             return false;
-        auto makeList = [](const gltf::GLTFGeometry &g)
+        auto makeList = [](const GLTFGeometry &g)
         {
             std::vector<std::pair<std::string, std::size_t>> v;
             v.reserve(g.attributes.size());
@@ -95,24 +95,24 @@ namespace pure
 
     static void CopyMaterials(
         Model           &dst,
-        const gltf::GLTFModel &src
+        const GLTFModel &src
     )
     {
         dst.materials.reserve(src.materials.size());
         for (const auto &m : src.materials)
         {
-            pure::Material pm;
+            Material pm;
             pm.name = m.name;
             dst.materials.push_back(std::move(pm));
         }
     }
 
-    static void CopyScenes(Model &dst,const gltf::GLTFModel &src)
+    static void CopyScenes(Model &dst,const GLTFModel &src)
     {
         dst.scenes.reserve(src.scenes.size());
         for (const auto &s : src.scenes)
         {
-            pure::Scene ps;
+            Scene ps;
             ps.name = s.name;
             ps.nodes.reserve(s.nodes.size());
             for (auto ni : s.nodes)
@@ -126,12 +126,12 @@ namespace pure
         }
     }
 
-    static void CopyMeshNodesAndTransforms(Model &dst,const gltf::GLTFModel &src)
+    static void CopyMeshNodesAndTransforms(Model &dst,const GLTFModel &src)
     {
         dst.mesh_nodes.reserve(src.nodes.size());
         for (const auto &n : src.nodes)
         {
-            pure::MeshNode pn;
+            MeshNode pn;
             pn.name = n.name;
             pn.children.reserve(n.children.size());
             for (auto c : n.children)
@@ -171,7 +171,7 @@ namespace pure
         std::vector<int32_t> geomIndexOfPrim;
     };
 
-    static UniqueGeometryMapping BuildUniqueGeometryMapping(const gltf::GLTFModel &src)
+    static UniqueGeometryMapping BuildUniqueGeometryMapping(const GLTFModel &src)
     {
         UniqueGeometryMapping map;
         const auto &prims = src.primitives;
@@ -204,7 +204,7 @@ namespace pure
 
     static void CreateUniqueGeometryEntries(
         Model                 &dst,
-        const gltf::GLTFModel     &src,
+        const GLTFModel     &src,
         const UniqueGeometryMapping &map)
     {
         const auto &prims = src.primitives;
@@ -215,7 +215,7 @@ namespace pure
         {
             const int32_t i = map.uniqueRepGeomPrimIdx[static_cast<std::size_t>(u)];
             const auto &g = prims[static_cast<std::size_t>(i)].geometry;
-            pure::Geometry pg;
+            Geometry pg;
 
             pg.mode = g.mode;
             pg.attributes.reserve(g.attributes.size());
@@ -223,7 +223,7 @@ namespace pure
             for (std::size_t ai = 0; ai < g.attributes.size(); ++ai)
             {
                 const auto &a = g.attributes[ai];
-                pure::GeometryAttribute ga;
+                GeometryAttribute ga;
                 ga.id = static_cast<int64_t>(ai);
                 ga.name = a.name;
                 ga.count = a.count;
@@ -241,7 +241,7 @@ namespace pure
 
             if (g.indexCount && g.indexComponentType)
             {
-                pg.indices = pure::GeometryIndicesMeta{ *g.indexCount, *g.indexComponentType };
+                pg.indices = GeometryIndicesMeta{ *g.indexCount, *g.indexComponentType };
                 pg.indices->indexType = g.indexType;
             }
 
@@ -251,7 +251,7 @@ namespace pure
 
     static void BuildSubMeshes(
         Model                 &dst,
-        const gltf::GLTFModel     &src,
+        const GLTFModel     &src,
         const UniqueGeometryMapping &map
     )
     {
@@ -260,14 +260,14 @@ namespace pure
         for (int32_t i = 0; i < static_cast<int32_t>(prims.size()); ++i)
         {
             const auto &p = prims[static_cast<std::size_t>(i)];
-            pure::SubMesh sm;
+            SubMesh sm;
             sm.geometry = map.geomIndexOfPrim[static_cast<std::size_t>(i)];
             sm.material = p.material ? std::optional<int32_t>(static_cast<int32_t>(*p.material)) : std::optional<int32_t>{};
             dst.subMeshes.push_back(std::move(sm));
         }
     }
 
-    static void AttachNodeSubMeshes(Model &dst,const gltf::GLTFModel &src)
+    static void AttachNodeSubMeshes(Model &dst,const GLTFModel &src)
     {
         for (int32_t ni = 0; ni < static_cast<int32_t>(src.nodes.size()); ++ni)
         {
@@ -291,7 +291,7 @@ namespace pure
 
     } // anonymous namespace
 
-    Model ConvertFromGLTF(const gltf::GLTFModel &src)
+    Model ConvertFromGLTF(const GLTFModel &src)
     {
         Model dst;
         dst.gltf_source = src.source;

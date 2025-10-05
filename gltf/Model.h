@@ -9,8 +9,6 @@
 #include "gltf/Scene.h"
 #include "gltf/Material.h"
 
-namespace gltf {
-
 struct GLTFModel {
     std::string source;
 
@@ -23,5 +21,3 @@ struct GLTFModel {
     void computeWorldMatrices();
     void computeSceneAABBs();
 };
-
-} // namespace gltf

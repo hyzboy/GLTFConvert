@@ -7,8 +7,6 @@
 #include <glm/glm.hpp>
 #include <glm/gtc/quaternion.hpp>
 
-namespace gltf {
-
 struct GLTFNode {
     std::string name;
     std::optional<std::size_t> mesh;
@@ -24,5 +22,3 @@ struct GLTFNode {
 
     glm::dmat4 localMatrix() const; // implemented in PureGLTF.cpp (now Model impl file)
 };
-
-} // namespace gltf

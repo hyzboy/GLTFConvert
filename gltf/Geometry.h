@@ -11,8 +11,6 @@
 #include "common/IndexType.h"
 #include "common/PrimitiveType.h"
 
-namespace gltf {
-
 struct GLTFGeometry {
     std::string mode; // e.g. TRIANGLES
 
@@ -40,5 +38,3 @@ struct GLTFGeometry {
 
     ::AABB localAABB; // computed from POSITION if present
 };
-
-} // namespace gltf

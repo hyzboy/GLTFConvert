@@ -6,8 +6,6 @@
 #include <fstream>
 #include <cstring>
 
-using namespace gltf;
-
 namespace importers {
 
 namespace {
@@ -298,17 +296,17 @@ static void ApplyYUpToZUpNodeTransforms(GLTFModel& model) {
 }
 
 // ---- Import helpers --------------------------------------------------------
-static void ImportMaterials(const fastgltf::Asset& asset, gltf::GLTFModel& outModel) {
+static void ImportMaterials(const fastgltf::Asset& asset, GLTFModel& outModel) {
     outModel.materials.clear();
     outModel.materials.reserve(asset.materials.size());
     for (const auto& m : asset.materials) {
-        gltf::GLTFMaterial om{};
+        GLTFMaterial om{};
         if (!m.name.empty()) om.name.assign(m.name.begin(), m.name.end());
         outModel.materials.emplace_back(std::move(om));
     }
 }
 
-static void ImportPrimitives(const fastgltf::Asset& asset, gltf::GLTFModel& outModel) {
+static void ImportPrimitives(const fastgltf::Asset& asset, GLTFModel& outModel) {
     // Insert primitives in asset order so mesh->primitive mapping can be rebuilt by a linear scan
     for (const auto& mesh : asset.meshes) {
         for (const auto& prim : mesh.primitives) {
@@ -362,7 +360,7 @@ static void ImportPrimitives(const fastgltf::Asset& asset, gltf::GLTFModel& outM
     }
 }
 
-static void ImportMeshes(const fastgltf::Asset& asset, gltf::GLTFModel& outModel) {
+static void ImportMeshes(const fastgltf::Asset& asset, GLTFModel& outModel) {
     // Rebuild mesh->primitives indices by scanning in the same order used by ImportPrimitives
     std::size_t primCursor = 0;
     outModel.meshes.clear();
@@ -377,7 +375,7 @@ static void ImportMeshes(const fastgltf::Asset& asset, gltf::GLTFModel& outModel
     }
 }
 
-static void ImportNodes(const fastgltf::Asset& asset, gltf::GLTFModel& outModel) {
+static void ImportNodes(const fastgltf::Asset& asset, GLTFModel& outModel) {
     outModel.nodes.resize(asset.nodes.size());
     for (std::size_t i = 0; i < asset.nodes.size(); ++i) {
         const auto& n = asset.nodes[i];
@@ -405,7 +403,7 @@ static void ImportNodes(const fastgltf::Asset& asset, gltf::GLTFModel& outModel)
     }
 }
 
-static void ImportScenes(const fastgltf::Asset& asset, gltf::GLTFModel& outModel) {
+static void ImportScenes(const fastgltf::Asset& asset, GLTFModel& outModel) {
     outModel.scenes.resize(asset.scenes.size());
     for (std::size_t i = 0; i < asset.scenes.size(); ++i) {
         const auto& sc = asset.scenes[i];
@@ -417,7 +415,7 @@ static void ImportScenes(const fastgltf::Asset& asset, gltf::GLTFModel& outModel
 
 } // anonymous namespace
 
-bool ImportFastGLTF(const std::filesystem::path& inputPath, gltf::GLTFModel& outModel) {
+bool ImportFastGLTF(const std::filesystem::path& inputPath, GLTFModel& outModel) {
     fastgltf::Parser parser{};
     auto data_res = fastgltf::GltfDataBuffer::FromPath(inputPath);
     if (data_res.error() != fastgltf::Error::None) {
