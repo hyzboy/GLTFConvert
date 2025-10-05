@@ -10,7 +10,7 @@
 #include "pure/MeshNode.h"
 #include "pure/Scene.h"
 #include "pure/Geometry.h"
-#include "SubMesh.h"
+#include "pure/SubMesh.h"
 #include "math/MeshNodeTransform.h"
 #include "pure/BoundsIndex.h"
 #include "gltf/Model.h"

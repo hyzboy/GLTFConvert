@@ -2,7 +2,7 @@
 #include "pure/ModelCore.h"
 #include "pure/MeshNode.h"
 #include "pure/Scene.h"
-#include "SubMesh.h"
+#include "pure/SubMesh.h"
 
 #include <filesystem>
 #include <iostream>

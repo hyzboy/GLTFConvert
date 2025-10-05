@@ -71,7 +71,9 @@ set(PURE_GEOM_FILES
     pure/Geometry.h
     pure/Material.h
     pure/MeshNode.h
+    pure/SubMesh.h
     pure/Scene.h
+    pure/Scene.cpp
     pure/ModelCore.h
     pure/ModelCore.cpp
 )
@@ -93,7 +95,6 @@ add_executable(GLTFConvert
     Exporter.cpp Exporter.h
     # new split scene-local module and split headers
     SceneExporter.h SceneBinary.cpp SceneBuilder.cpp
-    SubMesh.h
     PureMaterial.h
 )
 

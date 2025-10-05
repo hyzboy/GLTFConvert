@@ -9,7 +9,7 @@
 
 #include "pure/BoundsIndex.h"
 #include "pure/MeshNode.h"
-#include "SubMesh.h"
+#include "pure/SubMesh.h"
 #include "math/MeshNodeTransform.h"
 #include "pure/ModelCore.h"
 
