@@ -4,6 +4,7 @@
 #include <algorithm>
 #include <unordered_map>
 #include <cstdint>
+#include <filesystem>
 
 namespace pure
 {
@@ -140,6 +141,33 @@ namespace pure
         out.sceneBoundsIndex = (sc.boundsIndex != kInvalidBoundsIndex)
             ? static_cast<int32_t>(boundsRemap[sc.boundsIndex])
             : static_cast<int32_t>(kInvalidBoundsIndex);
+
+        // Build name table data here (moved from SceneBinary)
+        out.nameList.clear();
+        out.nameMap.clear();
+        out.subMeshNameIndices.clear();
+        out.nodeNameIndices.clear();
+        std::string baseName = std::filesystem::path(sm.gltf_source).stem().string();
+        auto intern_name = [&](const std::string &s) -> uint32_t
+        {
+            auto it = out.nameMap.find(s);
+            if (it != out.nameMap.end())
+                return it->second;
+            uint32_t idx = static_cast<uint32_t>(out.nameList.size());
+            out.nameList.push_back(s);
+            out.nameMap.emplace(out.nameList.back(), idx);
+            return idx;
+        };
+        intern_name(out.name); // scene name (may be empty)
+        out.subMeshNameIndices.reserve(out.subMeshes.size());
+        for (const auto &smSub : out.subMeshes)
+        {
+            std::string geomFile = baseName + "." + std::to_string(smSub.geometry);
+            out.subMeshNameIndices.push_back(intern_name(geomFile));
+        }
+        out.nodeNameIndices.reserve(out.nodes.size());
+        for (const auto &n : out.nodes)
+            out.nodeNameIndices.push_back(intern_name(n.name));
 
         return out;
     }

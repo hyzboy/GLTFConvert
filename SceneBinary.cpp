@@ -32,7 +32,6 @@ namespace exporters
         buf.push_back(static_cast<uint8_t>((v >> 24) & 0xFF));
     }
 
-    // Header
     static bool SceneBin_AddHeaderEntry(
         MiniPackBuilder    &builder,
         const SceneHeader  &sh,
@@ -47,41 +46,13 @@ namespace exporters
         return true;
     }
 
-    // Build name table using SceneLocal storage
-    static bool SceneBin_BuildNameTableAndIndices(
+    static bool SceneBin_AddNameTable(
         MiniPackBuilder          &builder,
-        const std::string        &sceneName,
-        const std::string        &baseName,
-        pure::SceneLocal         *sl,
+        const pure::SceneLocal   &sl,
         std::string              &err
     )
     {
-        sl->nameList.clear();
-        sl->nameMap.clear();
-        sl->subMeshNameIndices.clear();
-        sl->nodeNameIndices.clear();
-        auto intern_name = [&](const std::string &s) -> uint32_t
-        {
-            auto it = sl->nameMap.find(s);
-            if (it != sl->nameMap.end())
-                return it->second;
-            uint32_t idx = static_cast<uint32_t>(sl->nameList.size());
-            sl->nameList.push_back(s);
-            sl->nameMap.emplace(sl->nameList.back(), idx);
-            return idx;
-        };
-        intern_name(sceneName);
-        sl->subMeshNameIndices.reserve(sl->subMeshes.size());
-        for (const auto &sm : sl->subMeshes)
-        {
-            std::string geomFile = baseName + "." + std::to_string(sm.geometry);
-            sl->subMeshNameIndices.push_back(intern_name(geomFile));
-        }
-        sl->nodeNameIndices.reserve(sl->nodes.size());
-        for (const auto &n : sl->nodes)
-            sl->nodeNameIndices.push_back(intern_name(n.name));
-        err.clear();
-        write_string_list(&builder, "NameTable", sl->nameList, err);
+        write_string_list(&builder, "NameTable", sl.nameList, err);
         if (!err.empty())
         {
             std::cerr << "[Export] Failed to add NameTable entry: " << err << "\n";
@@ -200,17 +171,14 @@ namespace exporters
     bool WriteSceneBinary(
         const std::filesystem::path &sceneDir,
         const std::string           &baseName,
-        const pure::SceneLocal      &sceneLocal)
+        const pure::SceneLocal      &sl)
     {
-        // Make a copy pointer (non-const) to allow filling name tables
-        pure::SceneLocal *sl = const_cast<pure::SceneLocal*>(&sceneLocal);
-
-        const auto &sceneName   = sl->name; // unchanged
-        const auto &roots       = sl->roots;
-        const auto &nodes       = sl->nodes;
-        const auto &subMeshes   = sl->subMeshes;
-        const auto &matrixData  = sl->matrixData;
-        const auto &trs         = sl->trsPool;
+        const auto &sceneName   = sl.name;
+        const auto &roots       = sl.roots;
+        const auto &nodes       = sl.nodes;
+        const auto &subMeshes   = sl.subMeshes;
+        const auto &matrixData  = sl.matrixData;
+        const auto &trs         = sl.trsPool;
 
         std::string fileName = sceneName.empty() ? std::string("Scene.scene") : (sceneName + ".scene");
         std::filesystem::path binPath = sceneDir / fileName;
@@ -227,7 +195,7 @@ namespace exporters
 
         if (!SceneBin_AddHeaderEntry(builder, sh, err))
             return false;
-        if (!SceneBin_BuildNameTableAndIndices(builder, sceneName, baseName, sl, err))
+        if (!SceneBin_AddNameTable(builder, sl, err))
             return false;
         if (!SceneBin_AddRootsEntry(builder, roots, err))
             return false;
@@ -235,9 +203,9 @@ namespace exporters
             return false;
         if (!SceneBin_AddTRSEntry(builder, trs, err))
             return false;
-        if (!SceneBin_AddSubMeshesEntry(builder, sl->subMeshNameIndices, err))
+        if (!SceneBin_AddSubMeshesEntry(builder, sl.subMeshNameIndices, err))
             return false;
-        if (!SceneBin_AddNodesEntry(builder, nodes, sl->nodeNameIndices, err))
+        if (!SceneBin_AddNodesEntry(builder, nodes, sl.nodeNameIndices, err))
             return false;
 
         auto writer = create_file_writer(binPath.string());
