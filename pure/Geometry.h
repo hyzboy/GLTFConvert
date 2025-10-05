@@ -26,8 +26,8 @@ namespace pure
         std::optional<std::vector<std::byte>> indicesData; // raw index buffer if present
         std::optional<GeometryIndicesMeta> indices;        // metadata for indices
 
-        // Optional double-precision decoded POSITION data (local space)
-        std::optional<std::vector<glm::dvec3>> positions;
+        // Optional decoded POSITION data (local space, stored as float precision)
+        std::optional<std::vector<glm::vec3>> positions;
     };
 
     bool SaveGeometry(const Geometry &geometry,const BoundingBox &,const std::string &filename);

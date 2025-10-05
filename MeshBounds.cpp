@@ -5,8 +5,8 @@
 namespace pure
 {
 
-    // local helper: decode POSITION to double3
-    static bool TryDecodePositionsAsDVec3(const GLTFGeometry &g,std::vector<glm::dvec3> &out)
+    // local helper: decode POSITION to float3
+    static bool TryDecodePositionsAsVec3(const GLTFGeometry &g,std::vector<glm::vec3> &out)
     {
         out.clear();
         for(const auto &a:g.attributes)
@@ -22,7 +22,7 @@ namespace pure
                 for(std::size_t i=0; i<elementCount; ++i)
                 {
                     const float *f=reinterpret_cast<const float *>(ptr+i*stride);
-                    out[i]=glm::dvec3(f[0],f[1],f[2]);
+                    out[i]=glm::vec3(f[0],f[1],f[2]);
                 }
                 return true;
             }
@@ -35,31 +35,27 @@ namespace pure
         BoundingBox bb; // local aggregate
         bb.aabb=srcGeom.localAABB; // AABB comes from glTF primitive local AABB
 
-        // Decode positions once and compute OBB and sphere
-        std::vector<glm::dvec3> pos;
-        if(TryDecodePositionsAsDVec3(srcGeom,pos)&&!pos.empty())
+        // Decode positions once (float) and compute OBB and sphere
+        std::vector<glm::vec3> posF;
+        bool hasPos = TryDecodePositionsAsVec3(srcGeom,posF) && !posF.empty();
+        if(hasPos)
         {
-            dstGeom.positions=pos; // cache decoded local-space positions
-            bb.obb=OBB::fromPointsMinVolume(pos);
+            dstGeom.positions = posF; // cache local-space positions (float)
+
+            // Build OBB directly from float points
+            bb.obb = OBB::fromPointsMinVolume(posF);
+            bb.sphere = SphereFromPoints(posF);
         }
         else
         {
             dstGeom.positions.reset();
             bb.obb.reset();
+            bb.sphere.reset();
         }
 
-        // Compute sphere for geometry (prefer points if available; fallback to AABB)
-        if(dstGeom.positions&&!dstGeom.positions->empty())
+        if(!hasPos && !bb.aabb.empty())
         {
-            bb.sphere=SphereFromPoints(*dstGeom.positions);
-        }
-        else if(!bb.aabb.empty())
-        {
-            bb.sphere=SphereFromAABB(bb.aabb);
-        }
-        else
-        {
-            bb.sphere.reset();
+            bb.sphere = SphereFromAABB(bb.aabb);
         }
 
         dstGeom.boundsIndex=model.internBounds(bb);
@@ -75,9 +71,9 @@ namespace pure
         nb.sphere.reset();
         if(node.subMeshes.empty()) { node.boundsIndex=model.internBounds(nb); return; }
 
-        const glm::dmat4 world=glm::dmat4(GetNodeWorldMatrix(model,node));
+        const glm::mat4 world=GetNodeWorldMatrix(model,node);
 
-        std::vector<glm::dvec3> worldPoints; worldPoints.reserve(1024);
+        std::vector<glm::vec3> worldPointsF; worldPointsF.reserve(1024);
         for(auto smIndex:node.subMeshes)
         {
             const auto &sm=model.subMeshes[static_cast<std::size_t>(smIndex)];
@@ -91,34 +87,25 @@ namespace pure
                     nb.aabb.merge(gb.aabb.transformed(world));
                 }
             }
-            // collect transformed positions using cached positions
-            if(g.positions&&!g.positions->empty())
+            // collect transformed positions using cached (float) positions
+            if(g.positions && !g.positions->empty())
             {
                 for(const auto &p:*g.positions)
                 {
-                    glm::dvec4 hp=world*glm::dvec4(p,1.0);
-                    worldPoints.emplace_back(hp.x,hp.y,hp.z);
+                    glm::vec4 hp = world * glm::vec4(p,1.0f);
+                    worldPointsF.emplace_back(hp.x,hp.y,hp.z);
                 }
             }
         }
 
-        if(!worldPoints.empty())
+        if(!worldPointsF.empty())
         {
-            nb.obb=OBB::fromPointsMinVolume(worldPoints);
-        }
-
-        // Compute sphere for node (prefer points if available; fallback to AABB)
-        if(!worldPoints.empty())
-        {
-            nb.sphere=SphereFromPoints(worldPoints);
+            nb.obb=OBB::fromPointsMinVolume(worldPointsF);
+            nb.sphere=SphereFromPoints(worldPointsF);
         }
         else if(!nb.aabb.empty())
         {
             nb.sphere=SphereFromAABB(nb.aabb);
-        }
-        else
-        {
-            nb.sphere.reset();
         }
 
         node.boundsIndex=model.internBounds(nb);
@@ -136,7 +123,7 @@ namespace pure
     {
         BoundingBox sb; sb.obb.reset(); sb.sphere.reset();
 
-        std::vector<glm::dvec3> scenePts; scenePts.reserve(4096);
+        std::vector<glm::vec3> scenePtsF; scenePtsF.reserve(4096);
 
         // traverse nodes of scene and gather each node's world-space points again
         std::vector<int32_t> stack; stack.reserve(scene.nodes.size());
@@ -145,31 +132,29 @@ namespace pure
         {
             auto ni=stack.back(); stack.pop_back();
             const auto &node=model.mesh_nodes[static_cast<std::size_t>(ni)];
-            const glm::dmat4 world=glm::dmat4(GetNodeWorldMatrix(model,node));
+            const glm::mat4 world=GetNodeWorldMatrix(model,node);
 
             for(auto smIndex:node.subMeshes)
             {
                 const auto &sm=model.subMeshes[static_cast<std::size_t>(smIndex)];
                 if(sm.geometry==static_cast<std::size_t>(-1)) continue;
                 const auto &g=model.geometry[sm.geometry];
-                if(g.positions&&!g.positions->empty())
+                if(g.positions && !g.positions->empty())
                 {
                     for(const auto &p:*g.positions)
                     {
-                        glm::dvec4 hp=world*glm::dvec4(p,1.0);
-                        scenePts.emplace_back(hp.x,hp.y,hp.z);
+                        glm::vec4 hp=world*glm::vec4(p,1.0f);
+                        scenePtsF.emplace_back(hp.x,hp.y,hp.z);
                     }
                 }
             }
             for(auto c:node.children) stack.push_back(static_cast<int32_t>(c));
         }
 
-        if(!scenePts.empty()) sb.obb=OBB::fromPointsMinVolume(scenePts);
-
-        // Compute sphere for scene (prefer points if available; fallback to AABB)
-        if(!scenePts.empty())
+        if(!scenePtsF.empty())
         {
-            sb.sphere=SphereFromPoints(scenePts);
+            sb.obb=OBB::fromPointsMinVolume(scenePtsF);
+            sb.sphere=SphereFromPoints(scenePtsF);
         }
         else if(scene.boundsIndex!=kInvalidBoundsIndex)
         {

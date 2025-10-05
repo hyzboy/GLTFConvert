@@ -3,24 +3,28 @@
 #include "math/AABB.h"
 #include "math/OBB.h"
 #include <ostream>
+#include <vector>
 
-struct BoundingSphere {
-    glm::dvec3 center{0.0};
-    double radius{-1.0}; // radius <= 0 means empty
-    void reset() { center = glm::dvec3(0.0); radius = -1.0; }
-    bool empty() const { return radius <= 0.0; }
+struct BoundingSphere
+{
+    glm::vec3 center{ 0.0f };
+    float radius{ -1.0f }; // radius <= 0 means empty
+    void reset() { center=glm::vec3(0.0f); radius=-1.0f; }
+    bool empty() const { return radius<=0.0f; }
 };
 
 BoundingSphere SphereFromAABB(const AABB &a);
-BoundingSphere SphereFromPoints(const std::vector<glm::dvec3> &pts);
+BoundingSphere SphereFromPoints(const std::vector<glm::vec3> &pts); // now float precision input
 
-// Combined bounding info holding both an AABB and an OBB in double precision
-struct BoundingBox {
-    AABB aabb; // axis-aligned
-    OBB  obb;  // oriented
-    BoundingSphere sphere; // bounding sphere
+// Combined bounding info holding both an AABB and an OBB (now single precision primitives, sphere center float)
+struct BoundingBox
+{
+    AABB aabb; // axis-aligned (float)
+    OBB  obb;  // oriented (float)
+    BoundingSphere sphere; // bounding sphere (float)
 
-    void reset() {
+    void reset()
+    {
         aabb.reset();
         obb.reset();
         sphere.reset();
