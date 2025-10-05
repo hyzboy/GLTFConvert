@@ -73,7 +73,6 @@ set(PURE_GEOM_FILES
     pure/MeshNode.h
     pure/SubMesh.h
     pure/Scene.h
-    pure/Scene.cpp
     pure/ModelCore.h
     pure/ModelCore.cpp
 )
