@@ -11,7 +11,7 @@
 namespace pure {
 
 struct GeometryAttribute {
-    int64_t id = 0; // index in the attributes array
+    uint8_t id = 0; // index in the attributes array
     std::string name;
     std::size_t count = 0;
     std::string componentType; // e.g. FLOAT

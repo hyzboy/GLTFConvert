@@ -224,7 +224,7 @@ namespace pure
             {
                 const auto &a = g.attributes[ai];
                 GeometryAttribute ga;
-                ga.id = static_cast<int64_t>(ai);
+                ga.id = static_cast<uint8_t>(ai);
                 ga.name = a.name;
                 ga.count = a.count;
                 ga.componentType = a.componentType;
