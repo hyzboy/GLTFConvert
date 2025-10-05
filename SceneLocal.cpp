@@ -7,7 +7,7 @@
 
 namespace pure {
 
-SceneLocal BuildSceneLocal(const Model& sm, std::size_t sceneIndex) {
+SceneLocal BuildSceneLocal(const Model& sm, int32_t sceneIndex) {
     SceneLocal out;
     if (sceneIndex >= sm.scenes.size()) return out;
     const auto& sc = sm.scenes[sceneIndex];
@@ -15,21 +15,22 @@ SceneLocal BuildSceneLocal(const Model& sm, std::size_t sceneIndex) {
 
     // 1) Collect reachable nodes from scene roots
     std::vector<uint8_t> nodeUsed(sm.mesh_nodes.size(), 0);
-    std::vector<std::size_t> nodeOrder; nodeOrder.reserve(sm.mesh_nodes.size());
-    std::vector<std::size_t> stack(sc.nodes.begin(), sc.nodes.end());
+    std::vector<int32_t> nodeOrder; nodeOrder.reserve(sm.mesh_nodes.size());
+    std::vector<int32_t> stack; stack.reserve(sc.nodes.size());
+    for (auto v : sc.nodes) stack.push_back(static_cast<int32_t>(v));
     while (!stack.empty()) {
         auto ni = stack.back(); stack.pop_back();
-        if (ni >= sm.mesh_nodes.size()) continue;
-        if (nodeUsed[ni]) continue;
-        nodeUsed[ni] = 1;
+        if (ni < 0 || static_cast<std::size_t>(ni) >= sm.mesh_nodes.size()) continue;
+        if (nodeUsed[static_cast<std::size_t>(ni)]) continue;
+        nodeUsed[static_cast<std::size_t>(ni)] = 1;
         nodeOrder.push_back(ni);
-        for (auto c : sm.mesh_nodes[ni].children) stack.push_back(c);
+        for (auto c : sm.mesh_nodes[static_cast<std::size_t>(ni)].children) stack.push_back(static_cast<int32_t>(c));
     }
     std::sort(nodeOrder.begin(), nodeOrder.end());
 
     // 2) Build remap tables
-    std::unordered_map<std::size_t, std::size_t> nodeRemap; nodeRemap.reserve(nodeOrder.size());
-    for (std::size_t i = 0; i < nodeOrder.size(); ++i) nodeRemap[nodeOrder[i]] = i;
+    std::unordered_map<int32_t, int32_t> nodeRemap; nodeRemap.reserve(nodeOrder.size());
+    for (int32_t i = 0; i < static_cast<int32_t>(nodeOrder.size()); ++i) nodeRemap[nodeOrder[static_cast<std::size_t>(i)]] = i;
 
     std::unordered_map<std::size_t, std::size_t> subMeshRemap;
     std::unordered_map<std::size_t, std::size_t> matrixRemap;
@@ -37,7 +38,7 @@ SceneLocal BuildSceneLocal(const Model& sm, std::size_t sceneIndex) {
     std::unordered_map<std::size_t, std::size_t> boundsRemap;
 
     for (auto oldNi : nodeOrder) {
-        const auto& n = sm.mesh_nodes[oldNi];
+        const auto& n = sm.mesh_nodes[static_cast<std::size_t>(oldNi)];
         for (auto smi : n.subMeshes) subMeshRemap.try_emplace(smi, subMeshRemap.size());
         if (n.matrixIndexPlusOne != 0) {
             const auto oldM = n.matrixIndexPlusOne - 1;
@@ -67,13 +68,15 @@ SceneLocal BuildSceneLocal(const Model& sm, std::size_t sceneIndex) {
     // 4) Local nodes
     out.nodes.reserve(nodeOrder.size());
     for (auto oldNi : nodeOrder) {
-        const auto& on = sm.mesh_nodes[oldNi];
+        const auto& on = sm.mesh_nodes[static_cast<std::size_t>(oldNi)];
         MeshNode nn = on;
         // remap children
-        std::vector<std::size_t> newChildren; newChildren.reserve(on.children.size());
+        std::vector<int32_t> newChildren; newChildren.reserve(on.children.size());
         for (auto oc : on.children) {
-            auto it = nodeRemap.find(oc);
-            if (it != nodeRemap.end()) newChildren.push_back(it->second);
+            if (oc <= static_cast<std::size_t>(std::numeric_limits<int32_t>::max())) {
+                auto it = nodeRemap.find(static_cast<int32_t>(oc));
+                if (it != nodeRemap.end()) newChildren.push_back(it->second);
+            }
         }
         nn.children = std::move(newChildren);
         // remap subMeshes
@@ -97,7 +100,12 @@ SceneLocal BuildSceneLocal(const Model& sm, std::size_t sceneIndex) {
 
     // 5) Roots and scene bounds
     out.roots.clear(); out.roots.reserve(sc.nodes.size());
-    for (auto r : sc.nodes) { auto it = nodeRemap.find(r); if (it != nodeRemap.end()) out.roots.push_back(it->second); }
+    for (auto r : sc.nodes) {
+        if (r <= static_cast<std::size_t>(std::numeric_limits<int32_t>::max())) {
+            auto it = nodeRemap.find(static_cast<int32_t>(r));
+            if (it != nodeRemap.end()) out.roots.push_back(it->second);
+        }
+    }
     out.sceneBoundsIndex = (sc.boundsIndex != kInvalidBoundsIndex) ? boundsRemap[sc.boundsIndex] : kInvalidBoundsIndex;
 
     return out;

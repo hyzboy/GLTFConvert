@@ -21,15 +21,15 @@ struct Model;               // from StaticMesh.h
 struct SceneLocal {
     std::string name;
     std::vector<MeshNode> nodes;                 // scene-local nodes with remapped indices
-    std::vector<std::size_t> roots;              // root node indices into `nodes`
+    std::vector<int32_t> roots;                 // root node indices into `nodes`
     std::vector<SubMesh> subMeshes;              // scene-local subMesh pool (geometry indices are global)
     std::vector<MatrixEntry> matrixPool;         // scene-local matrices
     std::vector<MeshNodeTransform> trsPool;      // scene-local TRS
     std::vector<BoundingBox> bounds;             // scene-local bounds pool
-    std::size_t sceneBoundsIndex = kInvalidBoundsIndex; // index into `bounds` or kInvalidBoundsIndex
+    int32_t sceneBoundsIndex = kInvalidBoundsIndex; // index into `bounds` or kInvalidBoundsIndex
 };
 
 // Build scene-local data (remap node/submesh/matrix/TRS/bounds indices to compact scene-local pools)
-SceneLocal BuildSceneLocal(const Model& sm, std::size_t sceneIndex);
+SceneLocal BuildSceneLocal(const Model& sm, int32_t sceneIndex);
 
 } // namespace pure

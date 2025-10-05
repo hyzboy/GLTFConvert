@@ -26,7 +26,7 @@ struct Material {
 
 struct MeshNode {
     std::string name;
-    std::vector<std::size_t> children;
+    std::vector<int32_t> children;
 
     // Separate indices into pools (plus one). 0 indicates identity/empty and not stored in pool.
     std::size_t matrixIndexPlusOne = 0; // refers to Model::matrixPool
@@ -40,7 +40,7 @@ struct MeshNode {
 
 struct Scene {
     std::string name;
-    std::vector<std::size_t> nodes; // root node indices
+    std::vector<int32_t> nodes; // root node indices
     // Index into Model::bounds pool for this scene's world-space combined bounds
     std::size_t boundsIndex = kInvalidBoundsIndex;
 };

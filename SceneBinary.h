@@ -13,7 +13,7 @@ namespace exporters {
 bool WriteSceneBinary(
     const std::filesystem::path& sceneDir,
     const std::string& sceneName,
-    const std::vector<std::size_t>& sceneRootIndices,
+    const std::vector<int32_t>& sceneRootIndices,
     const std::string& baseName,
     const std::vector<pure::MeshNode>& nodes,
     const std::vector<pure::SubMesh>& subMeshes,

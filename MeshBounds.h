@@ -11,7 +11,7 @@ namespace pure {
 void ComputeGeometryBoundsFromGLTF(pure::Model& model, const gltf::Geometry& srcGeom, pure::Geometry& dstGeom);
 
 // 基于 subMeshes 与 world_matrix 计算单个节点的世界空间包围体（写入全局 bounds 池并赋索引）
-void ComputeMeshNodeBounds(pure::Model& model, std::size_t nodeIndex);
+void ComputeMeshNodeBounds(pure::Model& model, int32_t nodeIndex);
 void ComputeAllMeshNodeBounds(pure::Model& model);
 
 // 按场景根节点遍历收集点，计算场景 OBB/Sphere（AABB 沿用现有的），写入全局 bounds 池并赋索引

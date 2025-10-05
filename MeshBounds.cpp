@@ -51,8 +51,8 @@ void ComputeGeometryBoundsFromGLTF(pure::Model& model, const gltf::Geometry& src
     dstGeom.boundsIndex = model.internBounds(bb);
 }
 
-void ComputeMeshNodeBounds(pure::Model& model, std::size_t nodeIndex) {
-    auto& node = model.mesh_nodes[nodeIndex];
+void ComputeMeshNodeBounds(pure::Model& model, int32_t nodeIndex) {
+    auto& node = model.mesh_nodes[static_cast<std::size_t>(nodeIndex)];
 
     BoundingBox nb; // start empty
     nb.aabb.reset();
@@ -100,7 +100,7 @@ void ComputeMeshNodeBounds(pure::Model& model, std::size_t nodeIndex) {
 
 void ComputeAllMeshNodeBounds(pure::Model& model) {
     for (std::size_t ni = 0; ni < model.mesh_nodes.size(); ++ni) {
-        ComputeMeshNodeBounds(model, ni);
+        ComputeMeshNodeBounds(model, static_cast<int32_t>(ni));
     }
 }
 
@@ -110,10 +110,11 @@ void ComputeSceneBounds(pure::Model& model, pure::Scene& scene) {
     std::vector<glm::dvec3> scenePts; scenePts.reserve(4096);
 
     // traverse nodes of scene and gather each node's world-space points again
-    std::vector<std::size_t> stack(scene.nodes.begin(), scene.nodes.end());
+    std::vector<int32_t> stack; stack.reserve(scene.nodes.size());
+    for (auto v : scene.nodes) stack.push_back(static_cast<int32_t>(v));
     while (!stack.empty()) {
         auto ni = stack.back(); stack.pop_back();
-        const auto& node = model.mesh_nodes[ni];
+        const auto& node = model.mesh_nodes[static_cast<std::size_t>(ni)];
         const glm::dmat4 world = glm::dmat4(GetNodeWorldMatrix(model, node));
 
         for (auto smIndex : node.subMeshes) {
@@ -127,7 +128,7 @@ void ComputeSceneBounds(pure::Model& model, pure::Scene& scene) {
                 }
             }
         }
-        for (auto c : node.children) stack.push_back(c);
+        for (auto c : node.children) stack.push_back(static_cast<int32_t>(c));
     }
 
     if (!scenePts.empty()) sb.obb = OBB::fromPointsMinVolume(scenePts);

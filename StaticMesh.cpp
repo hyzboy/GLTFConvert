@@ -95,7 +95,10 @@ Model ConvertFromGLTF(const gltf::Model& src) {
     // scenes with aabb (scene OBB filled later after nodes computed)
     dst.scenes.reserve(src.scenes.size());
     for (const auto& s : src.scenes) {
-        pure::Scene ps; ps.name = s.name; ps.nodes = s.nodes; 
+        pure::Scene ps; ps.name = s.name;
+        // convert root node indices to int32
+        ps.nodes.reserve(s.nodes.size());
+        for (auto ni : s.nodes) ps.nodes.push_back(static_cast<int32_t>(ni));
         // store provided scene AABB into bounds pool (OBB and sphere will be computed later)
         BoundingBox bb; bb.aabb = s.worldAABB; bb.obb.reset(); bb.sphere.reset();
         ps.boundsIndex = dst.internBounds(bb);
@@ -107,7 +110,9 @@ Model ConvertFromGLTF(const gltf::Model& src) {
     for (const auto& n : src.nodes) {
         pure::MeshNode pn;
         pn.name = n.name;
-        pn.children = n.children;
+        // convert children indices
+        pn.children.reserve(n.children.size());
+        for (auto c : n.children) pn.children.push_back(static_cast<int32_t>(c));
 
         // Fill matrix entry
         MatrixEntry me;
