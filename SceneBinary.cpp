@@ -4,6 +4,9 @@
 #include <iostream>
 #include <vector>
 #include <cstdint>
+#include <string>
+#include <unordered_map>
+#include <algorithm>
 
 #include "mini_pack_builder.h"
 
@@ -57,21 +60,59 @@ bool WriteSceneBinary(
         return false;
     }
 
-    // Scene name
+    // Build unified name table (collect all names and provide indices)
+    std::vector<std::string> nameList;
+    nameList.reserve(1 + subMeshes.size() + nodes.size());
+    std::unordered_map<std::string, uint32_t> nameMap;
+    auto intern_name = [&](const std::string &s) -> uint32_t {
+        auto it = nameMap.find(s);
+        if (it != nameMap.end()) return it->second;
+        uint32_t idx = static_cast<uint32_t>(nameList.size());
+        nameList.push_back(s);
+        nameMap.emplace(nameList.back(), idx);
+        return idx;
+    };
+
+    // Intern scene name (keep in NameTable; no separate index entry needed)
+    intern_name(sceneName);
+    // Intern submesh filenames
+    std::vector<uint32_t> subMeshNameIndices; subMeshNameIndices.reserve(subMeshes.size());
+    for (const auto &sm : subMeshes) {
+        std::string geomFile = baseName + "." + std::to_string(sm.geometry); // keep same format as prior
+        subMeshNameIndices.push_back(intern_name(geomFile));
+    }
+    // Intern node names
+    std::vector<uint32_t> nodeNameIndices; nodeNameIndices.reserve(nodes.size());
+    for (const auto &n : nodes) nodeNameIndices.push_back(intern_name(n.name));
+
+    // Name table entry: write u32 count, then uint8 lengths, then all names followed by null terminators
     {
-        // MiniPack entry already records its length; no need to prefix with an extra u32 length.
         std::vector<uint8_t> nameBuf;
-        if(!sceneName.empty()) AppendBytes(nameBuf, sceneName.data(), sceneName.size());
-        if(!builder.add_entry_from_buffer("Name", nameBuf.data(), static_cast<uint32_t>(nameBuf.size()), err))
+        // name count
+        AppendU32(nameBuf, static_cast<uint32_t>(nameList.size()));
+        // lengths (uint8 per name)
+        for (const auto &s : nameList) {
+            size_t len = s.size();
+            if (len > 255) {
+                std::cerr << "[Export] Warning: name too long, truncating length field to 255: " << s << "\n";
+                len = 255;
+            }
+            nameBuf.push_back(static_cast<uint8_t>(len));
+        }
+        // names + null terminators
+        for (const auto &s : nameList) {
+            if (!s.empty()) AppendBytes(nameBuf, s.data(), s.size());
+            nameBuf.push_back(0);
+        }
+        if(!builder.add_entry_from_buffer("NameTable", nameBuf.data(), static_cast<uint32_t>(nameBuf.size()), err))
         {
-            std::cerr << "[Export] Failed to add SceneName entry: " << err << "\n";
+            std::cerr << "[Export] Failed to add NameTable entry: " << err << "\n";
             return false;
         }
     }
 
-    // Roots
+    // Roots (sequence of u32 indices)
     {
-        // Header.rootCount contains the number of roots; write raw u32 indices in sequence without a leading count.
         std::vector<uint8_t> rootsBuf;
         rootsBuf.reserve(sceneRootIndices.size() * 4);
         for (auto r : sceneRootIndices) AppendU32(rootsBuf, static_cast<uint32_t>(r));
@@ -114,14 +155,11 @@ bool WriteSceneBinary(
         }
     }
 
-    // SubMeshes: store geometry filenames as length-prefixed strings
+    // SubMeshes: store index into NameTable for each geometry filename
     {
         std::vector<uint8_t> smBuf;
-        for (const auto &sm : subMeshes) {
-            std::string geomFile = baseName + "." + std::to_string(sm.geometry);
-            smBuf.push_back(static_cast<uint8_t>(geomFile.size()));
-            if(!geomFile.empty()) AppendBytes(smBuf, geomFile.data(), geomFile.size());
-        }
+        smBuf.reserve(subMeshNameIndices.size() * 4);
+        for (auto idx : subMeshNameIndices) AppendU32(smBuf, idx);
         if(!builder.add_entry_from_buffer("SubMeshes", smBuf.data(), static_cast<uint32_t>(smBuf.size()), err))
         {
             std::cerr << "[Export] Failed to add SubMeshes entry: " << err << "\n";
@@ -129,12 +167,12 @@ bool WriteSceneBinary(
         }
     }
 
-    // Nodes: for each node write name (u32+bytes), matrixIndexPlusOne u32, trsIndexPlusOne u32, children count + list, subMeshes count + list
+    // Nodes: for each node write name index u32, matrixIndexPlusOne u32, trsIndexPlusOne u32, children count + list, subMeshes count + list
     {
         std::vector<uint8_t> nodesBuf;
-        for (const auto &n : nodes) {
-            AppendU32(nodesBuf, static_cast<uint32_t>(n.name.size()));
-            if(!n.name.empty()) AppendBytes(nodesBuf, n.name.data(), n.name.size());
+        for (size_t i = 0; i < nodes.size(); ++i) {
+            const auto &n = nodes[i];
+            AppendU32(nodesBuf, nodeNameIndices[i]);
             AppendU32(nodesBuf, static_cast<uint32_t>(n.matrixIndexPlusOne));
             AppendU32(nodesBuf, static_cast<uint32_t>(n.trsIndexPlusOne));
             AppendU32(nodesBuf, static_cast<uint32_t>(n.children.size()));
