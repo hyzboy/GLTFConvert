@@ -29,7 +29,7 @@ struct MeshNode {
     std::vector<int32_t> children;
 
     // Separate indices into pools (plus one). 0 indicates identity/empty and not stored in pool.
-    int32_t matrixIndexPlusOne = 0; // refers to Model::matrixPool
+    int32_t matrixIndexPlusOne = 0; // refers to Model::matrixEntryPool
     int32_t trsIndexPlusOne = 0;    // refers to Model::trsPool
 
     std::vector<int32_t> subMeshes; // indices into Model::subMeshes (now int32_t)
@@ -58,8 +58,11 @@ struct Model {
     // Global pool of unique bounding boxes (AABB + OBB + Sphere)
     std::vector<BoundingBox> bounds;
 
+    // Matrix storage: deduped raw matrices and entries referencing them
+    std::vector<glm::mat4> matrixData;        // pool of unique matrices
+    std::vector<MatrixEntry> matrixEntryPool; // pairs of indices into matrixData
+
     // Separate transform pools
-    std::vector<MatrixEntry> matrixPool;              // deduped local/world matrices
     std::vector<MeshNodeTransform> trsPool;           // deduped TRS
 
     // Add or find a BoundingBox in the global pool; returns its index
@@ -68,21 +71,23 @@ struct Model {
     // Add or find in TRS pool; returns index
     int32_t internTRS(const MeshNodeTransform& t);
 
-    // Add or find in matrix pool (local+world pair); returns index
-    int32_t internMatrix(const MatrixEntry& m);
+    // Add or find in matrix pools (local+world pair); returns index of MatrixEntry
+    int32_t internMatrix(const glm::mat4& local, const glm::mat4& world);
 };
 
-// Helpers to access matrices from the matrix pool
+// Helpers to access matrices from the matrix pools
 inline glm::mat4 GetNodeWorldMatrix(const Model& m, const MeshNode& n) {
     if (n.matrixIndexPlusOne == 0) return glm::mat4(1.0f);
     const auto idx = n.matrixIndexPlusOne - 1; // int32_t
-    return m.matrixPool[static_cast<std::size_t>(idx)].world;
+    const MatrixEntry& me = m.matrixEntryPool[static_cast<std::size_t>(idx)];
+    return me.worldIndexPlusOne == 0 ? glm::mat4(1.0f) : m.matrixData[static_cast<std::size_t>(me.worldIndexPlusOne - 1)];
 }
 
 inline glm::mat4 GetNodeLocalMatrix(const Model& m, const MeshNode& n) {
     if (n.matrixIndexPlusOne == 0) return glm::mat4(1.0f);
     const auto idx = n.matrixIndexPlusOne - 1;
-    return m.matrixPool[static_cast<std::size_t>(idx)].local;
+    const MatrixEntry& me = m.matrixEntryPool[static_cast<std::size_t>(idx)];
+    return me.localIndexPlusOne == 0 ? glm::mat4(1.0f) : m.matrixData[static_cast<std::size_t>(me.localIndexPlusOne - 1)];
 }
 
 inline const std::optional<MeshNodeTransform>& GetNodeTRS(const Model& m, const MeshNode& n) {

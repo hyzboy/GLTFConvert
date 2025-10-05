@@ -53,7 +53,6 @@ static bool TRSEqual(const MeshNodeTransform& a, const MeshNodeTransform& b) {
 
 // internBounds implementation
 int32_t Model::internBounds(const BoundingBox& b) {
-    // Simple linear dedup; can be improved with hashing if needed
     for (std::size_t i = 0; i < bounds.size(); ++i) {
         const auto& e = bounds[i];
         if (e.aabb.min == b.aabb.min && e.aabb.max == b.aabb.max &&
@@ -74,12 +73,39 @@ int32_t Model::internTRS(const MeshNodeTransform& t) {
     return static_cast<int32_t>(trsPool.size() - 1);
 }
 
-int32_t Model::internMatrix(const MatrixEntry& m) {
-    for (std::size_t i = 0; i < matrixPool.size(); ++i) {
-        if (Mat4Equal(matrixPool[i].local, m.local) && Mat4Equal(matrixPool[i].world, m.world)) return static_cast<int32_t>(i);
+// Deduplicate a single matrix, return index (plus one for storage convenience elsewhere if needed)
+static int32_t InternSingleMatrix(std::vector<glm::mat4>& pool, const glm::mat4& m) {
+    for (std::size_t i = 0; i < pool.size(); ++i) {
+        if (Mat4Equal(pool[i], m)) return static_cast<int32_t>(i);
     }
-    matrixPool.push_back(m);
-    return static_cast<int32_t>(matrixPool.size() - 1);
+    pool.push_back(m);
+    return static_cast<int32_t>(pool.size() - 1);
+}
+
+int32_t Model::internMatrix(const glm::mat4& local, const glm::mat4& world) {
+    // Build a temporary MatrixEntry and dedup by referencing matrixData indices
+    MatrixEntry candidate;
+    if (!IsIdentity(local)) {
+        candidate.localIndexPlusOne = InternSingleMatrix(matrixData, local) + 1;
+    }
+    if (!IsIdentity(world)) {
+        candidate.worldIndexPlusOne = InternSingleMatrix(matrixData, world) + 1;
+    }
+
+    // If both identity -> nothing to store
+    if (candidate.localIndexPlusOne == 0 && candidate.worldIndexPlusOne == 0) {
+        return -1; // indicates identity
+    }
+
+    // Dedup MatrixEntry objects
+    for (std::size_t i = 0; i < matrixEntryPool.size(); ++i) {
+        const MatrixEntry& e = matrixEntryPool[i];
+        if (e.localIndexPlusOne == candidate.localIndexPlusOne && e.worldIndexPlusOne == candidate.worldIndexPlusOne) {
+            return static_cast<int32_t>(i);
+        }
+    }
+    matrixEntryPool.push_back(candidate);
+    return static_cast<int32_t>(matrixEntryPool.size() - 1);
 }
 
 // ----------------------- Helper functions (internal) -----------------------
@@ -112,15 +138,17 @@ static void CopyMeshNodesAndTransforms(Model& dst, const gltf::Model& src) {
         pn.children.reserve(n.children.size());
         for (auto c : n.children) pn.children.push_back(static_cast<int32_t>(c));
 
-        MatrixEntry me;
-        me.local = glm::mat4(n.localMatrix());
-        me.world = glm::mat4(n.worldMatrix);
-        const bool isIdentityMatrix = IsIdentity(me.local) && IsIdentity(me.world);
-        if (!isIdentityMatrix) {
-            const int32_t midx = dst.internMatrix(me);
-            pn.matrixIndexPlusOne = midx + 1;
+        glm::mat4 local = glm::mat4(n.localMatrix());
+        glm::mat4 world = glm::mat4(n.worldMatrix);
+        const bool isIdentityLocal = IsIdentity(local);
+        const bool isIdentityWorld = IsIdentity(world);
+        if (!(isIdentityLocal && isIdentityWorld)) {
+            const int32_t midx = dst.internMatrix(local, world);
+            if (midx >= 0) {
+                pn.matrixIndexPlusOne = midx + 1;
+            }
         } else {
-            pn.matrixIndexPlusOne = 0;
+            pn.matrixIndexPlusOne = 0; // identity
         }
 
         if (!n.hasMatrix) {
@@ -234,9 +262,7 @@ static void AttachNodeSubMeshes(Model& dst, const gltf::Model& src) {
 }
 
 static void ComputeAllBounds(Model& dst) {
-    // per-node world-space bounds
     ComputeAllMeshNodeBounds(dst);
-    // per-scene OBB + sphere
     ComputeAllSceneBounds(dst);
 }
 

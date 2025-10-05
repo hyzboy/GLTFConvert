@@ -1,12 +1,13 @@
 #pragma once
 
-#include <glm/glm.hpp>
+#include <cstdint>
 
 namespace pure {
 
 struct MatrixEntry {
-    glm::mat4 local{1.0f};
-    glm::mat4 world{1.0f};
+    // Indices (plus one) into Model::matrixData (0 means identity/not stored)
+    int32_t localIndexPlusOne{0};
+    int32_t worldIndexPlusOne{0};
 };
 
 } // namespace pure

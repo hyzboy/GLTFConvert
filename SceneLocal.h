@@ -3,6 +3,7 @@
 #include <string>
 #include <vector>
 #include <cstddef>
+#include <glm/glm.hpp>
 
 #include "Geometry.h" // for kInvalidBoundsIndex
 
@@ -21,9 +22,10 @@ struct Model;               // from StaticMesh.h
 struct SceneLocal {
     std::string name;
     std::vector<MeshNode> nodes;                 // scene-local nodes with remapped indices
-    std::vector<int32_t> roots;                 // root node indices into `nodes`
+    std::vector<int32_t> roots;                  // root node indices into `nodes`
     std::vector<SubMesh> subMeshes;              // scene-local subMesh pool (geometry indices are global)
-    std::vector<MatrixEntry> matrixPool;         // scene-local matrices
+    std::vector<MatrixEntry> matrixEntryPool;    // scene-local matrix entries
+    std::vector<glm::mat4> matrixData;           // scene-local unique matrices
     std::vector<MeshNodeTransform> trsPool;      // scene-local TRS
     std::vector<BoundingBox> bounds;             // scene-local bounds pool
     int32_t sceneBoundsIndex = kInvalidBoundsIndex; // index into `bounds` or kInvalidBoundsIndex

@@ -3,6 +3,7 @@
 #include <filesystem>
 #include <string>
 #include <vector>
+#include <glm/glm.hpp>
 
 #include "StaticMesh.h"
 
@@ -17,7 +18,8 @@ bool WriteSceneBinary(
     const std::string& baseName,
     const std::vector<pure::MeshNode>& nodes,
     const std::vector<pure::SubMesh>& subMeshes,
-    const std::vector<pure::MatrixEntry>& matrices,
+    const std::vector<pure::MatrixEntry>& matrixEntries,
+    const std::vector<glm::mat4>& matrixData,
     const std::vector<pure::MeshNodeTransform>& trs);
 
 } // namespace exporters
