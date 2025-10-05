@@ -3,20 +3,14 @@
 #include <string>
 #include <vector>
 #include <optional>
-#include <array>
 #include <cstddef>
-#include <limits>
 #include <glm/glm.hpp>
-#include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/quaternion.hpp>
 #include "AABB.h"
 #include "VKFormat.h"
-#include "VertexAttrib.h"
 #include "PrimitiveType.h"
 
 namespace gltf {
-
-// struct AABB moved to global namespace in AABB.h
 
 struct Geometry {
     std::string mode; // e.g. TRIANGLES
@@ -32,33 +26,25 @@ struct Geometry {
         VkFormat format;
 
         std::vector<std::byte> data; // raw data as-is
-        // Source glTF accessor index (for dedup by accessor identity)
-        std::optional<std::size_t> accessorIndex;
+        std::optional<std::size_t> accessorIndex; // Source glTF accessor index
     };
     std::vector<Attribute> attributes;
-    std::optional<std::vector<std::byte>> indices;
-    // metadata for indices
-    std::optional<std::size_t> indexCount; // number of indices
+    std::optional<std::vector<std::byte>> indices; // raw index data
+    std::optional<std::size_t> indexCount;         // number of indices
     std::optional<std::string> indexComponentType; // e.g. UNSIGNED_SHORT
 
     IndexType indexType = IndexType::ERR;
-
-    // Source glTF indices accessor index (for dedup)
-    std::optional<std::size_t> indicesAccessorIndex;
+    std::optional<std::size_t> indicesAccessorIndex; // source accessor index
 
     ::AABB localAABB; // computed from POSITION if present
 };
 
 struct Primitive {
     Geometry geometry; // geometry payload
-
-    // material index from glTF primitive (kept for building SubMesh during export)
-    std::optional<std::size_t> material;
+    std::optional<std::size_t> material; // material index
 };
 
-struct Material {
-    std::string name;
-};
+struct Material { std::string name; };
 
 struct Mesh {
     std::string name;
@@ -72,20 +58,13 @@ struct Node {
 
     bool hasMatrix = false; // true -> use matrix, false -> use TRS
     glm::dvec3 translation{0.0};
-    glm::dquat rotation{1.0,0.0,0.0,0.0}; // w,x,y,z in glm constructor order (w first)
+    glm::dquat rotation{1.0,0.0,0.0,0.0};
     glm::dvec3 scale{1.0};
     glm::dmat4 matrix{1.0};
 
     glm::dmat4 worldMatrix{1.0};
 
-    glm::dmat4 localMatrix() const {
-        if (hasMatrix) return matrix;
-        glm::dmat4 m(1.0);
-        m = glm::translate(m, translation);
-        m *= glm::mat4_cast(rotation);
-        m = glm::scale(m, scale);
-        return m;
-    }
+    glm::dmat4 localMatrix() const; // moved out-of-line to cpp to reduce header includes
 };
 
 struct Scene {
@@ -101,14 +80,10 @@ struct Model {
     std::vector<Mesh> meshes;
     std::vector<Node> nodes;
     std::vector<Scene> scenes;
-
-    // materials from the asset
     std::vector<Material> materials;
 
-    // compute per-node world matrices across all scenes
-    void computeWorldMatrices();
-    // compute per-scene AABBs using node world matrices and primitive localAABBs
-    void computeSceneAABBs();
+    void computeWorldMatrices(); // compute per-node world matrices across all scenes
+    void computeSceneAABBs();    // compute per-scene AABBs
 };
 
 } // namespace gltf

@@ -1,16 +1,15 @@
 #include "SceneExporter.h"
 #include "StaticMesh.h"
 
-#include <algorithm>
-#include <unordered_map>
-#include <cstdint>
 #include <filesystem>
 #include <iostream>
+#include <vector>
+#include <cstdint>
 
 #include "mini_pack_builder.h"
 
 namespace pure
-{   // Embed what was previously in SceneBinary.cpp
+{
     namespace {
         #pragma pack(push,1)
         struct SceneHeader
@@ -70,7 +69,6 @@ namespace pure
             std::cerr << "[Export] Failed to add Matrices entry: " << err << "\n";
             return false;
         }
-        // TRS flatten
         {
             std::vector<float> flat;
             flat.reserve(trsPool.size() * 10);
@@ -98,7 +96,6 @@ namespace pure
             std::cerr << "[Export] Failed to add SubMeshes entry: " << err << "\n";
             return false;
         }
-        // Nodes
         {
             std::vector<uint8_t> buf;
             buf.reserve(nodes.size() * 32);

@@ -1,13 +1,9 @@
 #include "SceneExporter.h"
 #include "StaticMesh.h"
 
-#include <algorithm>
 #include <unordered_map>
 #include <cstdint>
 #include <filesystem>
-#include <iostream>
-
-#include "mini_pack_builder.h"
 
 namespace pure
 {
@@ -15,19 +11,14 @@ namespace pure
     {
         struct SceneBuildContext
         {
-            // Reachable nodes (old indices, in DFS order)
             std::vector<int32_t> nodeOrder;
-            // old -> new compact node index
             std::unordered_map<int32_t,int32_t> nodeRemap;
-
-            // Resource remap tables
-            std::unordered_map<int32_t,int32_t> subMeshRemap;              // old subMesh index -> new
-            std::unordered_map<std::size_t,std::size_t> matrixRemap;       // old matrix index -> new
-            std::unordered_map<std::size_t,std::size_t> trsRemap;          // old trs index -> new
-            std::unordered_map<std::size_t,std::size_t> boundsRemap;       // old bounds index -> new
+            std::unordered_map<int32_t,int32_t> subMeshRemap;
+            std::unordered_map<std::size_t,std::size_t> matrixRemap;
+            std::unordered_map<std::size_t,std::size_t> trsRemap;
+            std::unordered_map<std::size_t,std::size_t> boundsRemap;
         };
 
-        // Collect reachable nodes starting from scene roots (DFS) and build node remap directly.
         static SceneBuildContext CollectReachable(const Model& sm, const Scene& sc)
         {
             SceneBuildContext ctx;
@@ -58,7 +49,6 @@ namespace pure
             return ctx;
         }
 
-        // Scan reachable nodes to build resource remap tables (subMeshes / matrices / trs / bounds)
         static void BuildResourceRemaps(const Model& sm, const Scene& sc, SceneBuildContext& ctx)
         {
             for (auto oldNi : ctx.nodeOrder)
@@ -79,7 +69,6 @@ namespace pure
                 ctx.boundsRemap.try_emplace(sc.boundsIndex, ctx.boundsRemap.size());
         }
 
-        // Copy referenced pools using remap tables into the exporter
         static void CopyResourcePools(const Model& sm, const SceneBuildContext& ctx, SceneExporter& out)
         {
             out.subMeshes.resize(ctx.subMeshRemap.size());
@@ -99,7 +88,6 @@ namespace pure
                 out.bounds[kv.second] = sm.bounds[kv.first];
         }
 
-        // Build scene-local node array with remapped child/subMesh indices and resource indices
         static void BuildNodes(const Model& sm, const SceneBuildContext& ctx, SceneExporter& out)
         {
             out.nodes.reserve(ctx.nodeOrder.size());
@@ -135,7 +123,6 @@ namespace pure
             }
         }
 
-        // Build roots array & scene bounds reference
         static void BuildRootsAndSceneBounds(const Scene& sc, const SceneBuildContext& ctx, SceneExporter& out)
         {
             out.roots.clear();
@@ -151,7 +138,6 @@ namespace pure
                 : static_cast<int32_t>(kInvalidBoundsIndex);
         }
 
-        // Build name table (scene name, subMesh geometry file names, node names)
         static void BuildNameTable(const Model& sm, SceneExporter& out)
         {
             out.nameList.clear();
@@ -180,7 +166,7 @@ namespace pure
             for (const auto& n : out.nodes)
                 out.nodeNameIndices.push_back(intern_name(n.name));
         }
-    } // anonymous namespace
+    }
 
     SceneExporter SceneExporter::Build(const Model &sm,int32_t sceneIndex)
     {
@@ -191,17 +177,11 @@ namespace pure
         const auto &sc = sm.scenes[sceneIndex];
         out.name = sc.name;
 
-        // 1. Collect reachable nodes & node remap
         SceneBuildContext ctx = CollectReachable(sm, sc);
-        // 2. Build resource remaps
         BuildResourceRemaps(sm, sc, ctx);
-        // 3. Copy referenced resource pools
         CopyResourcePools(sm, ctx, out);
-        // 4. Build nodes
         BuildNodes(sm, ctx, out);
-        // 5. Roots & scene bounds
         BuildRootsAndSceneBounds(sc, ctx, out);
-        // 6. Name table
         BuildNameTable(sm, out);
 
         return out;

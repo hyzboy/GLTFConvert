@@ -2,8 +2,6 @@
 #include "SceneExporter.h"
 
 #include <algorithm>
-#include <unordered_map>
-#include <cstdint>
 #include "MeshBounds.h"
 
 namespace pure

@@ -1,6 +1,17 @@
 #include "PureGLTF.h"
+#include <glm/gtc/matrix_transform.hpp>
+#include <glm/gtc/quaternion.hpp>
 
 namespace gltf {
+
+glm::dmat4 Node::localMatrix() const {
+    if (hasMatrix) return matrix;
+    glm::dmat4 m(1.0);
+    m = glm::translate(m, translation);
+    m *= glm::mat4_cast(rotation);
+    m = glm::scale(m, scale);
+    return m;
+}
 
 void Model::computeWorldMatrices() {
     // initialize world matrices with identity
