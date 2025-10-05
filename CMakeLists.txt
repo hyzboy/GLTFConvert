@@ -46,9 +46,8 @@ add_executable(GLTFConvert
     StaticMesh.cpp StaticMesh.h
     MeshBounds.cpp MeshBounds.h
     Exporter.cpp Exporter.h
-    SceneBinary.cpp SceneBinary.h
     # new split scene-local module and split headers
-    SceneLocal.cpp SceneLocal.h
+    SceneExporter.h SceneBinary.cpp SceneBuilder.cpp
     MeshNodeTransform.h
     SubMesh.h
     PureMaterial.h

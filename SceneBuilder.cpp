@@ -1,16 +1,19 @@
-#include "SceneLocal.h"
+#include "SceneExporter.h"
 #include "StaticMesh.h"
 
 #include <algorithm>
 #include <unordered_map>
 #include <cstdint>
 #include <filesystem>
+#include <iostream>
+
+#include "mini_pack_builder.h"
 
 namespace pure
 {
-    SceneLocal BuildSceneLocal(const Model &sm,int32_t sceneIndex)
+    SceneExporter SceneExporter::Build(const Model &sm,int32_t sceneIndex)
     {
-        SceneLocal out;
+        SceneExporter out;
 
         if (sceneIndex >= static_cast<int32_t>(sm.scenes.size()))
             return out;
@@ -21,30 +24,22 @@ namespace pure
 
         std::vector<uint8_t> nodeUsed(sm.mesh_nodes.size(), 0);
         std::vector<int32_t> nodeOrder;
-
         nodeOrder.reserve(sm.mesh_nodes.size());
-
         std::vector<int32_t> stack;
-
         stack.reserve(sc.nodes.size());
-
         for (auto v : sc.nodes)
             stack.push_back(static_cast<int32_t>(v));
 
         while (!stack.empty())
         {
             auto ni = stack.back();
-
             stack.pop_back();
             if (ni < 0 || static_cast<std::size_t>(ni) >= sm.mesh_nodes.size())
                 continue;
-
             if (nodeUsed[static_cast<std::size_t>(ni)])
                 continue;
-
             nodeUsed[static_cast<std::size_t>(ni)] = 1;
             nodeOrder.push_back(ni);
-
             for (auto c : sm.mesh_nodes[static_cast<std::size_t>(ni)].children)
                 stack.push_back(static_cast<int32_t>(c));
         }
@@ -53,7 +48,6 @@ namespace pure
 
         std::unordered_map<int32_t, int32_t> nodeRemap;
         nodeRemap.reserve(nodeOrder.size());
-
         for (int32_t i = 0; i < static_cast<int32_t>(nodeOrder.size()); ++i)
             nodeRemap[nodeOrder[static_cast<std::size_t>(i)]] = i;
 
@@ -105,22 +99,18 @@ namespace pure
             nn.boundsIndex = on.boundsIndex;
             if (nn.boundsIndex != kInvalidBoundsIndex)
                 nn.boundsIndex = boundsRemap[nn.boundsIndex];
-            // remap matrices
             if (on.localMatrixIndexPlusOne)
                 nn.localMatrixIndexPlusOne = static_cast<int32_t>(matrixRemap[on.localMatrixIndexPlusOne - 1]) + 1;
             if (on.worldMatrixIndexPlusOne)
                 nn.worldMatrixIndexPlusOne = static_cast<int32_t>(matrixRemap[on.worldMatrixIndexPlusOne - 1]) + 1;
-            // remap trs
             if (on.trsIndexPlusOne)
                 nn.trsIndexPlusOne = static_cast<int32_t>(trsRemap[on.trsIndexPlusOne - 1]) + 1;
-            // children
             for (auto oc : on.children)
             {
                 auto it = nodeRemap.find(oc);
                 if (it != nodeRemap.end())
                     nn.children.push_back(it->second);
             }
-            // submeshes
             for (auto osm : on.subMeshes)
             {
                 auto it = subMeshRemap.find(osm);
@@ -142,7 +132,7 @@ namespace pure
             ? static_cast<int32_t>(boundsRemap[sc.boundsIndex])
             : static_cast<int32_t>(kInvalidBoundsIndex);
 
-        // Build name table data here (moved from SceneBinary)
+        // Name table
         out.nameList.clear();
         out.nameMap.clear();
         out.subMeshNameIndices.clear();
@@ -158,7 +148,7 @@ namespace pure
             out.nameMap.emplace(out.nameList.back(), idx);
             return idx;
         };
-        intern_name(out.name); // scene name (may be empty)
+        intern_name(out.name);
         out.subMeshNameIndices.reserve(out.subMeshes.size());
         for (const auto &smSub : out.subMeshes)
         {

@@ -10,8 +10,7 @@
 #include <cstdint>
 
 #include "StaticMesh.h"
-#include "SceneBinary.h"
-#include "SceneLocal.h"
+#include "SceneExporter.h"
 
 using nlohmann::json;
 
@@ -253,7 +252,7 @@ static bool ExportScene(
 )
 {
     const auto &sc = sm.scenes[si];
-    pure::SceneLocal sl = pure::BuildSceneLocal(sm, static_cast<int32_t>(si));
+    pure::SceneExporter sl = pure::SceneExporter::Build(sm, static_cast<int32_t>(si));
 
     std::string sceneFolderName;
     {
@@ -379,12 +378,7 @@ static bool ExportScene(
     sjsonOut.close();
     std::cout << "[Export] Saved: " << sjsonPath << "\n";
 
-    // Refactored WriteSceneBinary call
-    WriteSceneBinary(
-        sceneDir,
-        baseName,
-        sl
-    );
+    sl.WriteSceneBinary(sceneDir, baseName);
 
     return true;
 }
