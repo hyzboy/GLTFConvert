@@ -12,22 +12,24 @@
 #include "pure/GeometryAttribute.h"
 #include "pure/GeometryIndicesMeta.h"
 
-namespace pure {
+namespace pure
+{
 
-struct Geometry {
-    std::string mode; // e.g. TRIANGLES
-    PrimitiveType primitiveType = PrimitiveType::Triangles;
+    struct Geometry
+    {
+        std::string mode; // e.g. TRIANGLES
+        PrimitiveType primitiveType=PrimitiveType::Triangles;
 
-    std::vector<GeometryAttribute> attributes; // vertex attributes
-    int32_t boundsIndex = kInvalidBoundsIndex; // index into global bounds pool
+        std::vector<GeometryAttribute> attributes; // vertex attributes
+        int32_t boundsIndex=kInvalidBoundsIndex; // index into global bounds pool
 
-    std::optional<std::vector<std::byte>> indicesData; // raw index buffer if present
-    std::optional<GeometryIndicesMeta> indices;        // metadata for indices
+        std::optional<std::vector<std::byte>> indicesData; // raw index buffer if present
+        std::optional<GeometryIndicesMeta> indices;        // metadata for indices
 
-    // Optional double-precision decoded POSITION data (local space)
-    std::optional<std::vector<glm::dvec3>> positions;
-};
+        // Optional double-precision decoded POSITION data (local space)
+        std::optional<std::vector<glm::dvec3>> positions;
+    };
 
-bool SaveGeometry(const Geometry &geometry, const BoundingBox &, const std::string &filename);
+    bool SaveGeometry(const Geometry &geometry,const BoundingBox &,const std::string &filename);
 
 } // namespace pure
