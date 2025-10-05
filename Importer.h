@@ -5,7 +5,6 @@
 
 namespace importers {
 
-// Import from fastgltf Asset into our gltf::Model
-bool ImportFastGLTF(const std::filesystem::path& inputPath, gltf::Model& outModel);
+bool ImportFastGLTF(const std::filesystem::path& inputPath, gltf::GLTFModel& outModel);
 
 } // namespace importers

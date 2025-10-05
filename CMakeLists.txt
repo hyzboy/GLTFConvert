@@ -59,7 +59,7 @@ set(GLTF_FILES
     gltf/Node.h
     gltf/Scene.h
     gltf/Model.h
-    gltf/Model.cpp
+    gltf/GLTFModel.cpp
 )
 SOURCE_GROUP("gltf" FILES ${GLTF_FILES})
 

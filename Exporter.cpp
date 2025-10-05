@@ -387,7 +387,7 @@ static bool ExportScene(
 // Public entry
 // ------------------------------------------------------------
 bool ExportPureModel(
-    const gltf::Model            &model,
+    const gltf::GLTFModel         &model,
     const std::filesystem::path  &outDir
 )
 {
@@ -403,9 +403,9 @@ bool ExportPureModel(
     std::filesystem::path targetDir = baseDir / (baseName + ".StaticMesh");
     std::filesystem::create_directories(targetDir, ec);
 
-    json root              = json::object();
-    root["gltf_source"]    = sm.gltf_source;
-    root["materials"]      = BuildMaterialsJson(sm);
+    json root = json::object();
+    root["gltf_source"] = sm.gltf_source;
+    root["materials"] = BuildMaterialsJson(sm);
 
     if (!WriteAllBoundsBinary(sm, targetDir))
         std::cerr << "[Export] Failed to write bounds binary." << "\n";

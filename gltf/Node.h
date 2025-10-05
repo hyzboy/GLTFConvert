@@ -9,7 +9,7 @@
 
 namespace gltf {
 
-struct Node {
+struct GLTFNode {
     std::string name;
     std::optional<std::size_t> mesh;
     std::vector<std::size_t> children;

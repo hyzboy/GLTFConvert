@@ -6,7 +6,7 @@
 
 namespace gltf {
 
-struct Mesh {
+struct GLTFMesh {
     std::string name;
     std::vector<std::size_t> primitives; // indices into Model::primitives
 };

@@ -11,17 +11,17 @@
 
 namespace gltf {
 
-struct Model {
+struct GLTFModel {
     std::string source;
 
-    std::vector<Primitive> primitives;
-    std::vector<Mesh> meshes;
-    std::vector<Node> nodes;
-    std::vector<Scene> scenes;
-    std::vector<Material> materials;
+    std::vector<GLTFPrimitive> primitives;
+    std::vector<GLTFMesh> meshes;
+    std::vector<GLTFNode> nodes;
+    std::vector<GLTFScene> scenes;
+    std::vector<GLTFMaterial> materials;
 
-    void computeWorldMatrices(); // compute per-node world matrices across all scenes
-    void computeSceneAABBs();    // compute per-scene AABBs
+    void computeWorldMatrices();
+    void computeSceneAABBs();
 };
 
 } // namespace gltf

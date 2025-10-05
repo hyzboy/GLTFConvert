@@ -7,7 +7,7 @@
 
 namespace gltf {
 
-struct Scene {
+struct GLTFScene {
     std::string name;
     std::vector<std::size_t> nodes; // root node indices
     ::AABB worldAABB; // computed

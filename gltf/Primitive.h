@@ -2,12 +2,12 @@
 
 #include <optional>
 #include <cstddef>
-#include "gltf/Geometry.h" // gltf geometry definition
+#include "gltf/Geometry.h" // updated gltf geometry definition
 
 namespace gltf {
 
-struct Primitive {
-    Geometry geometry; // geometry payload (import-time gltf::Geometry)
+struct GLTFPrimitive {
+    GLTFGeometry geometry; // geometry payload (import-time)
     std::optional<std::size_t> material; // material index
 };
 

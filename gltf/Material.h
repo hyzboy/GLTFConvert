@@ -4,6 +4,6 @@
 
 namespace gltf {
 
-struct Material { std::string name; };
+struct GLTFMaterial { std::string name; };
 
 } // namespace gltf

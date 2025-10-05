@@ -6,7 +6,7 @@
 
 namespace pure
 {
-    static bool SameGeometryByAccessorId(const gltf::Geometry &a,const gltf::Geometry &b)
+    static bool SameGeometryByAccessorId(const gltf::GLTFGeometry &a,const gltf::GLTFGeometry &b)
     {
         if (a.mode != b.mode)
             return false;
@@ -16,7 +16,7 @@ namespace pure
             return false;
         if (a.attributes.size() != b.attributes.size())
             return false;
-        auto makeList = [](const gltf::Geometry &g)
+        auto makeList = [](const gltf::GLTFGeometry &g)
         {
             std::vector<std::pair<std::string, std::size_t>> v;
             v.reserve(g.attributes.size());
@@ -63,8 +63,7 @@ namespace pure
         {
             const auto &e = bounds[i];
             if (e.aabb.min == b.aabb.min && e.aabb.max == b.aabb.max &&
-                e.obb.center == b.obb.center && e.obb.axisX == b.obb.axisX && e.obb.axisY == b.obb.axisY && e.obb.axisZ == b.obb.axisZ && e.obb.halfSize == b.obb.halfSize &&
-                e.sphere.center == b.sphere.center && e.sphere.radius == b.sphere.radius)
+                e.obb.center == b.obb.center && e.obb.axisX == b.obb.axisX && e.obb.axisY == b.obb.axisY && e.obb.axisZ == b.obb.axisZ && e.obb.halfSize == b.obb.halfSize && e.sphere.center == b.sphere.center && e.sphere.radius == b.sphere.radius)
                 return static_cast<int32_t>(i);
         }
         bounds.push_back(b);
@@ -96,7 +95,7 @@ namespace pure
 
     static void CopyMaterials(
         Model           &dst,
-        const gltf::Model &src
+        const gltf::GLTFModel &src
     )
     {
         dst.materials.reserve(src.materials.size());
@@ -108,7 +107,7 @@ namespace pure
         }
     }
 
-    static void CopyScenes(Model &dst,const gltf::Model &src)
+    static void CopyScenes(Model &dst,const gltf::GLTFModel &src)
     {
         dst.scenes.reserve(src.scenes.size());
         for (const auto &s : src.scenes)
@@ -127,7 +126,7 @@ namespace pure
         }
     }
 
-    static void CopyMeshNodesAndTransforms(Model &dst,const gltf::Model &src)
+    static void CopyMeshNodesAndTransforms(Model &dst,const gltf::GLTFModel &src)
     {
         dst.mesh_nodes.reserve(src.nodes.size());
         for (const auto &n : src.nodes)
@@ -172,7 +171,7 @@ namespace pure
         std::vector<int32_t> geomIndexOfPrim;
     };
 
-    static UniqueGeometryMapping BuildUniqueGeometryMapping(const gltf::Model &src)
+    static UniqueGeometryMapping BuildUniqueGeometryMapping(const gltf::GLTFModel &src)
     {
         UniqueGeometryMapping map;
         const auto &prims = src.primitives;
@@ -205,7 +204,7 @@ namespace pure
 
     static void CreateUniqueGeometryEntries(
         Model                 &dst,
-        const gltf::Model     &src,
+        const gltf::GLTFModel     &src,
         const UniqueGeometryMapping &map)
     {
         const auto &prims = src.primitives;
@@ -252,7 +251,7 @@ namespace pure
 
     static void BuildSubMeshes(
         Model                 &dst,
-        const gltf::Model     &src,
+        const gltf::GLTFModel     &src,
         const UniqueGeometryMapping &map
     )
     {
@@ -268,7 +267,7 @@ namespace pure
         }
     }
 
-    static void AttachNodeSubMeshes(Model &dst,const gltf::Model &src)
+    static void AttachNodeSubMeshes(Model &dst,const gltf::GLTFModel &src)
     {
         for (int32_t ni = 0; ni < static_cast<int32_t>(src.nodes.size()); ++ni)
         {
@@ -292,7 +291,7 @@ namespace pure
 
     } // anonymous namespace
 
-    Model ConvertFromGLTF(const gltf::Model &src)
+    Model ConvertFromGLTF(const gltf::GLTFModel &src)
     {
         Model dst;
         dst.gltf_source = src.source;

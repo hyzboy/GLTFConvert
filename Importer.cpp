@@ -90,8 +90,7 @@ static VkFormat AccessorTypeToVkFormat(fastgltf::AccessorType at, fastgltf::Comp
             default: return PF_UNDEFINED;
         }
     }
-    else
-    if (at == fastgltf::AccessorType::Vec2)
+    else if (at == fastgltf::AccessorType::Vec2)
     {
         switch (ct)
         {
@@ -106,8 +105,7 @@ static VkFormat AccessorTypeToVkFormat(fastgltf::AccessorType at, fastgltf::Comp
             default: return PF_UNDEFINED;
         }
     }
-    else
-    if (at == fastgltf::AccessorType::Vec3)
+    else if (at == fastgltf::AccessorType::Vec3)
     {
         switch (ct)
         {
@@ -122,8 +120,7 @@ static VkFormat AccessorTypeToVkFormat(fastgltf::AccessorType at, fastgltf::Comp
             default: return PF_UNDEFINED;
         }
     }
-    else
-    if(at==fastgltf::AccessorType::Vec4)
+    else if(at==fastgltf::AccessorType::Vec4)
     {
         switch (ct)
         {
@@ -222,7 +219,7 @@ inline void RotateYUpToZUp(double& x, double& y, double& z) {
     x = nx; y = ny; z = nz;
 }
 
-static void ApplyYUpToZUp(Model& model) {
+static void ApplyYUpToZUp(GLTFModel& model) {
     // Rotation matrix for bounds
     glm::dmat4 rot(1.0);
     rot = glm::rotate(rot, glm::radians(90.0), glm::dvec3(1.0, 0.0, 0.0));
@@ -287,7 +284,7 @@ static void ApplyYUpToZUp(Model& model) {
 }
 
 // Adjust all node local transforms M -> R * M * R^-1 so that geometry (already rotated by R) composes correctly
-static void ApplyYUpToZUpNodeTransforms(Model& model) {
+static void ApplyYUpToZUpNodeTransforms(GLTFModel& model) {
     glm::dmat4 R(1.0);
     R = glm::rotate(R, glm::radians(90.0), glm::dvec3(1.0, 0.0, 0.0));
     glm::dmat4 Rinv = glm::transpose(R); // orthonormal rotation
@@ -301,30 +298,29 @@ static void ApplyYUpToZUpNodeTransforms(Model& model) {
 }
 
 // ---- Import helpers --------------------------------------------------------
-static void ImportMaterials(const fastgltf::Asset& asset, gltf::Model& outModel) {
+static void ImportMaterials(const fastgltf::Asset& asset, gltf::GLTFModel& outModel) {
     outModel.materials.clear();
     outModel.materials.reserve(asset.materials.size());
     for (const auto& m : asset.materials) {
-        gltf::Material om{};
+        gltf::GLTFMaterial om{};
         if (!m.name.empty()) om.name.assign(m.name.begin(), m.name.end());
         outModel.materials.emplace_back(std::move(om));
     }
 }
 
-static void ImportPrimitives(const fastgltf::Asset& asset, gltf::Model& outModel) {
+static void ImportPrimitives(const fastgltf::Asset& asset, gltf::GLTFModel& outModel) {
     // Insert primitives in asset order so mesh->primitive mapping can be rebuilt by a linear scan
     for (const auto& mesh : asset.meshes) {
         for (const auto& prim : mesh.primitives) {
-            Primitive p{};
+            GLTFPrimitive p{};
             p.geometry.mode = ModeToString(prim.type);
             p.geometry.primitiveType = ModeToPrimitiveType(prim.type);
 
             // attributes
             for (const auto& attr : prim.attributes) {
-                const std::string name(attr.name.data(), attr.name.size());
                 const auto& acc = asset.accessors[attr.accessorIndex];
-                gltf::Geometry::Attribute a{};
-                a.name = name;
+                GLTFGeometry::GLTFGeometryAttribute a{};
+                a.name = attr.name;
                 a.count = acc.count;
                 a.componentType = ComponentTypeToString(acc.componentType);
                 a.type = AccessorTypeToString(acc.type);
@@ -335,7 +331,7 @@ static void ImportPrimitives(const fastgltf::Asset& asset, gltf::Model& outModel
                 }
                 p.geometry.attributes.emplace_back(std::move(a));
 
-                if (name == "POSITION") {
+                if (a.name == "POSITION") {
                     if (auto mm = ComputeAABBFromAccessorFloat(asset, acc)) {
                         p.geometry.localAABB.min = mm->first;
                         p.geometry.localAABB.max = mm->second;
@@ -366,13 +362,13 @@ static void ImportPrimitives(const fastgltf::Asset& asset, gltf::Model& outModel
     }
 }
 
-static void ImportMeshes(const fastgltf::Asset& asset, gltf::Model& outModel) {
+static void ImportMeshes(const fastgltf::Asset& asset, gltf::GLTFModel& outModel) {
     // Rebuild mesh->primitives indices by scanning in the same order used by ImportPrimitives
     std::size_t primCursor = 0;
     outModel.meshes.clear();
     outModel.meshes.reserve(asset.meshes.size());
     for (const auto& mesh : asset.meshes) {
-        Mesh m{};
+        GLTFMesh m{};
         if (!mesh.name.empty()) m.name.assign(mesh.name.begin(), mesh.name.end());
         for (std::size_t i = 0; i < mesh.primitives.size(); ++i) {
             m.primitives.push_back(primCursor++);
@@ -381,7 +377,7 @@ static void ImportMeshes(const fastgltf::Asset& asset, gltf::Model& outModel) {
     }
 }
 
-static void ImportNodes(const fastgltf::Asset& asset, gltf::Model& outModel) {
+static void ImportNodes(const fastgltf::Asset& asset, gltf::GLTFModel& outModel) {
     outModel.nodes.resize(asset.nodes.size());
     for (std::size_t i = 0; i < asset.nodes.size(); ++i) {
         const auto& n = asset.nodes[i];
@@ -409,7 +405,7 @@ static void ImportNodes(const fastgltf::Asset& asset, gltf::Model& outModel) {
     }
 }
 
-static void ImportScenes(const fastgltf::Asset& asset, gltf::Model& outModel) {
+static void ImportScenes(const fastgltf::Asset& asset, gltf::GLTFModel& outModel) {
     outModel.scenes.resize(asset.scenes.size());
     for (std::size_t i = 0; i < asset.scenes.size(); ++i) {
         const auto& sc = asset.scenes[i];
@@ -421,7 +417,7 @@ static void ImportScenes(const fastgltf::Asset& asset, gltf::Model& outModel) {
 
 } // anonymous namespace
 
-bool ImportFastGLTF(const std::filesystem::path& inputPath, gltf::Model& outModel) {
+bool ImportFastGLTF(const std::filesystem::path& inputPath, gltf::GLTFModel& outModel) {
     fastgltf::Parser parser{};
     auto data_res = fastgltf::GltfDataBuffer::FromPath(inputPath);
     if (data_res.error() != fastgltf::Error::None) {

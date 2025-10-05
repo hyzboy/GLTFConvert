@@ -4,7 +4,7 @@
 
 namespace gltf {
 
-glm::dmat4 Node::localMatrix() const {
+glm::dmat4 GLTFNode::localMatrix() const {
     if (hasMatrix) return matrix;
     glm::dmat4 m(1.0);
     m = glm::translate(m, translation);
@@ -13,7 +13,7 @@ glm::dmat4 Node::localMatrix() const {
     return m;
 }
 
-void Model::computeWorldMatrices() {
+void GLTFModel::computeWorldMatrices() {
     // initialize world matrices with identity
     for (auto &n : nodes) n.worldMatrix = glm::dmat4(1.0);
 
@@ -38,11 +38,11 @@ void Model::computeWorldMatrices() {
     }
 }
 
-void Model::computeSceneAABBs() {
+void GLTFModel::computeSceneAABBs() {
     for (auto &sc : scenes) sc.worldAABB.reset();
 
     // helper lambda to expand scene by a node
-    auto expandByNode = [&](Scene &scene, const Node &node){
+    auto expandByNode = [&](GLTFScene &scene, const GLTFNode &node){
         if (!node.mesh) return;
         const auto &mesh = meshes[*node.mesh];
         for (std::size_t pidx : mesh.primitives) {
