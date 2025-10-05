@@ -82,39 +82,36 @@ int32_t Model::internMatrix(const MatrixEntry& m) {
     return static_cast<int32_t>(matrixPool.size() - 1);
 }
 
-Model ConvertFromGLTF(const gltf::Model& src) {
-    Model dst;
-    dst.gltf_source = src.source;
+// ----------------------- Helper functions (internal) -----------------------
+namespace {
 
-    // materials
+static void CopyMaterials(Model& dst, const gltf::Model& src) {
     dst.materials.reserve(src.materials.size());
     for (const auto& m : src.materials) {
         pure::Material pm; pm.name = m.name; dst.materials.push_back(std::move(pm));
     }
+}
 
-    // scenes with aabb (scene OBB filled later after nodes computed)
+static void CopyScenes(Model& dst, const gltf::Model& src) {
     dst.scenes.reserve(src.scenes.size());
     for (const auto& s : src.scenes) {
         pure::Scene ps; ps.name = s.name;
-        // convert root node indices to int32
         ps.nodes.reserve(s.nodes.size());
         for (auto ni : s.nodes) ps.nodes.push_back(static_cast<int32_t>(ni));
-        // store provided scene AABB into bounds pool (OBB and sphere will be computed later)
         BoundingBox bb; bb.aabb = s.worldAABB; bb.obb.reset(); bb.sphere.reset();
         ps.boundsIndex = dst.internBounds(bb);
         dst.scenes.push_back(std::move(ps));
     }
+}
 
-    // mesh_nodes (nodes) copy + transform pools
+static void CopyMeshNodesAndTransforms(Model& dst, const gltf::Model& src) {
     dst.mesh_nodes.reserve(src.nodes.size());
     for (const auto& n : src.nodes) {
         pure::MeshNode pn;
         pn.name = n.name;
-        // convert children indices
         pn.children.reserve(n.children.size());
         for (auto c : n.children) pn.children.push_back(static_cast<int32_t>(c));
 
-        // Fill matrix entry
         MatrixEntry me;
         me.local = glm::mat4(n.localMatrix());
         me.world = glm::mat4(n.worldMatrix);
@@ -123,10 +120,9 @@ Model ConvertFromGLTF(const gltf::Model& src) {
             const int32_t midx = dst.internMatrix(me);
             pn.matrixIndexPlusOne = midx + 1;
         } else {
-            pn.matrixIndexPlusOne = 0; // identity
+            pn.matrixIndexPlusOne = 0;
         }
 
-        // Fill TRS entry only if source used TRS and it's non-identity
         if (!n.hasMatrix) {
             MeshNodeTransform tf;
             tf.translation = glm::vec3(n.translation);
@@ -143,34 +139,43 @@ Model ConvertFromGLTF(const gltf::Model& src) {
             pn.trsIndexPlusOne = 0; // came from matrix path
         }
 
-        pn.boundsIndex = kInvalidBoundsIndex; // will be filled later
+        pn.boundsIndex = kInvalidBoundsIndex;
         dst.mesh_nodes.push_back(std::move(pn));
     }
+}
 
-    // Build unique geometry set by accessor identity
-    const auto& prims = src.primitives;
+struct UniqueGeometryMapping {
     std::vector<int32_t> uniqueRepGeomPrimIdx; // representative primitive index per unique geometry
-    std::vector<int32_t> geomIndexOfPrim(static_cast<int32_t>(prims.size()), static_cast<int32_t>(-1));
+    std::vector<int32_t> geomIndexOfPrim;      // mapping primitive -> geometry index
+};
+
+static UniqueGeometryMapping BuildUniqueGeometryMapping(const gltf::Model& src) {
+    UniqueGeometryMapping map;
+    const auto& prims = src.primitives;
+    map.geomIndexOfPrim.assign(prims.size(), static_cast<int32_t>(-1));
 
     for (int32_t i = 0; i < static_cast<int32_t>(prims.size()); ++i) {
         const auto& g = prims[static_cast<std::size_t>(i)].geometry;
         int32_t found = static_cast<int32_t>(-1);
-        for (int32_t u = 0; u < static_cast<int32_t>(uniqueRepGeomPrimIdx.size()); ++u) {
-            if (SameGeometryByAccessorId(g, prims[static_cast<std::size_t>(uniqueRepGeomPrimIdx[static_cast<std::size_t>(u)])].geometry)) { found = u; break; }
+        for (int32_t u = 0; u < static_cast<int32_t>(map.uniqueRepGeomPrimIdx.size()); ++u) {
+            if (SameGeometryByAccessorId(g, prims[static_cast<std::size_t>(map.uniqueRepGeomPrimIdx[static_cast<std::size_t>(u)])].geometry)) { found = u; break; }
         }
         if (found == static_cast<int32_t>(-1)) {
-            uniqueRepGeomPrimIdx.push_back(i);
-            geomIndexOfPrim[static_cast<std::size_t>(i)] = static_cast<int32_t>(uniqueRepGeomPrimIdx.size() - 1);
+            map.uniqueRepGeomPrimIdx.push_back(i);
+            map.geomIndexOfPrim[static_cast<std::size_t>(i)] = static_cast<int32_t>(map.uniqueRepGeomPrimIdx.size() - 1);
         } else {
-            geomIndexOfPrim[static_cast<std::size_t>(i)] = found;
+            map.geomIndexOfPrim[static_cast<std::size_t>(i)] = found;
         }
     }
+    return map;
+}
 
-    // geometry (pure geometry) metadata + binary for unique ones
-    dst.geometry.reserve(uniqueRepGeomPrimIdx.size());
+static void CreateUniqueGeometryEntries(Model& dst, const gltf::Model& src, const UniqueGeometryMapping& map) {
+    const auto& prims = src.primitives;
+    dst.geometry.reserve(map.uniqueRepGeomPrimIdx.size());
 
-    for (int32_t u = 0; u < static_cast<int32_t>(uniqueRepGeomPrimIdx.size()); ++u) {
-        const int32_t i = uniqueRepGeomPrimIdx[static_cast<std::size_t>(u)];
+    for (int32_t u = 0; u < static_cast<int32_t>(map.uniqueRepGeomPrimIdx.size()); ++u) {
+        const int32_t i = map.uniqueRepGeomPrimIdx[static_cast<std::size_t>(u)];
         const auto& g = prims[static_cast<std::size_t>(i)].geometry;
         pure::Geometry pg;
         pg.mode = g.mode;
@@ -184,7 +189,7 @@ Model ConvertFromGLTF(const gltf::Model& src) {
             ga.componentType = a.componentType;
             ga.type = a.type;
             ga.format = a.format;
-            ga.data = a.data; // copy binary
+            ga.data = a.data;
             pg.attributes.push_back(std::move(ga));
         }
 
@@ -196,23 +201,25 @@ Model ConvertFromGLTF(const gltf::Model& src) {
         }
         if (g.indexCount && g.indexComponentType) {
             pg.indices = pure::GeometryIndicesMeta{ *g.indexCount, *g.indexComponentType };
-
             pg.indices->indexType = g.indexType;
         }
         dst.geometry.push_back(std::move(pg));
     }
+}
 
-    // Global SubMeshes list: one-to-one with glTF primitives (geometry + material)
+static void BuildSubMeshes(Model& dst, const gltf::Model& src, const UniqueGeometryMapping& map) {
+    const auto& prims = src.primitives;
     dst.subMeshes.reserve(prims.size());
     for (int32_t i = 0; i < static_cast<int32_t>(prims.size()); ++i) {
         const auto& p = prims[static_cast<std::size_t>(i)];
         pure::SubMesh sm;
-        sm.geometry = geomIndexOfPrim[static_cast<std::size_t>(i)];
+        sm.geometry = map.geomIndexOfPrim[static_cast<std::size_t>(i)];
         sm.material = p.material ? std::optional<int32_t>(static_cast<int32_t>(*p.material)) : std::optional<int32_t>{};
         dst.subMeshes.push_back(std::move(sm));
     }
+}
 
-    // Attach per-node SubMeshes indices (each equals a glTF primitive under the node's glTF mesh)
+static void AttachNodeSubMeshes(Model& dst, const gltf::Model& src) {
     for (int32_t ni = 0; ni < static_cast<int32_t>(src.nodes.size()); ++ni) {
         const auto& node = src.nodes[static_cast<std::size_t>(ni)];
         auto& pn = dst.mesh_nodes[static_cast<std::size_t>(ni)];
@@ -220,17 +227,34 @@ Model ConvertFromGLTF(const gltf::Model& src) {
             const auto& mesh = src.meshes[static_cast<std::size_t>(*node.mesh)];
             pn.subMeshes.reserve(mesh.primitives.size());
             for (auto primIndex : mesh.primitives) {
-                pn.subMeshes.push_back(static_cast<int32_t>(primIndex)); // index into global subMeshes as int32_t
+                pn.subMeshes.push_back(static_cast<int32_t>(primIndex));
             }
         }
     }
+}
 
-    // Compute per-node world-space bounds from attached subMeshes and node world_matrix
+static void ComputeAllBounds(Model& dst) {
+    // per-node world-space bounds
     ComputeAllMeshNodeBounds(dst);
-
-    // Compute per-scene OBB and sphere from all world-space points under its nodes
+    // per-scene OBB + sphere
     ComputeAllSceneBounds(dst);
+}
 
+} // anonymous namespace
+// ---------------------------------------------------------------------------
+
+Model ConvertFromGLTF(const gltf::Model& src) {
+    Model dst;
+    dst.gltf_source = src.source;
+
+    CopyMaterials(dst, src);
+    CopyScenes(dst, src);
+    CopyMeshNodesAndTransforms(dst, src);
+    auto uniqueMap = BuildUniqueGeometryMapping(src);
+    CreateUniqueGeometryEntries(dst, src, uniqueMap);
+    BuildSubMeshes(dst, src, uniqueMap);
+    AttachNodeSubMeshes(dst, src);
+    ComputeAllBounds(dst);
     return dst;
 }
 
