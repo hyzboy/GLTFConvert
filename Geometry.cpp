@@ -1,11 +1,11 @@
-﻿#include"Geometry.h"
-#include"mini_pack_builder.h"
-#include<fstream>
-#include<iostream>
-#include<vector>
-#include<cstdint>
-#include<sstream>
-#include<limits>
+﻿#include "pure/Geometry.h"
+#include "mini_pack_builder.h"
+#include <fstream>
+#include <iostream>
+#include <vector>
+#include <cstdint>
+#include <sstream>
+#include <limits>
 
 namespace pure
 {

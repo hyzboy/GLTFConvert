@@ -12,7 +12,7 @@
 #include "math/AABB.h"
 #include "math/OBB.h"
 #include "gltf/Model.h"
-#include "Geometry.h"
+#include "pure/Geometry.h" // updated include path
 #include "SubMesh.h"
 #include "math/MeshNodeTransform.h"
 

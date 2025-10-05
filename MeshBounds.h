@@ -4,6 +4,7 @@
 #include <vector>
 
 #include "StaticMesh.h"
+#include "pure/Geometry.h" // updated include
 
 namespace pure {
 

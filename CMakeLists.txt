@@ -63,6 +63,15 @@ set(GLTF_FILES
 )
 SOURCE_GROUP("gltf" FILES ${GLTF_FILES})
 
+# New pure geometry split headers
+set(PURE_GEOM_FILES
+    pure/BoundsIndex.h
+    pure/GeometryAttribute.h
+    pure/GeometryIndicesMeta.h
+    pure/Geometry.h
+)
+SOURCE_GROUP("pure" FILES ${PURE_GEOM_FILES})
+
 # Add executable (include new modules for pure glTF data, importer and exporter)
 add_executable(GLTFConvert
     main.cpp
@@ -70,6 +79,7 @@ add_executable(GLTFConvert
     ${MATH_FILES}
     ${COMMON_FILES}
     ${GLTF_FILES}
+    ${PURE_GEOM_FILES}
 
     Importer.cpp Importer.h
     Geometry.cpp Geometry.h
