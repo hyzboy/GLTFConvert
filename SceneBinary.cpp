@@ -118,8 +118,8 @@ bool WriteSceneBinary(
     {
         std::vector<uint8_t> smBuf;
         for (const auto &sm : subMeshes) {
-            std::string geomFile = baseName + "." + std::to_string(sm.geometry) + ".geometry";
-            AppendU32(smBuf, static_cast<uint32_t>(geomFile.size()));
+            std::string geomFile = baseName + "." + std::to_string(sm.geometry);
+            smBuf.push_back(static_cast<uint8_t>(geomFile.size()));
             if(!geomFile.empty()) AppendBytes(smBuf, geomFile.data(), geomFile.size());
         }
         if(!builder.add_entry_from_buffer("SubMeshes", smBuf.data(), static_cast<uint32_t>(smBuf.size()), err))
