@@ -66,9 +66,7 @@ namespace pure
         auto &node=model.mesh_nodes[static_cast<std::size_t>(nodeIndex)];
 
         BoundingBox nb; // start empty
-        nb.aabb.reset();
-        nb.obb.reset();
-        nb.sphere.reset();
+
         if(node.subMeshes.empty()) { node.boundsIndex=model.internBounds(nb); return; }
 
         const glm::mat4 world=GetNodeWorldMatrix(model,node);
@@ -79,14 +77,7 @@ namespace pure
             const auto &sm=model.subMeshes[static_cast<std::size_t>(smIndex)];
             if(sm.geometry==static_cast<std::size_t>(-1)) continue;
             const auto &g=model.geometry[sm.geometry];
-            if(g.boundsIndex!=kInvalidBoundsIndex)
-            {
-                const BoundingBox &gb=model.bounds[static_cast<std::size_t>(g.boundsIndex)];
-                if(!gb.aabb.empty())
-                {
-                    nb.aabb.merge(gb.aabb.transformed(world));
-                }
-            }
+
             // collect transformed positions using cached (float) positions
             if(g.positions && !g.positions->empty())
             {
@@ -100,15 +91,13 @@ namespace pure
 
         if(!worldPointsF.empty())
         {
-            nb.obb=OBB::fromPointsMinVolume(worldPointsF);
-            nb.sphere=SphereFromPoints(worldPointsF);
+            nb.fromPoints(worldPointsF);
+            node.boundsIndex=model.internBounds(nb);
         }
-        else if(!nb.aabb.empty())
+        else
         {
-            nb.sphere=SphereFromAABB(nb.aabb);
+            node.boundsIndex=kInvalidBoundsIndex;
         }
-
-        node.boundsIndex=model.internBounds(nb);
     }
 
     void ComputeAllMeshNodeBounds(pure::Model &model)
@@ -153,8 +142,7 @@ namespace pure
 
         if(!scenePtsF.empty())
         {
-            sb.obb=OBB::fromPointsMinVolume(scenePtsF);
-            sb.sphere=SphereFromPoints(scenePtsF);
+            sb.fromPoints(scenePtsF);
         }
         else if(scene.boundsIndex!=kInvalidBoundsIndex)
         {

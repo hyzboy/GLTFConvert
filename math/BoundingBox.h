@@ -33,6 +33,18 @@ struct BoundingBox
     bool emptyAABB() const { return aabb.empty(); }
     bool emptyOBB()  const { return obb.empty(); }
     bool emptySphere() const { return sphere.empty(); }
+
+    bool fromPoints(const std::vector<glm::vec3> &pts) // now float precision input
+    {
+        reset();
+        if(pts.empty()) return false;
+
+        aabb=AABB::fromPoints(pts);
+        obb=OBB::fromPointsMinVolume(pts);
+        sphere=SphereFromPoints(pts);
+
+        return true;
+    }
 };
 
 void Write(std::ostream &os,const BoundingBox &b);

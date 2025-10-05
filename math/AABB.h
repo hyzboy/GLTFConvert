@@ -2,6 +2,7 @@
 
 #include <limits>
 #include <glm/glm.hpp>
+#include <vector>
 
 // Axis-aligned bounding box in single precision
 struct AABB
@@ -47,5 +48,13 @@ struct AABB
             out.include(glm::vec3(tp));
         }
         return out;
+    }
+
+    static AABB fromPoints(const std::vector<glm::vec3>& points)
+    {
+        AABB box;
+        box.reset();
+        for(const auto& p : points) box.include(p);
+        return box;
     }
 };

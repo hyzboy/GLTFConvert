@@ -18,9 +18,9 @@ namespace pure
             std::vector<int32_t> nodeOrder;                    // old node indices in traversal order
             std::unordered_map<int32_t,int32_t> nodeRemap;    // old node index -> new node index
             std::unordered_map<int32_t,int32_t> subMeshRemap; // old submesh index -> new submesh index
-            std::unordered_map<std::size_t,std::size_t> matrixRemap; // old matrix index -> new index
-            std::unordered_map<std::size_t,std::size_t> trsRemap;    // old trs index -> new index
-            std::unordered_map<std::size_t,std::size_t> boundsRemap; // old bounds index -> new index (currently unused in remap build)
+            std::unordered_map<int32_t,int32_t> matrixRemap; // old matrix index -> new index
+            std::unordered_map<int32_t,int32_t> trsRemap;    // old trs index -> new index
+            std::unordered_map<int32_t,int32_t> boundsRemap; // old bounds index -> new index (currently unused in remap build)
         };
 
         static SceneBuildContext CollectReachable(const Model &sm,const Scene &sc)
@@ -61,11 +61,11 @@ namespace pure
                 for(auto smi:n.subMeshes)
                     ctx.subMeshRemap.try_emplace(smi,(int32_t)ctx.subMeshRemap.size());
                 if(n.localMatrixIndexPlusOne)
-                    ctx.matrixRemap.try_emplace(n.localMatrixIndexPlusOne-1,ctx.matrixRemap.size());
+                    ctx.matrixRemap.try_emplace((int32_t)(n.localMatrixIndexPlusOne-1),(int32_t)ctx.matrixRemap.size());
                 if(n.worldMatrixIndexPlusOne)
-                    ctx.matrixRemap.try_emplace(n.worldMatrixIndexPlusOne-1,ctx.matrixRemap.size());
+                    ctx.matrixRemap.try_emplace((int32_t)(n.worldMatrixIndexPlusOne-1),(int32_t)ctx.matrixRemap.size());
                 if(n.trsIndexPlusOne)
-                    ctx.trsRemap.try_emplace(n.trsIndexPlusOne-1,ctx.trsRemap.size());
+                    ctx.trsRemap.try_emplace((int32_t)(n.trsIndexPlusOne-1),(int32_t)ctx.trsRemap.size());
                 // boundsRemap only used if bounds referenced; built later when copying nodes.
             }
         }
@@ -84,21 +84,21 @@ namespace pure
             out.matrixData.reserve(ctx.matrixRemap.size());
             for(auto &kv:ctx.matrixRemap)
             {
-                out.matrixData.push_back(sm.matrixData[kv.first]);
+                out.matrixData.push_back(sm.matrixData[(size_t)kv.first]);
             }
 
             // TRS pool
             out.trsPool.reserve(ctx.trsRemap.size());
             for(auto &kv:ctx.trsRemap)
             {
-                out.trsPool.push_back(sm.trsPool[kv.first]);
+                out.trsPool.push_back(sm.trsPool[(size_t)kv.first]);
             }
 
             // Bounds (if any were remapped)
             out.bounds.reserve(ctx.boundsRemap.size());
             for(auto &kv:ctx.boundsRemap)
             {
-                out.bounds.push_back(sm.bounds[kv.first]);
+                out.bounds.push_back(sm.bounds[(size_t)kv.first]);
             }
         }
 
@@ -111,13 +111,13 @@ namespace pure
                 nn.name=on.name;
                 nn.boundsIndex=on.boundsIndex;
                 if(nn.boundsIndex!=kInvalidBoundsIndex)
-                    nn.boundsIndex=(int32_t)ctx.boundsRemap.at((size_t)nn.boundsIndex);
+                    nn.boundsIndex=(int32_t)ctx.boundsRemap.at((int32_t)nn.boundsIndex);
                 if(on.localMatrixIndexPlusOne)
-                    nn.localMatrixIndexPlusOne=(int32_t)ctx.matrixRemap.at(on.localMatrixIndexPlusOne-1)+1;
+                    nn.localMatrixIndexPlusOne=(int32_t)ctx.matrixRemap.at((int32_t)(on.localMatrixIndexPlusOne-1))+1;
                 if(on.worldMatrixIndexPlusOne)
-                    nn.worldMatrixIndexPlusOne=(int32_t)ctx.matrixRemap.at(on.worldMatrixIndexPlusOne-1)+1;
+                    nn.worldMatrixIndexPlusOne=(int32_t)ctx.matrixRemap.at((int32_t)(on.worldMatrixIndexPlusOne-1))+1;
                 if(on.trsIndexPlusOne)
-                    nn.trsIndexPlusOne=(int32_t)ctx.trsRemap.at(on.trsIndexPlusOne-1)+1;
+                    nn.trsIndexPlusOne=(int32_t)ctx.trsRemap.at((int32_t)(on.trsIndexPlusOne-1))+1;
 
                 nn.children.reserve(on.children.size());
                 for(auto oc:on.children)
@@ -147,7 +147,7 @@ namespace pure
                 if(it!=ctx.nodeRemap.end()) out.roots.push_back(it->second);
             }
             out.sceneBoundsIndex=(sc.boundsIndex!=kInvalidBoundsIndex)
-                ?(int32_t)ctx.boundsRemap.at(sc.boundsIndex)
+                ?(int32_t)ctx.boundsRemap.at((int32_t)sc.boundsIndex)
                 :(int32_t)kInvalidBoundsIndex;
         }
 
