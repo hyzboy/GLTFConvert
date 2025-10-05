@@ -9,12 +9,12 @@
 #include <glm/gtc/quaternion.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 
-#include "AABB.h"
-#include "OBB.h"
+#include "math/AABB.h"
+#include "math/OBB.h"
 #include "PureGLTF.h"
 #include "Geometry.h"
 #include "SubMesh.h"
-#include "MeshNodeTransform.h"
+#include "math/MeshNodeTransform.h"
 
 namespace pure {
 

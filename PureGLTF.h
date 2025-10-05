@@ -6,9 +6,10 @@
 #include <cstddef>
 #include <glm/glm.hpp>
 #include <glm/gtc/quaternion.hpp>
-#include "AABB.h"
-#include "VKFormat.h"
-#include "PrimitiveType.h"
+#include "math/AABB.h"
+#include "common/VKFormat.h"
+#include "common/IndexType.h"
+#include "common/PrimitiveType.h"
 
 namespace gltf {
 

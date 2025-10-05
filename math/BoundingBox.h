@@ -1,7 +1,7 @@
 #pragma once
 
-#include "AABB.h"
-#include "OBB.h"
+#include "math/AABB.h"
+#include "math/OBB.h"
 #include <ostream>
 
 struct BoundingSphere {

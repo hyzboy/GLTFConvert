@@ -1,4 +1,4 @@
-#include"BoundingBox.h"
+#include "math/BoundingBox.h"
 
 // Helper: sphere from AABB (center = mid, radius = half diagonal)
 BoundingSphere SphereFromAABB(const AABB &a) {

@@ -3,10 +3,11 @@
 #include<string>
 #include<vector>
 #include<optional>
-#include"BoundingBox.h"
-#include"VKFormat.h"
-#include"VertexAttrib.h"
-#include"PrimitiveType.h"
+#include"math/BoundingBox.h"
+#include"common/VKFormat.h"
+#include"common/VertexAttrib.h"
+#include"common/IndexType.h"
+#include"common/PrimitiveType.h"
 
 namespace pure
 {

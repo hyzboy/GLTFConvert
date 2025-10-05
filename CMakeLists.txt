@@ -31,15 +31,32 @@ set_target_properties(minipack_writer PROPERTIES
     INTERFACE_INCLUDE_DIRECTORIES   "${MINIPACK_WRITER}"
 )
 
+include_directories(${CMAKE_CURRENT_SOURCE_DIR})
+
+set(MATH_FILES  math/AABB.h
+                math/BoundingBox.h
+                math/BoundingSphere.cpp
+                math/MeshNodeTransform.h
+                math/OBB.cpp
+                math/OBB.h)
+
+SOURCE_GROUP("Math" FILES ${MATH_FILES})
+
+set(COMMON_FILES    common/IndexType.h
+                    common/VertexAttrib.h
+                    common/VkFormat.cpp
+                    common/VkFormat.h
+                    common/PrimitiveType.h)
+
+SOURCE_GROUP("Common" FILES ${COMMON_FILES})
+
 # Add executable (include new modules for pure glTF data, importer and exporter)
 add_executable(GLTFConvert
     main.cpp
-    VKFormat.cpp VKFormat.h
-    VertexAttrib.h
-    PrimitiveType.h
-    AABB.h
-    OBB.cpp OBB.h
-    BoundingBox.h BoundingSphere.cpp
+
+    ${MATH_FILES}
+    ${COMMON_FILES}
+
     PureGLTF.cpp PureGLTF.h
     Importer.cpp Importer.h
     Geometry.cpp Geometry.h
@@ -48,7 +65,6 @@ add_executable(GLTFConvert
     Exporter.cpp Exporter.h
     # new split scene-local module and split headers
     SceneExporter.h SceneBinary.cpp SceneBuilder.cpp
-    MeshNodeTransform.h
     SubMesh.h
     PureMaterial.h
 )

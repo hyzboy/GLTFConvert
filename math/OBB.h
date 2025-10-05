@@ -5,7 +5,7 @@
 #include <vector>
 #include <limits>
 #include <algorithm>
-#include "AABB.h"
+#include "math/AABB.h"
 
 // Oriented Bounding Box in double precision, global namespace
 struct OBB {
