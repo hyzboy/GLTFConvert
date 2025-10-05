@@ -9,7 +9,7 @@ namespace pure {
 
 SceneLocal BuildSceneLocal(const Model& sm, int32_t sceneIndex) {
     SceneLocal out;
-    if (sceneIndex >= sm.scenes.size()) return out;
+    if (sceneIndex >= static_cast<int32_t>(sm.scenes.size())) return out;
     const auto& sc = sm.scenes[sceneIndex];
     out.name = sc.name;
 
@@ -32,14 +32,14 @@ SceneLocal BuildSceneLocal(const Model& sm, int32_t sceneIndex) {
     std::unordered_map<int32_t, int32_t> nodeRemap; nodeRemap.reserve(nodeOrder.size());
     for (int32_t i = 0; i < static_cast<int32_t>(nodeOrder.size()); ++i) nodeRemap[nodeOrder[static_cast<std::size_t>(i)]] = i;
 
-    std::unordered_map<std::size_t, std::size_t> subMeshRemap;
+    std::unordered_map<int32_t, int32_t> subMeshRemap;
     std::unordered_map<std::size_t, std::size_t> matrixRemap;
     std::unordered_map<std::size_t, std::size_t> trsRemap;
     std::unordered_map<std::size_t, std::size_t> boundsRemap;
 
     for (auto oldNi : nodeOrder) {
         const auto& n = sm.mesh_nodes[static_cast<std::size_t>(oldNi)];
-        for (auto smi : n.subMeshes) subMeshRemap.try_emplace(smi, subMeshRemap.size());
+        for (auto smi : n.subMeshes) subMeshRemap.try_emplace(smi, static_cast<int32_t>(subMeshRemap.size()));
         if (n.matrixIndexPlusOne != 0) {
             const auto oldM = n.matrixIndexPlusOne - 1;
             if (matrixRemap.find(oldM) == matrixRemap.end()) matrixRemap.emplace(oldM, matrixRemap.size());
@@ -54,7 +54,7 @@ SceneLocal BuildSceneLocal(const Model& sm, int32_t sceneIndex) {
 
     // 3) Build local pools
     out.subMeshes.resize(subMeshRemap.size());
-    for (const auto& kv : subMeshRemap) out.subMeshes[kv.second] = sm.subMeshes[kv.first];
+    for (const auto& kv : subMeshRemap) out.subMeshes[static_cast<std::size_t>(kv.second)] = sm.subMeshes[static_cast<std::size_t>(kv.first)];
 
     out.matrixPool.resize(matrixRemap.size());
     for (const auto& kv : matrixRemap) out.matrixPool[kv.second] = sm.matrixPool[kv.first];
@@ -69,20 +69,25 @@ SceneLocal BuildSceneLocal(const Model& sm, int32_t sceneIndex) {
     out.nodes.reserve(nodeOrder.size());
     for (auto oldNi : nodeOrder) {
         const auto& on = sm.mesh_nodes[static_cast<std::size_t>(oldNi)];
-        MeshNode nn = on;
+        MeshNode nn; // construct fresh to avoid incompatible copies
+        nn.name = on.name;
+        nn.matrixIndexPlusOne = on.matrixIndexPlusOne;
+        nn.trsIndexPlusOne = on.trsIndexPlusOne;
+        nn.boundsIndex = on.boundsIndex;
+
         // remap children
-        std::vector<int32_t> newChildren; newChildren.reserve(on.children.size());
         for (auto oc : on.children) {
-            if (oc <= static_cast<std::size_t>(std::numeric_limits<int32_t>::max())) {
+            if (oc >= 0) {
                 auto it = nodeRemap.find(static_cast<int32_t>(oc));
-                if (it != nodeRemap.end()) newChildren.push_back(it->second);
+                if (it != nodeRemap.end()) nn.children.push_back(it->second);
             }
         }
-        nn.children = std::move(newChildren);
         // remap subMeshes
-        std::vector<std::size_t> newSM; newSM.reserve(on.subMeshes.size());
-        for (auto osm : on.subMeshes) newSM.push_back(subMeshRemap[osm]);
-        nn.subMeshes = std::move(newSM);
+        for (auto osm : on.subMeshes) {
+            auto it = subMeshRemap.find(osm);
+            if (it != subMeshRemap.end()) nn.subMeshes.push_back(it->second);
+        }
+
         // remap matrix/trs
         if (nn.matrixIndexPlusOne != 0) {
             const auto oldM = nn.matrixIndexPlusOne - 1;
@@ -101,12 +106,12 @@ SceneLocal BuildSceneLocal(const Model& sm, int32_t sceneIndex) {
     // 5) Roots and scene bounds
     out.roots.clear(); out.roots.reserve(sc.nodes.size());
     for (auto r : sc.nodes) {
-        if (r <= static_cast<std::size_t>(std::numeric_limits<int32_t>::max())) {
+        if (r >= 0) {
             auto it = nodeRemap.find(static_cast<int32_t>(r));
             if (it != nodeRemap.end()) out.roots.push_back(it->second);
         }
     }
-    out.sceneBoundsIndex = (sc.boundsIndex != kInvalidBoundsIndex) ? boundsRemap[sc.boundsIndex] : kInvalidBoundsIndex;
+    out.sceneBoundsIndex = (sc.boundsIndex != kInvalidBoundsIndex) ? static_cast<int32_t>(boundsRemap[sc.boundsIndex]) : static_cast<int32_t>(kInvalidBoundsIndex);
 
     return out;
 }

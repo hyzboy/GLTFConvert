@@ -64,11 +64,11 @@ void ComputeMeshNodeBounds(pure::Model& model, int32_t nodeIndex) {
 
     std::vector<glm::dvec3> worldPoints; worldPoints.reserve(1024);
     for (auto smIndex : node.subMeshes) {
-        const auto& sm = model.subMeshes[smIndex];
+        const auto& sm = model.subMeshes[static_cast<std::size_t>(smIndex)];
         if (sm.geometry == static_cast<std::size_t>(-1)) continue;
         const auto& g = model.geometry[sm.geometry];
         if (g.boundsIndex != kInvalidBoundsIndex) {
-            const BoundingBox& gb = model.bounds[g.boundsIndex];
+            const BoundingBox& gb = model.bounds[static_cast<std::size_t>(g.boundsIndex)];
             if (!gb.aabb.empty()) {
                 nb.aabb.merge(gb.aabb.transformed(world));
             }
@@ -118,7 +118,7 @@ void ComputeSceneBounds(pure::Model& model, pure::Scene& scene) {
         const glm::dmat4 world = glm::dmat4(GetNodeWorldMatrix(model, node));
 
         for (auto smIndex : node.subMeshes) {
-            const auto& sm = model.subMeshes[smIndex];
+            const auto& sm = model.subMeshes[static_cast<std::size_t>(smIndex)];
             if (sm.geometry == static_cast<std::size_t>(-1)) continue;
             const auto& g = model.geometry[sm.geometry];
             if (g.positions && !g.positions->empty()) {
@@ -137,7 +137,7 @@ void ComputeSceneBounds(pure::Model& model, pure::Scene& scene) {
     if (!scenePts.empty()) {
         sb.sphere = SphereFromPoints(scenePts);
     } else if (scene.boundsIndex != kInvalidBoundsIndex) {
-        const auto& existing = model.bounds[scene.boundsIndex];
+        const auto& existing = model.bounds[static_cast<std::size_t>(scene.boundsIndex)];
         if (!existing.aabb.empty()) sb.sphere = SphereFromAABB(existing.aabb);
     } else {
         sb.sphere.reset();
@@ -145,7 +145,7 @@ void ComputeSceneBounds(pure::Model& model, pure::Scene& scene) {
 
     // Keep existing AABB if any (copied from glTF at scene creation)
     if (scene.boundsIndex != kInvalidBoundsIndex) {
-        const auto& existing = model.bounds[scene.boundsIndex];
+        const auto& existing = model.bounds[static_cast<std::size_t>(scene.boundsIndex)];
         sb.aabb = existing.aabb;
     }
 

@@ -2,12 +2,13 @@
 
 #include <cstddef>
 #include <optional>
+#include <cstdint>
 
 namespace pure {
 
 struct SubMesh {
-    std::size_t geometry = static_cast<std::size_t>(-1); // index into Model::geometry
-    std::optional<std::size_t> material; // index into Model::materials or null
+    int32_t geometry = static_cast<int32_t>(-1); // index into Model::geometry
+    std::optional<int32_t> material; // index into Model::materials or null
 };
 
 } // namespace pure

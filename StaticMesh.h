@@ -29,20 +29,20 @@ struct MeshNode {
     std::vector<int32_t> children;
 
     // Separate indices into pools (plus one). 0 indicates identity/empty and not stored in pool.
-    std::size_t matrixIndexPlusOne = 0; // refers to Model::matrixPool
-    std::size_t trsIndexPlusOne = 0;    // refers to Model::trsPool
+    int32_t matrixIndexPlusOne = 0; // refers to Model::matrixPool
+    int32_t trsIndexPlusOne = 0;    // refers to Model::trsPool
 
-    std::vector<std::size_t> subMeshes; // indices into Model::subMeshes
+    std::vector<int32_t> subMeshes; // indices into Model::subMeshes (now int32_t)
 
     // Index into Model::bounds pool for this node's world-space combined bounds
-    std::size_t boundsIndex = kInvalidBoundsIndex;
+    int32_t boundsIndex = kInvalidBoundsIndex;
 };
 
 struct Scene {
     std::string name;
     std::vector<int32_t> nodes; // root node indices
     // Index into Model::bounds pool for this scene's world-space combined bounds
-    std::size_t boundsIndex = kInvalidBoundsIndex;
+    int32_t boundsIndex = kInvalidBoundsIndex;
 };
 
 struct Model {
@@ -63,26 +63,26 @@ struct Model {
     std::vector<MeshNodeTransform> trsPool;           // deduped TRS
 
     // Add or find a BoundingBox in the global pool; returns its index
-    std::size_t internBounds(const BoundingBox& b);
+    int32_t internBounds(const BoundingBox& b);
 
     // Add or find in TRS pool; returns index
-    std::size_t internTRS(const MeshNodeTransform& t);
+    int32_t internTRS(const MeshNodeTransform& t);
 
     // Add or find in matrix pool (local+world pair); returns index
-    std::size_t internMatrix(const MatrixEntry& m);
+    int32_t internMatrix(const MatrixEntry& m);
 };
 
 // Helpers to access matrices from the matrix pool
 inline glm::mat4 GetNodeWorldMatrix(const Model& m, const MeshNode& n) {
     if (n.matrixIndexPlusOne == 0) return glm::mat4(1.0f);
-    const auto idx = n.matrixIndexPlusOne - 1;
-    return m.matrixPool[idx].world;
+    const auto idx = n.matrixIndexPlusOne - 1; // int32_t
+    return m.matrixPool[static_cast<std::size_t>(idx)].world;
 }
 
 inline glm::mat4 GetNodeLocalMatrix(const Model& m, const MeshNode& n) {
     if (n.matrixIndexPlusOne == 0) return glm::mat4(1.0f);
     const auto idx = n.matrixIndexPlusOne - 1;
-    return m.matrixPool[idx].local;
+    return m.matrixPool[static_cast<std::size_t>(idx)].local;
 }
 
 inline const std::optional<MeshNodeTransform>& GetNodeTRS(const Model& m, const MeshNode& n) {
@@ -94,7 +94,7 @@ inline const std::optional<MeshNodeTransform>& GetNodeTRS(const Model& m, const 
     // Provide reference to an optional wrapper (thread-local to be safe)
     struct Holder { std::optional<MeshNodeTransform> opt; };
     static thread_local Holder holder;
-    holder.opt = m.trsPool[idx];
+    holder.opt = m.trsPool[static_cast<std::size_t>(idx)];
     return holder.opt;
 }
 

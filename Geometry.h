@@ -11,7 +11,7 @@
 namespace pure
 {
     // Invalid index constant for bounds references
-    constexpr std::size_t kInvalidBoundsIndex = static_cast<std::size_t>(-1);
+    constexpr int32_t kInvalidBoundsIndex = static_cast<int32_t>(-1);
 
     struct GeometryAttribute {
         int64_t id = 0; // index in the attributes array
@@ -39,7 +39,7 @@ namespace pure
 
         std::vector<GeometryAttribute> attributes; // includes raw data
         // Index into Model::bounds pool (combined bounding info for this geometry)
-        std::size_t boundsIndex = kInvalidBoundsIndex;
+        int32_t boundsIndex = kInvalidBoundsIndex;
         std::optional<std::vector<std::byte>> indicesData; // raw index buffer if present
         std::optional<GeometryIndicesMeta> indices; // metadata only
         // Optional double-precision decoded POSITION data (local space)
