@@ -78,6 +78,231 @@ static std::string SanitizeName(const std::string& in)
     return out;
 }
 
+// --- New helper functions splitting ExportPureModel by top-level JSON nodes ---
+
+static json BuildMaterialsJson(const pure::Model& sm)
+{
+    json materials = json::array();
+    for (const auto& mtl : sm.materials) {
+        json mj = json::object();
+        if (!mtl.name.empty()) mj["name"] = mtl.name;
+        materials.push_back(std::move(mj));
+    }
+    return materials;
+}
+
+static json BuildScenesJson(const pure::Model& sm)
+{
+    json scenes = json::array();
+    for (const auto& sc : sm.scenes) {
+        json s = json::object();
+        if (!sc.name.empty()) s["name"] = sc.name;
+        json ns = json::array();
+        for (auto n : sc.nodes) ns.push_back(static_cast<int64_t>(n));
+        s["nodes"] = std::move(ns);
+        s["bounds"] = (sc.boundsIndex == pure::kInvalidBoundsIndex) ? json(nullptr) : json(static_cast<int64_t>(sc.boundsIndex));
+        scenes.push_back(std::move(s));
+    }
+    return scenes;
+}
+
+static json BuildMeshNodesJson(const pure::Model& sm)
+{
+    json meshNodes = json::array();
+    for (const auto& n : sm.mesh_nodes) {
+        json j = json::object();
+        if (!n.name.empty()) j["name"] = n.name;
+        json ch = json::array();
+        for (auto c : n.children) ch.push_back(static_cast<int64_t>(c));
+        j["children"] = std::move(ch);
+        j["matrix"] = static_cast<int64_t>(n.matrixIndexPlusOne);
+        j["trs"] = static_cast<int64_t>(n.trsIndexPlusOne);
+        json sms = json::array();
+        for (auto primIndex : n.subMeshes) sms.push_back(static_cast<int64_t>(primIndex));
+        j["subMeshes"] = std::move(sms);
+        j["bounds"] = (n.boundsIndex == pure::kInvalidBoundsIndex) ? json(nullptr) : json(static_cast<int64_t>(n.boundsIndex));
+        meshNodes.push_back(std::move(j));
+    }
+    return meshNodes;
+}
+
+static json BuildSubMeshesJson(const pure::Model& sm)
+{
+    json subMeshes = json::array();
+    for (const auto& p : sm.subMeshes) {
+        json sj = json::object();
+        sj["geometry"] = static_cast<int64_t>(p.geometry);
+        if (p.material) sj["material"] = static_cast<int64_t>(*p.material); else sj["material"] = nullptr;
+        subMeshes.push_back(std::move(sj));
+    }
+    return subMeshes;
+}
+
+static void WriteGlobalMatrices(json& root, const pure::Model& sm, const std::filesystem::path& targetDir)
+{
+    std::filesystem::path binPath = targetDir / "Matrices.bin";
+    std::ofstream ofs(binPath, std::ios::binary);
+    if (ofs) {
+        for (const auto& m : sm.matrixPool) {
+            ofs.write(reinterpret_cast<const char*>(&m.local), sizeof(glm::mat4));
+            ofs.write(reinterpret_cast<const char*>(&m.world), sizeof(glm::mat4));
+        }
+        ofs.close();
+        std::cout << "[Export] Saved: " << binPath << "\n";
+    }
+    root["matrices"] = static_cast<int64_t>(sm.matrixPool.size());
+}
+
+static void WriteGlobalTRS(json& root, const pure::Model& sm, const std::filesystem::path& targetDir)
+{
+    std::filesystem::path binPath = targetDir / "TRS.bin";
+    std::ofstream ofs(binPath, std::ios::binary);
+    if (ofs) {
+        for (const auto& t : sm.trsPool) {
+            const float tvals[3] = { t.translation.x, t.translation.y, t.translation.z };
+            const float rvals[4] = { t.rotation.x, t.rotation.y, t.rotation.z, t.rotation.w }; // xyzw
+            const float svals[3] = { t.scale.x, t.scale.y, t.scale.z };
+            ofs.write(reinterpret_cast<const char*>(tvals), sizeof(tvals));
+            ofs.write(reinterpret_cast<const char*>(rvals), sizeof(rvals));
+            ofs.write(reinterpret_cast<const char*>(svals), sizeof(svals));
+        }
+        ofs.close();
+        std::cout << "[Export] Saved: " << binPath << "\n";
+    }
+    root["trs_count"] = static_cast<int64_t>(sm.trsPool.size());
+}
+
+static void ExportGeometries(const pure::Model& sm, const std::filesystem::path& targetDir)
+{
+    for (std::size_t u = 0; u < sm.geometry.size(); ++u) {
+        const auto& g = sm.geometry[u];
+        std::filesystem::path binName = stem_noext(sm.gltf_source) + "." + std::to_string(u) + ".geometry";
+        std::filesystem::path binPath = targetDir / binName;
+
+        const BoundingBox &geo_bounds = (g.boundsIndex != pure::kInvalidBoundsIndex) ? sm.bounds[g.boundsIndex] : BoundingBox{};
+
+        if (!pure::SaveGeometry(g, geo_bounds, binPath.string()))
+        {
+            std::cerr << "[Export] Failed to write geometry binary: " << binPath << "\n";
+        }
+    }
+}
+
+static bool ExportScene(const pure::Model& sm, std::size_t si, const std::filesystem::path& targetDir, const std::string& baseName)
+{
+    const auto& sc = sm.scenes[si];
+    pure::SceneLocal sl = pure::BuildSceneLocal(sm, si);
+
+    // scene folder
+    std::string sceneFolderName;
+    {
+        std::string sane = SanitizeName(sc.name);
+        if (sane.empty()) sceneFolderName = "Scene_" + std::to_string(si);
+        else sceneFolderName = std::to_string(si) + "_" + sane;
+    }
+    std::filesystem::path sceneDir = targetDir / sceneFolderName;
+    std::error_code ec;
+    std::filesystem::create_directories(sceneDir, ec);
+
+    // Matrices.bin
+    {
+        std::filesystem::path binPath = sceneDir / "Matrices.bin";
+        std::ofstream ofs(binPath, std::ios::binary);
+        if (ofs) {
+            for (const auto& m : sl.matrixPool) {
+                ofs.write(reinterpret_cast<const char*>(&m.local), sizeof(glm::mat4));
+                ofs.write(reinterpret_cast<const char*>(&m.world), sizeof(glm::mat4));
+            }
+            ofs.close();
+            std::cout << "[Export] Saved: " << binPath << "\n";
+        }
+    }
+    // TRS.bin
+    {
+        std::filesystem::path binPath = sceneDir / "TRS.bin";
+        std::ofstream ofs(binPath, std::ios::binary);
+        if (ofs) {
+            for (const auto& t : sl.trsPool) {
+                const float tvals[3] = { t.translation.x, t.translation.y, t.translation.z };
+                const float rvals[4] = { t.rotation.x, t.rotation.y, t.rotation.z, t.rotation.w };
+                const float svals[3] = { t.scale.x, t.scale.y, t.scale.z };
+                ofs.write(reinterpret_cast<const char*>(tvals), sizeof(tvals));
+                ofs.write(reinterpret_cast<const char*>(rvals), sizeof(rvals));
+                ofs.write(reinterpret_cast<const char*>(svals), sizeof(svals));
+            }
+            ofs.close();
+            std::cout << "[Export] Saved: " << binPath << "\n";
+        }
+    }
+    // Bounds.bin
+    WriteBoundsBinaryTo(sl.bounds, sceneDir);
+
+    // Scene JSON
+    json sroot = json::object();
+    sroot["gltf_source"] = sm.gltf_source;
+    // keep materials for reference (no remap)
+    sroot["materials"] = BuildMaterialsJson(sm);
+
+    // pools counts
+    sroot["matrices"] = static_cast<int64_t>(sl.matrixPool.size());
+    sroot["trs_count"] = static_cast<int64_t>(sl.trsPool.size());
+    sroot["bounds"] = static_cast<int64_t>(sl.bounds.size());
+
+    // subMeshes (scene-local)
+    json localSM = json::array();
+    for (const auto& p : sl.subMeshes) {
+        json sj = json::object();
+        sj["geometry"] = static_cast<int64_t>(p.geometry);
+        if (p.material) sj["material"] = static_cast<int64_t>(*p.material); else sj["material"] = nullptr;
+        localSM.push_back(std::move(sj));
+    }
+    sroot["subMeshes"] = std::move(localSM);
+
+    // nodes (scene-local)
+    json localNodeArr = json::array();
+    for (const auto& n : sl.nodes) {
+        json j = json::object();
+        if (!n.name.empty()) j["name"] = n.name;
+        json ch = json::array();
+        for (auto c : n.children) ch.push_back(static_cast<int64_t>(c));
+        j["children"] = std::move(ch);
+        j["matrix"] = static_cast<int64_t>(n.matrixIndexPlusOne);
+        j["trs"] = static_cast<int64_t>(n.trsIndexPlusOne);
+        json sms = json::array();
+        for (auto idx : n.subMeshes) sms.push_back(static_cast<int64_t>(idx));
+        j["subMeshes"] = std::move(sms);
+        j["bounds"] = (n.boundsIndex == pure::kInvalidBoundsIndex) ? json(nullptr) : json(static_cast<int64_t>(n.boundsIndex));
+        localNodeArr.push_back(std::move(j));
+    }
+    sroot["mesh_nodes"] = std::move(localNodeArr);
+
+    // scene object (single)
+    json sceneJson = json::object();
+    if (!sc.name.empty()) sceneJson["name"] = sc.name;
+    json roots = json::array();
+    for (auto r : sl.roots) roots.push_back(static_cast<int64_t>(r));
+    sceneJson["nodes"] = std::move(roots);
+    if (sl.sceneBoundsIndex != pure::kInvalidBoundsIndex) sceneJson["bounds"] = static_cast<int64_t>(sl.sceneBoundsIndex); else sceneJson["bounds"] = nullptr;
+    sroot["scene"] = std::move(sceneJson);
+
+    std::filesystem::path sjsonPath = sceneDir / (sc.name+".json");
+    std::ofstream sjsonOut(sjsonPath, std::ios::binary);
+    if (!sjsonOut) {
+        std::cerr << "[Export] Cannot open: " << sjsonPath << "\n";
+        return false;
+    }
+    sjsonOut << sroot.dump(4);
+    sjsonOut.close();
+    std::cout << "[Export] Saved: " << sjsonPath << "\n";
+
+    // Scene.bin (binary, no materials/bounds; geometry file names only)
+    WriteSceneBinary(sceneDir, sc.name, sl.roots, baseName, sl.nodes, sl.subMeshes, sl.matrixPool, sl.trsPool);
+
+    return true;
+}
+
+// --- End helpers ---
+
 bool ExportPureModel(const gltf::Model& model, const std::filesystem::path& outDir) {
     // Convert source glTF model into pure static-mesh model first
     pure::Model sm = pure::ConvertFromGLTF(model);
@@ -94,13 +319,7 @@ bool ExportPureModel(const gltf::Model& model, const std::filesystem::path& outD
     root["gltf_source"] = sm.gltf_source;
 
     // materials (names only for now)
-    json materials = json::array();
-    for (const auto& mtl : sm.materials) {
-        json mj = json::object();
-        if (!mtl.name.empty()) mj["name"] = mtl.name;
-        materials.push_back(std::move(mj));
-    }
-    root["materials"] = std::move(materials);
+    root["materials"] = BuildMaterialsJson(sm);
 
     // Write bounds binary once and only store count in JSON (global)
     if (!WriteAllBoundsBinary(sm, targetDir)) {
@@ -109,105 +328,22 @@ bool ExportPureModel(const gltf::Model& model, const std::filesystem::path& outD
     root["bounds"] = static_cast<int64_t>(sm.bounds.size());
 
     // scenes (global listing with original indices, preserved for legacy)
-    json scenes = json::array();
-    for (const auto& sc : sm.scenes) {
-        json s = json::object();
-        if (!sc.name.empty()) s["name"] = sc.name;
-        json ns = json::array();
-        for (auto n : sc.nodes) ns.push_back(static_cast<int64_t>(n));
-        s["nodes"] = std::move(ns);
-
-        // reference bounds by index
-        s["bounds"] = (sc.boundsIndex == pure::kInvalidBoundsIndex) ? json(nullptr) : json(static_cast<int64_t>(sc.boundsIndex));
-
-        scenes.push_back(std::move(s));
-    }
-    root["scenes"] = std::move(scenes);
+    root["scenes"] = BuildScenesJson(sm);
 
     // mesh_nodes and transform indices (subMeshes are already attached in pure model)
-    json meshNodes = json::array();
-    for (const auto& n : sm.mesh_nodes) {
-        json j = json::object();
-        if (!n.name.empty()) j["name"] = n.name;
-        json ch = json::array();
-        for (auto c : n.children) ch.push_back(static_cast<int64_t>(c));
-        j["children"] = std::move(ch);
+    root["mesh_nodes"] = BuildMeshNodesJson(sm);
 
-        // indices
-        j["matrix"] = static_cast<int64_t>(n.matrixIndexPlusOne);
-        j["trs"] = static_cast<int64_t>(n.trsIndexPlusOne);
+    // Export matrix pool as a binary file (local/world pairs) and store count
+    WriteGlobalMatrices(root, sm, targetDir);
 
-        // per-node subMeshes (indices into global subMeshes)
-        json sms = json::array();
-        for (auto primIndex : n.subMeshes) sms.push_back(static_cast<int64_t>(primIndex));
-        j["subMeshes"] = std::move(sms);
-
-        // reference bounds by index
-        j["bounds"] = (n.boundsIndex == pure::kInvalidBoundsIndex) ? json(nullptr) : json(static_cast<int64_t>(n.boundsIndex));
-
-        meshNodes.push_back(std::move(j));
-    }
-    root["mesh_nodes"] = std::move(meshNodes);
-
-    // Export matrix pool as a binary file (local/world pairs)
-    {
-        std::filesystem::path binPath = targetDir / "Matrices.bin";
-        std::ofstream ofs(binPath, std::ios::binary);
-        if (ofs) {
-            for (const auto& m : sm.matrixPool) {
-                ofs.write(reinterpret_cast<const char*>(&m.local), sizeof(glm::mat4));
-                ofs.write(reinterpret_cast<const char*>(&m.world), sizeof(glm::mat4));
-            }
-            ofs.close();
-            std::cout << "[Export] Saved: " << binPath << "\n";
-        }
-        // store count in main JSON
-        root["matrices"] = static_cast<int64_t>(sm.matrixPool.size());
-    }
-
-    // Export TRS pool as a compact binary file: [tx ty tz rx ry rz rw sx sy sz] floats per entry
-    {
-        std::filesystem::path binPath = targetDir / "TRS.bin";
-        std::ofstream ofs(binPath, std::ios::binary);
-        if (ofs) {
-            for (const auto& t : sm.trsPool) {
-                const float tvals[3] = { t.translation.x, t.translation.y, t.translation.z };
-                const float rvals[4] = { t.rotation.x, t.rotation.y, t.rotation.z, t.rotation.w }; // xyzw
-                const float svals[3] = { t.scale.x, t.scale.y, t.scale.z };
-                ofs.write(reinterpret_cast<const char*>(tvals), sizeof(tvals));
-                ofs.write(reinterpret_cast<const char*>(rvals), sizeof(rvals));
-                ofs.write(reinterpret_cast<const char*>(svals), sizeof(svals));
-            }
-            ofs.close();
-            std::cout << "[Export] Saved: " << binPath << "\n";
-        }
-        // store count in main JSON
-        root["trs_count"] = static_cast<int64_t>(sm.trsPool.size());
-    }
+    // Export TRS pool as a compact binary file and store count
+    WriteGlobalTRS(root, sm, targetDir);
 
     // Only export consolidated .geometry files; drop per-attribute/indices files and geometry JSON
-    for (std::size_t u = 0; u < sm.geometry.size(); ++u) {
-        const auto& g = sm.geometry[u];
-        std::filesystem::path binName = stem_noext(sm.gltf_source) + "." + std::to_string(u) + ".geometry";
-        std::filesystem::path binPath = targetDir / binName;
-
-        const BoundingBox &geo_bounds = (g.boundsIndex != pure::kInvalidBoundsIndex) ? sm.bounds[g.boundsIndex] : BoundingBox{};
-
-        if (!pure::SaveGeometry(g, geo_bounds, binPath.string()))
-        {
-            std::cerr << "[Export] Failed to write geometry binary: " << binPath << "\n";
-        }
-    }
+    ExportGeometries(sm, targetDir);
 
     // Global SubMeshes list (kept; references geometry indices that map to <index>.geometry files)
-    json subMeshes = json::array();
-    for (const auto& p : sm.subMeshes) {
-        json sj = json::object();
-        sj["geometry"] = static_cast<int64_t>(p.geometry);
-        if (p.material) sj["material"] = static_cast<int64_t>(*p.material); else sj["material"] = nullptr;
-        subMeshes.push_back(std::move(sj));
-    }
-    root["subMeshes"] = std::move(subMeshes);
+    root["subMeshes"] = BuildSubMeshesJson(sm);
 
     std::filesystem::path jsonPath = targetDir / ("StaticMesh.json");
     std::ofstream jsonOut(jsonPath, std::ios::binary);
@@ -222,118 +358,7 @@ bool ExportPureModel(const gltf::Model& model, const std::filesystem::path& outD
 
     // Per-scene independent exports using SceneLocal to simplify logic
     for (std::size_t si = 0; si < sm.scenes.size(); ++si) {
-        const auto& sc = sm.scenes[si];
-        pure::SceneLocal sl = pure::BuildSceneLocal(sm, si);
-
-        // scene folder
-        std::string sceneFolderName;
-        {
-            std::string sane = SanitizeName(sc.name);
-            if (sane.empty()) sceneFolderName = "Scene_" + std::to_string(si);
-            else sceneFolderName = std::to_string(si) + "_" + sane;
-        }
-        std::filesystem::path sceneDir = targetDir / sceneFolderName;
-        std::filesystem::create_directories(sceneDir, ec);
-
-        // Matrices.bin
-        {
-            std::filesystem::path binPath = sceneDir / "Matrices.bin";
-            std::ofstream ofs(binPath, std::ios::binary);
-            if (ofs) {
-                for (const auto& m : sl.matrixPool) {
-                    ofs.write(reinterpret_cast<const char*>(&m.local), sizeof(glm::mat4));
-                    ofs.write(reinterpret_cast<const char*>(&m.world), sizeof(glm::mat4));
-                }
-                ofs.close();
-                std::cout << "[Export] Saved: " << binPath << "\n";
-            }
-        }
-        // TRS.bin
-        {
-            std::filesystem::path binPath = sceneDir / "TRS.bin";
-            std::ofstream ofs(binPath, std::ios::binary);
-            if (ofs) {
-                for (const auto& t : sl.trsPool) {
-                    const float tvals[3] = { t.translation.x, t.translation.y, t.translation.z };
-                    const float rvals[4] = { t.rotation.x, t.rotation.y, t.rotation.z, t.rotation.w };
-                    const float svals[3] = { t.scale.x, t.scale.y, t.scale.z };
-                    ofs.write(reinterpret_cast<const char*>(tvals), sizeof(tvals));
-                    ofs.write(reinterpret_cast<const char*>(rvals), sizeof(rvals));
-                    ofs.write(reinterpret_cast<const char*>(svals), sizeof(svals));
-                }
-                ofs.close();
-                std::cout << "[Export] Saved: " << binPath << "\n";
-            }
-        }
-        // Bounds.bin
-        WriteBoundsBinaryTo(sl.bounds, sceneDir);
-
-        // Scene JSON
-        json sroot = json::object();
-        sroot["gltf_source"] = sm.gltf_source;
-        // keep materials for reference (no remap)
-        json sceneMaterials = json::array();
-        for (const auto& mtl : sm.materials) {
-            json mj = json::object();
-            if (!mtl.name.empty()) mj["name"] = mtl.name;
-            sceneMaterials.push_back(std::move(mj));
-        }
-        sroot["materials"] = std::move(sceneMaterials);
-
-        // pools counts
-        sroot["matrices"] = static_cast<int64_t>(sl.matrixPool.size());
-        sroot["trs_count"] = static_cast<int64_t>(sl.trsPool.size());
-        sroot["bounds"] = static_cast<int64_t>(sl.bounds.size());
-
-        // subMeshes (scene-local)
-        json localSM = json::array();
-        for (const auto& p : sl.subMeshes) {
-            json sj = json::object();
-            sj["geometry"] = static_cast<int64_t>(p.geometry);
-            if (p.material) sj["material"] = static_cast<int64_t>(*p.material); else sj["material"] = nullptr;
-            localSM.push_back(std::move(sj));
-        }
-        sroot["subMeshes"] = std::move(localSM);
-
-        // nodes (scene-local)
-        json localNodeArr = json::array();
-        for (const auto& n : sl.nodes) {
-            json j = json::object();
-            if (!n.name.empty()) j["name"] = n.name;
-            json ch = json::array();
-            for (auto c : n.children) ch.push_back(static_cast<int64_t>(c));
-            j["children"] = std::move(ch);
-            j["matrix"] = static_cast<int64_t>(n.matrixIndexPlusOne);
-            j["trs"] = static_cast<int64_t>(n.trsIndexPlusOne);
-            json sms = json::array();
-            for (auto idx : n.subMeshes) sms.push_back(static_cast<int64_t>(idx));
-            j["subMeshes"] = std::move(sms);
-            j["bounds"] = (n.boundsIndex == pure::kInvalidBoundsIndex) ? json(nullptr) : json(static_cast<int64_t>(n.boundsIndex));
-            localNodeArr.push_back(std::move(j));
-        }
-        sroot["mesh_nodes"] = std::move(localNodeArr);
-
-        // scene object (single)
-        json sceneJson = json::object();
-        if (!sc.name.empty()) sceneJson["name"] = sc.name;
-        json roots = json::array();
-        for (auto r : sl.roots) roots.push_back(static_cast<int64_t>(r));
-        sceneJson["nodes"] = std::move(roots);
-        if (sl.sceneBoundsIndex != pure::kInvalidBoundsIndex) sceneJson["bounds"] = static_cast<int64_t>(sl.sceneBoundsIndex); else sceneJson["bounds"] = nullptr;
-        sroot["scene"] = std::move(sceneJson);
-
-        std::filesystem::path sjsonPath = sceneDir / "StaticMesh.json";
-        std::ofstream sjsonOut(sjsonPath, std::ios::binary);
-        if (!sjsonOut) {
-            std::cerr << "[Export] Cannot open: " << sjsonPath << "\n";
-            return false;
-        }
-        sjsonOut << sroot.dump(4);
-        sjsonOut.close();
-        std::cout << "[Export] Saved: " << sjsonPath << "\n";
-
-        // Scene.bin (binary, no materials/bounds; geometry file names only)
-        WriteSceneBinary(sceneDir, sc.name, sl.roots, baseName, sl.nodes, sl.subMeshes, sl.matrixPool, sl.trsPool);
+        if (!ExportScene(sm, si, targetDir, baseName)) return false;
     }
 
     return true;
