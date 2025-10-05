@@ -3,8 +3,9 @@
 #include <filesystem>
 #include "gltf/Model.h"
 
-namespace exporters {
+namespace exporters
+{
 
-bool ExportPureModel(const GLTFModel& model, const std::filesystem::path& outDir);
+    bool ExportPureModel(const GLTFModel &model,const std::filesystem::path &outDir);
 
 } // namespace exporters

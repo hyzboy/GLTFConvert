@@ -42,14 +42,13 @@ namespace exporters
             return false;
         }
 
-        auto writeVec3=[&](const glm::dvec3 &v)
+        auto writeVec3=[&](const glm::vec3 &v)
             {
-                double d[3]={ v.x,v.y,v.z };
-                ofs.write(reinterpret_cast<const char *>(d),sizeof(d));
+                ofs.write(reinterpret_cast<const char *>(&v),sizeof(float)*3);
             };
-        auto writeDouble=[&](double d)
+        auto writeFloat=[&](float f)
             {
-                ofs.write(reinterpret_cast<const char *>(&d),sizeof(d));
+                ofs.write(reinterpret_cast<const char *>(&f),sizeof(float));
             };
 
         for(const auto &b:bounds)
@@ -62,7 +61,7 @@ namespace exporters
             writeVec3(b.obb.axisZ);
             writeVec3(b.obb.halfSize);
             writeVec3(b.sphere.center);
-            writeDouble(b.sphere.radius);
+            writeFloat(b.sphere.radius);
         }
 
         ofs.close();

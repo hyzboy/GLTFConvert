@@ -4,7 +4,8 @@
 #include <cstddef>
 #include "gltf/Geometry.h"
 
-struct GLTFPrimitive {
+struct GLTFPrimitive
+{
     GLTFGeometry geometry;
     std::optional<std::size_t> material;
 };

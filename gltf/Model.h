@@ -9,7 +9,8 @@
 #include "gltf/Scene.h"
 #include "gltf/Material.h"
 
-struct GLTFModel {
+struct GLTFModel
+{
     std::string source;
 
     std::vector<GLTFPrimitive> primitives;

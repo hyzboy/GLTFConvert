@@ -2,10 +2,12 @@
 
 #include <string>
 
-namespace pure {
+namespace pure
+{
 
-struct Material {
-    std::string name;
-};
+    struct Material
+    {
+        std::string name;
+    };
 
 } // namespace pure

@@ -7,18 +7,19 @@
 #include <glm/glm.hpp>
 #include <glm/gtc/quaternion.hpp>
 
-struct GLTFNode {
+struct GLTFNode
+{
     std::string name;
     std::optional<std::size_t> mesh;
     std::vector<std::size_t> children;
 
-    bool hasMatrix = false; // true -> use matrix, false -> use TRS
-    glm::dvec3 translation{0.0};
-    glm::dquat rotation{1.0,0.0,0.0,0.0};
-    glm::dvec3 scale{1.0};
-    glm::dmat4 matrix{1.0};
+    bool hasMatrix=false; // true -> use matrix, false -> use TRS
+    glm::vec3 translation{ 0.0f };
+    glm::quat rotation{ 1.0f,0.0f,0.0f,0.0f };
+    glm::vec3 scale{ 1.0f };
+    glm::mat4 matrix{ 1.0f };
 
-    glm::dmat4 worldMatrix{1.0};
+    glm::mat4 worldMatrix{ 1.0f };
 
-    glm::dmat4 localMatrix() const; // implemented in PureGLTF.cpp (now Model impl file)
+    glm::mat4 localMatrix() const; // implemented in PureGLTF.cpp (now Model impl file)
 };

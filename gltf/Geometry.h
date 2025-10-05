@@ -11,14 +11,16 @@
 #include "common/IndexType.h"
 #include "common/PrimitiveType.h"
 
-struct GLTFGeometry {
+struct GLTFGeometry
+{
     std::string mode; // e.g. TRIANGLES
 
-    PrimitiveType primitiveType = PrimitiveType::Triangles;
+    PrimitiveType primitiveType=PrimitiveType::Triangles;
 
-    struct GLTFGeometryAttribute {
+    struct GLTFGeometryAttribute
+    {
         std::string name;
-        std::size_t count = 0;
+        std::size_t count=0;
         std::string componentType; // e.g. FLOAT
         std::string type;          // e.g. VEC3
 
@@ -33,7 +35,7 @@ struct GLTFGeometry {
     std::optional<std::size_t> indexCount;         // number of indices
     std::optional<std::string> indexComponentType; // e.g. UNSIGNED_SHORT
 
-    IndexType indexType = IndexType::ERR;
+    IndexType indexType=IndexType::ERR;
     std::optional<std::size_t> indicesAccessorIndex; // source accessor index
 
     ::AABB localAABB; // computed from POSITION if present
