@@ -1,4 +1,4 @@
-#include "PureGLTF.h"
+#include "gltf/Model.h"
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/quaternion.hpp>
 

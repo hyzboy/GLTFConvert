@@ -50,14 +50,27 @@ set(COMMON_FILES    common/IndexType.h
 
 SOURCE_GROUP("Common" FILES ${COMMON_FILES})
 
+# New gltf split headers
+set(GLTF_FILES
+    gltf/Geometry.h
+    gltf/Primitive.h
+    gltf/Material.h
+    gltf/Mesh.h
+    gltf/Node.h
+    gltf/Scene.h
+    gltf/Model.h
+    gltf/Model.cpp
+)
+SOURCE_GROUP("gltf" FILES ${GLTF_FILES})
+
 # Add executable (include new modules for pure glTF data, importer and exporter)
 add_executable(GLTFConvert
     main.cpp
 
     ${MATH_FILES}
     ${COMMON_FILES}
+    ${GLTF_FILES}
 
-    PureGLTF.cpp PureGLTF.h
     Importer.cpp Importer.h
     Geometry.cpp Geometry.h
     StaticMesh.cpp StaticMesh.h

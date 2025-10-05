@@ -1,7 +1,7 @@
 #pragma once
 
 #include <filesystem>
-#include "PureGLTF.h"
+#include "gltf/Model.h"
 
 namespace exporters {
 

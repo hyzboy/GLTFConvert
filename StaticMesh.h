@@ -11,7 +11,7 @@
 
 #include "math/AABB.h"
 #include "math/OBB.h"
-#include "PureGLTF.h"
+#include "gltf/Model.h"
 #include "Geometry.h"
 #include "SubMesh.h"
 #include "math/MeshNodeTransform.h"
