@@ -323,7 +323,7 @@ static void ImportPrimitives(const fastgltf::Asset& asset, gltf::Model& outModel
             for (const auto& attr : prim.attributes) {
                 const std::string name(attr.name.data(), attr.name.size());
                 const auto& acc = asset.accessors[attr.accessorIndex];
-                Geometry::Attribute a{};
+                gltf::Geometry::Attribute a{};
                 a.name = name;
                 a.count = acc.count;
                 a.componentType = ComponentTypeToString(acc.componentType);

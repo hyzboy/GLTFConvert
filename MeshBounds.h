@@ -4,7 +4,7 @@
 #include <vector>
 
 #include "StaticMesh.h"
-#include "pure/Geometry.h" // updated include
+#include "gltf/Geometry.h" // gltf::Geometry definition
 
 namespace pure {
 

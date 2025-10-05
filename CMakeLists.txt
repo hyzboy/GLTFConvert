@@ -82,7 +82,7 @@ add_executable(GLTFConvert
     ${PURE_GEOM_FILES}
 
     Importer.cpp Importer.h
-    Geometry.cpp Geometry.h
+    Geometry.cpp
     StaticMesh.cpp StaticMesh.h
     MeshBounds.cpp MeshBounds.h
     Exporter.cpp Exporter.h

@@ -7,7 +7,7 @@
 #include <unordered_map>
 #include <filesystem>
 
-#include "Geometry.h" // for kInvalidBoundsIndex
+#include "pure/BoundsIndex.h" // for kInvalidBoundsIndex
 
 struct BoundingBox; // forward declaration
 
