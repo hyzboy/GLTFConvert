@@ -32,12 +32,8 @@ namespace exporters
         buf.push_back(static_cast<uint8_t>((v >> 24) & 0xFF));
     }
 
-    static std::vector<std::string>                     g_nameList;
-    static std::unordered_map<std::string, uint32_t>    g_nameMap;
-    static std::vector<uint32_t>                        g_subMeshNameIndices;
-    static std::vector<uint32_t>                        g_nodeNameIndices;
-
-    static bool AddHeaderEntry(
+    // Header
+    static bool SceneBin_AddHeaderEntry(
         MiniPackBuilder    &builder,
         const SceneHeader  &sh,
         std::string        &err
@@ -51,41 +47,41 @@ namespace exporters
         return true;
     }
 
-    static bool BuildNameTableAndIndices(
-        MiniPackBuilder                &builder,
-        const std::string              &sceneName,
-        const std::string              &baseName,
-        const std::vector<pure::SubMesh> &subMeshes,
-        const std::vector<pure::MeshNode> &nodes,
-        std::string                    &err
+    // Build name table using SceneLocal storage
+    static bool SceneBin_BuildNameTableAndIndices(
+        MiniPackBuilder          &builder,
+        const std::string        &sceneName,
+        const std::string        &baseName,
+        pure::SceneLocal         *sl,
+        std::string              &err
     )
     {
-        g_nameList.clear();
-        g_nameMap.clear();
-        g_subMeshNameIndices.clear();
-        g_nodeNameIndices.clear();
+        sl->nameList.clear();
+        sl->nameMap.clear();
+        sl->subMeshNameIndices.clear();
+        sl->nodeNameIndices.clear();
         auto intern_name = [&](const std::string &s) -> uint32_t
         {
-            auto it = g_nameMap.find(s);
-            if (it != g_nameMap.end())
+            auto it = sl->nameMap.find(s);
+            if (it != sl->nameMap.end())
                 return it->second;
-            uint32_t idx = static_cast<uint32_t>(g_nameList.size());
-            g_nameList.push_back(s);
-            g_nameMap.emplace(g_nameList.back(), idx);
+            uint32_t idx = static_cast<uint32_t>(sl->nameList.size());
+            sl->nameList.push_back(s);
+            sl->nameMap.emplace(sl->nameList.back(), idx);
             return idx;
         };
         intern_name(sceneName);
-        g_subMeshNameIndices.reserve(subMeshes.size());
-        for (const auto &sm : subMeshes)
+        sl->subMeshNameIndices.reserve(sl->subMeshes.size());
+        for (const auto &sm : sl->subMeshes)
         {
             std::string geomFile = baseName + "." + std::to_string(sm.geometry);
-            g_subMeshNameIndices.push_back(intern_name(geomFile));
+            sl->subMeshNameIndices.push_back(intern_name(geomFile));
         }
-        g_nodeNameIndices.reserve(nodes.size());
-        for (const auto &n : nodes)
-            g_nodeNameIndices.push_back(intern_name(n.name));
+        sl->nodeNameIndices.reserve(sl->nodes.size());
+        for (const auto &n : sl->nodes)
+            sl->nodeNameIndices.push_back(intern_name(n.name));
         err.clear();
-        write_string_list(&builder, "NameTable", g_nameList, err);
+        write_string_list(&builder, "NameTable", sl->nameList, err);
         if (!err.empty())
         {
             std::cerr << "[Export] Failed to add NameTable entry: " << err << "\n";
@@ -94,10 +90,10 @@ namespace exporters
         return true;
     }
 
-    static bool AddRootsEntry(
-        MiniPackBuilder         &builder,
+    static bool SceneBin_AddRootsEntry(
+        MiniPackBuilder            &builder,
         const std::vector<int32_t> &sceneRootIndices,
-        std::string             &err
+        std::string                &err
     )
     {
         if (!builder.add_entry_from_array<int32_t>("Roots", sceneRootIndices, err))
@@ -108,10 +104,10 @@ namespace exporters
         return true;
     }
 
-    static bool AddMatrixData(
-        MiniPackBuilder            &builder,
-        const std::vector<glm::mat4> &data,
-        std::string                &err
+    static bool SceneBin_AddMatrixData(
+        MiniPackBuilder                 &builder,
+        const std::vector<glm::mat4>    &data,
+        std::string                     &err
     )
     {
         if (!builder.add_entry_from_array<glm::mat4>("Matrices", data, err))
@@ -122,10 +118,10 @@ namespace exporters
         return true;
     }
 
-    static bool AddTRSEntry(
-        MiniPackBuilder                        &builder,
-        const std::vector<pure::MeshNodeTransform> &trs,
-        std::string                            &err
+    static bool SceneBin_AddTRSEntry(
+        MiniPackBuilder                           &builder,
+        const std::vector<pure::MeshNodeTransform>& trs,
+        std::string                               &err
     )
     {
         std::vector<float> flat;
@@ -152,12 +148,13 @@ namespace exporters
         return true;
     }
 
-    static bool AddSubMeshesEntry(
+    static bool SceneBin_AddSubMeshesEntry(
         MiniPackBuilder &builder,
+        const std::vector<uint32_t> &indices,
         std::string     &err
     )
     {
-        if (!builder.add_entry_from_array<uint32_t>("SubMeshes", g_subMeshNameIndices, err))
+        if (!builder.add_entry_from_array<uint32_t>("SubMeshes", indices, err))
         {
             std::cerr << "[Export] Failed to add SubMeshes entry: " << err << "\n";
             return false;
@@ -165,10 +162,11 @@ namespace exporters
         return true;
     }
 
-    static bool AddNodesEntry(
-        MiniPackBuilder                &builder,
+    static bool SceneBin_AddNodesEntry(
+        MiniPackBuilder                   &builder,
         const std::vector<pure::MeshNode> &nodes,
-        std::string                    &err
+        const std::vector<uint32_t>       &nodeNameIndices,
+        std::string                       &err
     )
     {
         std::vector<uint8_t> buf;
@@ -176,7 +174,8 @@ namespace exporters
         for (size_t i = 0; i < nodes.size(); ++i)
         {
             const auto &n = nodes[i];
-            AppendU32(buf, g_nodeNameIndices[i]);
+            uint32_t nameIdx = (i < nodeNameIndices.size()) ? nodeNameIndices[i] : 0u;
+            AppendU32(buf, nameIdx);
             AppendU32(buf, static_cast<uint32_t>(n.localMatrixIndexPlusOne));
             AppendU32(buf, static_cast<uint32_t>(n.worldMatrixIndexPlusOne));
             AppendU32(buf, static_cast<uint32_t>(n.trsIndexPlusOne));
@@ -199,16 +198,20 @@ namespace exporters
     }
 
     bool WriteSceneBinary(
-        const std::filesystem::path         &sceneDir,
-        const std::string                   &sceneName,
-        const std::vector<int32_t>          &sceneRootIndices,
-        const std::string                   &baseName,
-        const std::vector<pure::MeshNode>   &nodes,
-        const std::vector<pure::SubMesh>    &subMeshes,
-        const std::vector<glm::mat4>        &matrixData,
-        const std::vector<pure::MeshNodeTransform> &trs
-    )
+        const std::filesystem::path &sceneDir,
+        const std::string           &baseName,
+        const pure::SceneLocal      &sceneLocal)
     {
+        // Make a copy pointer (non-const) to allow filling name tables
+        pure::SceneLocal *sl = const_cast<pure::SceneLocal*>(&sceneLocal);
+
+        const auto &sceneName   = sl->name; // unchanged
+        const auto &roots       = sl->roots;
+        const auto &nodes       = sl->nodes;
+        const auto &subMeshes   = sl->subMeshes;
+        const auto &matrixData  = sl->matrixData;
+        const auto &trs         = sl->trsPool;
+
         std::string fileName = sceneName.empty() ? std::string("Scene.scene") : (sceneName + ".scene");
         std::filesystem::path binPath = sceneDir / fileName;
         MiniPackBuilder builder;
@@ -216,25 +219,25 @@ namespace exporters
         SceneHeader sh{};
 
         sh.version      = 1;
-        sh.rootCount    = static_cast<uint32_t>(sceneRootIndices.size());
+        sh.rootCount    = static_cast<uint32_t>(roots.size());
         sh.matrixCount  = static_cast<uint32_t>(matrixData.size());
         sh.trsCount     = static_cast<uint32_t>(trs.size());
         sh.subMeshCount = static_cast<uint32_t>(subMeshes.size());
         sh.nodeCount    = static_cast<uint32_t>(nodes.size());
 
-        if (!AddHeaderEntry(builder, sh, err))
+        if (!SceneBin_AddHeaderEntry(builder, sh, err))
             return false;
-        if (!BuildNameTableAndIndices(builder, sceneName, baseName, subMeshes, nodes, err))
+        if (!SceneBin_BuildNameTableAndIndices(builder, sceneName, baseName, sl, err))
             return false;
-        if (!AddRootsEntry(builder, sceneRootIndices, err))
+        if (!SceneBin_AddRootsEntry(builder, roots, err))
             return false;
-        if (!AddMatrixData(builder, matrixData, err))
+        if (!SceneBin_AddMatrixData(builder, matrixData, err))
             return false;
-        if (!AddTRSEntry(builder, trs, err))
+        if (!SceneBin_AddTRSEntry(builder, trs, err))
             return false;
-        if (!AddSubMeshesEntry(builder, err))
+        if (!SceneBin_AddSubMeshesEntry(builder, sl->subMeshNameIndices, err))
             return false;
-        if (!AddNodesEntry(builder, nodes, err))
+        if (!SceneBin_AddNodesEntry(builder, nodes, sl->nodeNameIndices, err))
             return false;
 
         auto writer = create_file_writer(binPath.string());

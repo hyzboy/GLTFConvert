@@ -379,15 +379,11 @@ static bool ExportScene(
     sjsonOut.close();
     std::cout << "[Export] Saved: " << sjsonPath << "\n";
 
+    // Refactored WriteSceneBinary call
     WriteSceneBinary(
         sceneDir,
-        sc.name,
-        sl.roots,
         baseName,
-        sl.nodes,
-        sl.subMeshes,
-        sl.matrixData,
-        sl.trsPool
+        sl
     );
 
     return true;

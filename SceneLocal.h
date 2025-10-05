@@ -4,6 +4,7 @@
 #include <vector>
 #include <cstddef>
 #include <glm/glm.hpp>
+#include <unordered_map>
 
 #include "Geometry.h" // for kInvalidBoundsIndex
 
@@ -27,6 +28,12 @@ struct SceneLocal {
     std::vector<MeshNodeTransform> trsPool;      // scene-local TRS
     std::vector<BoundingBox> bounds;             // scene-local bounds pool
     int32_t sceneBoundsIndex = kInvalidBoundsIndex; // index into `bounds` or kInvalidBoundsIndex
+
+    // Added for binary export name table construction
+    std::vector<std::string> nameList;                       // consolidated names (scene, geometry refs, node names)
+    std::unordered_map<std::string, uint32_t> nameMap;       // intern map
+    std::vector<uint32_t> subMeshNameIndices;                // indices into nameList for each subMesh geometry file name
+    std::vector<uint32_t> nodeNameIndices;                   // indices into nameList for each node name
 };
 
 // Build scene-local data (remap node/submesh/matrix/TRS/bounds indices to compact scene-local pools)
