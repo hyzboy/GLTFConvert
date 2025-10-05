@@ -25,11 +25,15 @@ namespace pure
         std::vector<uint8_t> nodeUsed(sm.mesh_nodes.size(), 0);
         std::vector<int32_t> nodeOrder;
         nodeOrder.reserve(sm.mesh_nodes.size());
+        std::unordered_map<int32_t, int32_t> nodeRemap; // old index -> new compact index
+        nodeRemap.reserve(sm.mesh_nodes.size());
+
         std::vector<int32_t> stack;
         stack.reserve(sc.nodes.size());
         for (auto v : sc.nodes)
             stack.push_back(static_cast<int32_t>(v));
 
+        // 深度优先收集 reachable nodes，同步构建重映射；不需要额外排序
         while (!stack.empty())
         {
             auto ni = stack.back();
@@ -39,19 +43,15 @@ namespace pure
             if (nodeUsed[static_cast<std::size_t>(ni)])
                 continue;
             nodeUsed[static_cast<std::size_t>(ni)] = 1;
+            int32_t newIndex = static_cast<int32_t>(nodeOrder.size());
             nodeOrder.push_back(ni);
+            nodeRemap.emplace(ni, newIndex);
             for (auto c : sm.mesh_nodes[static_cast<std::size_t>(ni)].children)
                 stack.push_back(static_cast<int32_t>(c));
         }
 
-        std::sort(nodeOrder.begin(), nodeOrder.end());
-
-        std::unordered_map<int32_t, int32_t> nodeRemap;
-        nodeRemap.reserve(nodeOrder.size());
-        for (int32_t i = 0; i < static_cast<int32_t>(nodeOrder.size()); ++i)
-            nodeRemap[nodeOrder[static_cast<std::size_t>(i)]] = i;
-
-        std::unordered_map<int32_t, int32_t>      subMeshRemap;
+        // 资源重映射表
+        std::unordered_map<int32_t, int32_t>         subMeshRemap;
         std::unordered_map<std::size_t, std::size_t> matrixRemap;
         std::unordered_map<std::size_t, std::size_t> trsRemap;
         std::unordered_map<std::size_t, std::size_t> boundsRemap;
@@ -105,12 +105,14 @@ namespace pure
                 nn.worldMatrixIndexPlusOne = static_cast<int32_t>(matrixRemap[on.worldMatrixIndexPlusOne - 1]) + 1;
             if (on.trsIndexPlusOne)
                 nn.trsIndexPlusOne = static_cast<int32_t>(trsRemap[on.trsIndexPlusOne - 1]) + 1;
+            nn.children.reserve(on.children.size());
             for (auto oc : on.children)
             {
                 auto it = nodeRemap.find(oc);
                 if (it != nodeRemap.end())
                     nn.children.push_back(it->second);
             }
+            nn.subMeshes.reserve(on.subMeshes.size());
             for (auto osm : on.subMeshes)
             {
                 auto it = subMeshRemap.find(osm);
