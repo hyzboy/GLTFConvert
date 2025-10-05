@@ -14,7 +14,6 @@ namespace pure {
 
 struct MeshNode;            // from StaticMesh.h
 struct SubMesh;             // from StaticMesh.h
-struct MatrixEntry;         // from StaticMesh.h
 struct MeshNodeTransform;   // from StaticMesh.h
 struct Model;               // from StaticMesh.h
 
@@ -24,7 +23,6 @@ struct SceneLocal {
     std::vector<MeshNode> nodes;                 // scene-local nodes with remapped indices
     std::vector<int32_t> roots;                  // root node indices into `nodes`
     std::vector<SubMesh> subMeshes;              // scene-local subMesh pool (geometry indices are global)
-    std::vector<MatrixEntry> matrixEntryPool;    // scene-local matrix entries
     std::vector<glm::mat4> matrixData;           // scene-local unique matrices
     std::vector<MeshNodeTransform> trsPool;      // scene-local TRS
     std::vector<BoundingBox> bounds;             // scene-local bounds pool

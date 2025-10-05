@@ -51,7 +51,6 @@ add_executable(GLTFConvert
     SceneLocal.cpp SceneLocal.h
     MeshNodeTransform.h
     SubMesh.h
-    MatrixEntry.h
     PureMaterial.h
 )
 
