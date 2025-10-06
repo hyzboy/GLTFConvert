@@ -89,9 +89,10 @@ add_executable(GLTFConvert
 
     Importer.cpp Importer.h
     Geometry.cpp
-    StaticMesh.cpp
+    GLTF2Pure.cpp
     MeshBounds.cpp MeshBounds.h
     Exporter.cpp Exporter.h
+    MaterialExporter.cpp MaterialExporter.h
     # new split scene-local module and split headers
     SceneExporter.h SceneBinary.cpp SceneBuilder.cpp
     PureMaterial.h

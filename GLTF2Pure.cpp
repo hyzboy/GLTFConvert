@@ -2,14 +2,12 @@
 #include "pure/Material.h"
 #include "pure/MeshNode.h"
 #include "pure/Scene.h"
-#include "SceneExporter.h"
 #include <algorithm>
 
 namespace pure
 {
     namespace
     {
-
         // Compare geometries by their accessor indices and attributes
         static bool SameGeometryByAccessorId(const GLTFGeometry &a,const GLTFGeometry &b)
         {
@@ -206,5 +204,4 @@ namespace pure
 
         return dst;
     }
-
 } // namespace pure
