@@ -52,24 +52,6 @@ namespace importers
                        },buf.data);
             return ok;
         }
-
-        static std::optional<std::pair<glm::dvec3,glm::dvec3>> ComputeAABBFromAccessorFloat(const fastgltf::Asset &asset,const fastgltf::Accessor &acc)
-        {
-            if(acc.type!=fastgltf::AccessorType::Vec3) return std::nullopt;
-            if(acc.componentType!=fastgltf::ComponentType::Float&&acc.componentType!=fastgltf::ComponentType::Double) return std::nullopt;
-            glm::dvec3 mn(std::numeric_limits<double>::infinity());
-            glm::dvec3 mx(-std::numeric_limits<double>::infinity());
-            bool any=false;
-            if(acc.componentType==fastgltf::ComponentType::Float)
-            {
-                fastgltf::iterateAccessor<fastgltf::math::fvec3>(asset,acc,[&](const fastgltf::math::fvec3 &v) { any=true; mn=glm::min(mn,glm::dvec3(v.x(),v.y(),v.z())); mx=glm::max(mx,glm::dvec3(v.x(),v.y(),v.z())); });
-            }
-            else
-            {
-                fastgltf::iterateAccessor<fastgltf::math::dvec3>(asset,acc,[&](const fastgltf::math::dvec3 &v) { any=true; mn=glm::min(mn,glm::dvec3(v.x(),v.y(),v.z())); mx=glm::max(mx,glm::dvec3(v.x(),v.y(),v.z())); });
-            }
-            if(!any) return std::nullopt; return std::make_pair(mn,mx);
-        }
     }
 
     void ImportPrimitives(const fastgltf::Asset &asset,std::vector<GLTFPrimitive> &primitives)
@@ -90,15 +72,8 @@ namespace importers
                     a.accessorIndex=attr.accessorIndex;
                     if(!CopyAccessorToBytes(asset,acc,a.data)) a.data.clear();
                     p.geometry.attributes.emplace_back(std::move(a));
-                    if(p.geometry.attributes.back().name=="POSITION")
-                    {
-                        if(auto mm=ComputeAABBFromAccessorFloat(asset,acc))
-                        {
-                            p.geometry.localAABB.min=mm->first;
-                            p.geometry.localAABB.max=mm->second;
-                        }
-                    }
                 }
+
                 if(prim.indicesAccessor)
                 {
                     const auto &acc=asset.accessors[*prim.indicesAccessor];

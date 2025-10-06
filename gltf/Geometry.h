@@ -28,6 +28,4 @@ struct GLTFGeometry
 
     IndexType indexType = IndexType::ERR;
     std::optional<std::size_t> indicesAccessorIndex;        // source accessor index for indices buffer
-
-    ::AABB localAABB; // computed from POSITION if present
 };

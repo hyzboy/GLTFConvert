@@ -69,10 +69,6 @@ namespace importers
                     }
                 }
             }
-            if (!geom.localAABB.empty())
-            {
-                geom.localAABB = geom.localAABB.transformed(rot);
-            }
         }
     }
 } // namespace importers
