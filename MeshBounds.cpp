@@ -1,65 +1,8 @@
 #include "MeshBounds.h"
-
 #include <vector>
 
 namespace pure
 {
-
-    // local helper: decode POSITION to float3
-    static bool TryDecodePositionsAsVec3(const GLTFGeometry &g,std::vector<glm::vec3> &out)
-    {
-        out.clear();
-        for(const auto &a:g.attributes)
-        {
-            if(a.name=="POSITION")
-            {
-                bool isVec3 = (a.format==PF_RGB32F);
-                bool isVec4 = (a.format==PF_RGBA32F);
-                if(!isVec3 && !isVec4) continue;
-                const std::byte *ptr=a.data.data();
-                const std::size_t elementCount=a.count;
-                const std::size_t stride=isVec3?sizeof(float)*3:sizeof(float)*4;
-                if(a.data.size()<elementCount*stride) return false;
-                out.resize(elementCount);
-                for(std::size_t i=0; i<elementCount; ++i)
-                {
-                    const float *f=reinterpret_cast<const float *>(ptr+i*stride);
-                    out[i]=glm::vec3(f[0],f[1],f[2]);
-                }
-                return true;
-            }
-        }
-        return false;
-    }
-
-    void ComputeGeometryBoundsFromGLTF(pure::Model &model,const GLTFGeometry &srcGeom,pure::Geometry &dstGeom)
-    {
-        BoundingBox bb; // local aggregate
-        bb.aabb=srcGeom.localAABB; // AABB comes from glTF primitive local AABB
-
-        std::vector<glm::vec3> posF;
-        bool hasPos = TryDecodePositionsAsVec3(srcGeom,posF) && !posF.empty();
-        if(hasPos)
-        {
-            dstGeom.positions = posF;
-            bb.obb = OBB::fromPointsMinVolume(posF);
-            bb.sphere = SphereFromPoints(posF);
-        }
-        else
-        {
-            dstGeom.positions.reset();
-            bb.obb.reset();
-            bb.sphere.reset();
-        }
-
-        if(!hasPos && !bb.aabb.empty())
-        {
-            bb.sphere = SphereFromAABB(bb.aabb);
-        }
-
-        dstGeom.boundsIndex=model.internBounds(bb);
-    }
-
     void ComputeMeshNodeBounds(pure::Model &model,int32_t nodeIndex)
     {
         auto &node=model.mesh_nodes[static_cast<std::size_t>(nodeIndex)];
