@@ -89,7 +89,6 @@ set(PURE_GEOM_FILES
     pure/SubMesh.h
     pure/Scene.h
     pure/ModelCore.h
-    pure/ModelCore.cpp
 )
 SOURCE_GROUP("pure" FILES ${PURE_GEOM_FILES})
 

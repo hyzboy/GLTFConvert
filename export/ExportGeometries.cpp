@@ -28,12 +28,8 @@ namespace exporters
             std::filesystem::path binName = baseName + "." + std::to_string(u) + ".geometry";
             std::filesystem::path binPath = targetDir / binName;
 
-            BoundingVolumes geo_bounds;
-
-            if(!pure::SaveGeometry(g, geo_bounds, binPath.string()))
+            if(!pure::SaveGeometry(g, binPath.string()))
                 std::cerr << "[Export] Failed to write geometry binary: " << binPath << "\n";
-
-            g.boundsIndex=model->internBounds(geo_bounds);
         }
     }
 } // namespace exporters

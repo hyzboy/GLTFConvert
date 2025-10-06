@@ -19,7 +19,8 @@ namespace pure
         PrimitiveType                           primitiveType   =PrimitiveType::Triangles;
 
         std::vector<GeometryAttribute>          attributes;                                         // vertex attributes
-        int32_t                                 boundsIndex     =kInvalidBoundsIndex;               // index into global bounds pool
+
+        BoundingVolumes                         bounding_volume;
 
         std::optional<std::vector<std::byte>>   indicesData;                                        // raw index buffer if present
         std::optional<GeometryIndicesMeta>      indices;                                            // metadata for indices
@@ -27,5 +28,5 @@ namespace pure
         std::optional<std::vector<glm::vec3>>   positions;                                          // Optional decoded POSITION data (local space, stored as float precision)
     };
 
-    bool SaveGeometry(const Geometry &geometry,BoundingVolumes &volumes,const std::string &filename);
+    bool SaveGeometry(Geometry &geometry,const std::string &filename);
 } // namespace pure

@@ -1,18 +1,11 @@
 #pragma once
 #include <string>
 #include <vector>
-#include <optional>
-#include <cstdint>
-#include <glm/glm.hpp>
-#include "math/AABB.h"
-#include "math/OBB.h"
 #include "pure/Material.h"
 #include "pure/MeshNode.h"
 #include "pure/Scene.h"
 #include "pure/Geometry.h"
 #include "pure/SubMesh.h"
-#include "math/TRS.h"
-#include "pure/BoundsIndex.h"
 #include "gltf/GLTFModel.h"
 
 namespace pure
@@ -25,15 +18,6 @@ namespace pure
         std::vector<MeshNode> mesh_nodes;
         std::vector<Geometry> geometry;
         std::vector<SubMesh> subMeshes;
-        std::vector<BoundingVolumes> bounds;
-        std::vector<glm::mat4> matrixData;
-        std::vector<TRS> trsPool;
-
-    public:
-
-        int32_t internBounds(const BoundingVolumes &volumes);
-        int32_t internTRS(const TRS &t);
-        int32_t internMatrix(const glm::mat4 &m);
     };
 
     Model ConvertFromGLTF(const GLTFModel &src);

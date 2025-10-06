@@ -42,8 +42,6 @@ namespace exporters
         if(!ExportMaterials(sm.materials,targetDir))
             return false;
 
-        sm.bounds.clear();  //清空所有bounds信息，geometry导出时计算每个geometry自己的Bound信息
-
         // 几何数据（使用精简后的接口）
         ExportGeometries(&sm, targetDir);
 

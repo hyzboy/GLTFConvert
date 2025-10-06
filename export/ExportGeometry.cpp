@@ -192,12 +192,12 @@ namespace pure
         }
     }
 
-    bool SaveGeometry(const Geometry &geometry,BoundingVolumes &volumes,const std::string &filename)
+    bool SaveGeometry(Geometry &geometry,const std::string &filename)
     {
         // Recalculate bounding volumes from positions if available
         if(geometry.positions.has_value() && !geometry.positions->empty())
         {
-            volumes.fromPoints(*geometry.positions);
+            geometry.bounding_volume.fromPoints(*geometry.positions);
         }
 
         uint8_t index_stride=0;
@@ -228,7 +228,7 @@ namespace pure
             std::cerr<<"Error: "<<err<<std::endl;
             return false;
         }
-        if(!add_bounds_entry(builder,volumes,err))
+        if(!add_bounds_entry(builder,geometry.bounding_volume,err))
         {
             std::cerr<<"Error: "<<err<<std::endl;
             return false;
