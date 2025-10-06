@@ -48,14 +48,14 @@ namespace exporters
         if(!ExportMaterials(sm.materials,targetDir))
             return false;
 
-        // 场景
-        for(std::size_t si=0; si<sm.scenes.size(); ++si)
-        {
-            const auto &scene = sm.scenes[si];
-            pure::SceneExporter sceneExporter = pure::SceneExporter::Build(sm, static_cast<int32_t>(si));
-            if(!ExportScene(scene.name, si, sceneExporter, targetDir, baseName))
-                return false;
-        }
+        //// 场景
+        //for(std::size_t si=0; si<sm.scenes.size(); ++si)
+        //{
+        //    const auto &scene = sm.scenes[si];
+        //    pure::SceneExporter sceneExporter = pure::SceneExporter::Build(sm, static_cast<int32_t>(si));
+        //    if(!ExportScene(scene.name, si, sceneExporter, targetDir, baseName))
+        //        return false;
+        //}
 
         return true;
     }

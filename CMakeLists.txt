@@ -106,6 +106,8 @@ SOURCE_GROUP("convert" FILES ${CONVERT_FILES})
 
 # Export split sources
 set(EXPORT_FILES
+
+    export/ExportGeometry.cpp
     export/ExportGeometries.cpp
     export/ExportScene.cpp
     export/ExportPureModel.cpp
@@ -126,7 +128,6 @@ add_executable(GLTFConvert
     ${CONVERT_FILES}
     ${EXPORT_FILES}
 
-    Geometry.cpp
     MeshBounds.cpp MeshBounds.h
     Exporter.h
     MaterialExporter.cpp MaterialExporter.h
