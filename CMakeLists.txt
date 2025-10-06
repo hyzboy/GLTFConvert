@@ -86,6 +86,14 @@ set(CONVERT_FILES
 )
 SOURCE_GROUP("convert" FILES ${CONVERT_FILES})
 
+# Export split sources
+set(EXPORT_FILES
+    export/ExportGeometries.cpp
+    export/ExportScene.cpp
+    export/ExportPureModel.cpp
+)
+SOURCE_GROUP("export" FILES ${EXPORT_FILES})
+
 # Add executable (include new modules for pure glTF data, importer and exporter)
 add_executable(GLTFConvert
     main.cpp
@@ -95,12 +103,13 @@ add_executable(GLTFConvert
     ${GLTF_FILES}
     ${PURE_GEOM_FILES}
     ${CONVERT_FILES}
+    ${EXPORT_FILES}
 
     Importer.cpp Importer.h
     Geometry.cpp
     GLTF2Pure.cpp
     MeshBounds.cpp MeshBounds.h
-    Exporter.cpp Exporter.h
+    Exporter.h
     MaterialExporter.cpp MaterialExporter.h
     # new split scene-local module and split headers
     SceneExporter.h SceneBinary.cpp SceneBuilder.cpp
