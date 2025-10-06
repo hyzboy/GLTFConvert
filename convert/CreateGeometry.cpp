@@ -7,20 +7,6 @@
 
 namespace pure
 {
-    namespace
-    {
-        static GeometryAttribute MakeGeometryAttribute(const GLTFGeometry::GLTFGeometryAttribute &srcAttr)
-        {
-            GeometryAttribute ga;
-
-            ga.name = srcAttr.name;
-            ga.count = srcAttr.count;
-            ga.format = srcAttr.format;
-            ga.data = srcAttr.data; // copy raw data
-            return ga;
-        }
-    } // anonymous namespace
-
     void CreateUniqueGeometryEntries(std::vector<Geometry> &dstGeometry, const std::vector<GLTFPrimitive> &prims, const UniqueGeometryMapping &map)
     {
         dstGeometry.reserve(map.uniqueRepGeomPrimIdx.size());
@@ -31,14 +17,17 @@ namespace pure
 
             Geometry pg;
             pg.primitiveType = g.primitiveType;
-            pg.attributes.reserve(g.attributes.size());
-            for (size_t ai = 0; ai < g.attributes.size(); ++ai)
+
+            if (!g.attributes.empty())
             {
-                pg.attributes.push_back(MakeGeometryAttribute(g.attributes[ai]));
+                pg.attributes.reserve(g.attributes.size());
+                // Copy slice derived -> base (data members from GeometryAttribute portion)
+                pg.attributes.insert(pg.attributes.end(), g.attributes.begin(), g.attributes.end());
             }
+
             if (g.indices)
                 pg.indicesData = *g.indices;
-            if (g.indexCount && g.indexType!=IndexType::ERR)
+            if (g.indexCount && g.indexType != IndexType::ERR)
             {
                 pg.indices = GeometryIndicesMeta{ *g.indexCount, g.indexType };
             }
