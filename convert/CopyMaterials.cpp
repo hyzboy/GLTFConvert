@@ -1,13 +1,18 @@
-#include "convert/ConvertInternals.h"
+#include <vector>
+
+#include "pure/Material.h"
+#include "gltf/Material.h"
 
 namespace pure
 {
-    void CopyMaterials(Model &dst,const GLTFModel &src)
+    void CopyMaterials(std::vector<Material> &dstMaterials, const std::vector<GLTFMaterial> &srcMaterials)
     {
-        dst.materials.reserve(src.materials.size());
-        for(const auto &m:src.materials)
+        dstMaterials.reserve(srcMaterials.size());
+        for (const auto &m : srcMaterials)
         {
-            Material pm; pm.name=m.name; dst.materials.push_back(std::move(pm));
+            Material pm;
+            pm.name = m.name;
+            dstMaterials.push_back(std::move(pm));
         }
     }
-}
+} // namespace pure

@@ -1,15 +1,22 @@
-#include "convert/ConvertInternals.h"
+#include <vector>
+
+#include "pure/MeshNode.h"
+#include "gltf/Node.h"
 
 namespace pure
 {
-    void CopyMeshNodesAndTransforms(Model &dst,const GLTFModel &src)
+    void CopyMeshNodesAndTransforms(std::vector<MeshNode> &dstNodes, const std::vector<GLTFNode> &srcNodes)
     {
-        dst.mesh_nodes.reserve(src.nodes.size());
-        for(const auto &n:src.nodes)
+        dstNodes.reserve(srcNodes.size());
+        for (const auto &n : srcNodes)
         {
-            MeshNode pn; pn.name=n.name; pn.children.reserve(n.children.size());
-            for(auto c:n.children) pn.children.push_back(static_cast<int32_t>(c));
-            pn.node_transform=n.transform; dst.mesh_nodes.push_back(std::move(pn));
+            MeshNode pn;
+            pn.name = n.name;
+            pn.children.reserve(n.children.size());
+            for (auto c : n.children)
+                pn.children.push_back(static_cast<int32_t>(c));
+            pn.node_transform = n.transform;
+            dstNodes.push_back(std::move(pn));
         }
     }
-}
+} // namespace pure

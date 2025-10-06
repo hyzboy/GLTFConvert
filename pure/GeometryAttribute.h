@@ -10,7 +10,6 @@
 
 namespace pure
 {
-
     struct GeometryAttribute
     {
         uint8_t id=0; // index in the attributes array

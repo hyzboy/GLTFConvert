@@ -9,12 +9,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 find_package(glm REQUIRED)
 find_package(fastgltf REQUIRED)
 find_package(nlohmann_json REQUIRED)
-#find_path(V_HACD_INCLUDE_DIRS "VHACD.h")
-
-# Find Vulkan SDK (headers only; we won't link the library)
 find_package(Vulkan REQUIRED)
-
-#include_directories(${V_HACD_INCLUDE_DIRS})
 
 # Option: use static C runtime
 option(USE_STATIC_CRT "Use static C runtime (MSVC: /MT, others: -static-libgcc -static-libstdc++)" ON)
@@ -80,7 +75,7 @@ SOURCE_GROUP("pure" FILES ${PURE_GEOM_FILES})
 
 # New convert sources and header
 set(CONVERT_FILES
-    convert/ConvertInternals.h
+    convert/UniqueGeometryMapping.h
     convert/CopyMaterials.cpp
     convert/CopyScenes.cpp
     convert/CopyNodes.cpp
