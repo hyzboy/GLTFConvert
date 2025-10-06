@@ -37,6 +37,7 @@ set(MATH_FILES  math/AABB.h
                 math/BoundingBox.h
                 math/BoundingSphere.cpp
                 math/TRS.h
+                math/TRS.cpp
                 math/OBB.cpp
                 math/OBB.h)
 
