@@ -11,7 +11,7 @@ namespace pure
     {
         static bool SameGeometryByAccessorId(const GLTFGeometry &a, const GLTFGeometry &b)
         {
-            if (a.mode != b.mode) return false;
+            if (a.primitiveType != b.primitiveType) return false;
             if (static_cast<bool>(a.indicesAccessorIndex) != static_cast<bool>(b.indicesAccessorIndex)) return false;
             if (a.indicesAccessorIndex && b.indicesAccessorIndex && (*a.indicesAccessorIndex != *b.indicesAccessorIndex)) return false;
             if (a.attributes.size() != b.attributes.size()) return false;

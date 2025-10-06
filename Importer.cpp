@@ -12,21 +12,6 @@ namespace importers
     namespace
     {
         // ---- Conversions -----------------------------------------------------------
-        static std::string ModeToString(fastgltf::PrimitiveType t)
-        {
-            switch(t)
-            {
-            case fastgltf::PrimitiveType::Points: return "POINTS";
-            case fastgltf::PrimitiveType::Lines: return "LINES";
-            case fastgltf::PrimitiveType::LineLoop: return "LINE_LOOP";
-            case fastgltf::PrimitiveType::LineStrip: return "LINE_STRIP";
-            case fastgltf::PrimitiveType::Triangles: return "TRIANGLES";
-            case fastgltf::PrimitiveType::TriangleStrip: return "TRIANGLE_STRIP";
-            case fastgltf::PrimitiveType::TriangleFan: return "TRIANGLE_FAN";
-            default: return "UNKNOWN";
-            }
-        }
-
         static PrimitiveType ModeToPrimitiveType(fastgltf::PrimitiveType t)
         {
             switch(t)
@@ -352,7 +337,7 @@ namespace importers
                 for(const auto &prim:mesh.primitives)
                 {
                     GLTFPrimitive p{};
-                    p.geometry.mode=ModeToString(prim.type);
+
                     p.geometry.primitiveType=ModeToPrimitiveType(prim.type);
 
                     // attributes

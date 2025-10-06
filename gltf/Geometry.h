@@ -13,8 +13,6 @@
 
 struct GLTFGeometry
 {
-    std::string mode; // e.g. TRIANGLES
-
     PrimitiveType primitiveType=PrimitiveType::Triangles;
 
     struct GLTFGeometryAttribute

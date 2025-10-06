@@ -32,7 +32,7 @@ namespace pure
             const auto &g = prims[static_cast<size_t>(i)].geometry;
 
             Geometry pg;
-            pg.mode = g.mode;
+            pg.primitiveType = g.primitiveType;
             pg.attributes.reserve(g.attributes.size());
             for (size_t ai = 0; ai < g.attributes.size(); ++ai)
             {
