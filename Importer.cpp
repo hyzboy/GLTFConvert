@@ -325,16 +325,9 @@ namespace importers
         // Adjust all node local transforms M -> R * M * R^-1 so that geometry (already rotated by R) composes correctly
         static void ApplyYUpToZUpNodeTransforms(GLTFModel &model)
         {
-            glm::dmat4 R(1.0);
-            R=glm::rotate(R,glm::radians(90.0),glm::dvec3(1.0,0.0,0.0));
-            glm::dmat4 Rinv=glm::transpose(R); // orthonormal rotation
-
             for(auto &n:model.nodes)
             {
-                glm::dmat4 local=n.localMatrix();
-                glm::dmat4 converted=R*local*Rinv;
-                n.hasMatrix=true;
-                n.matrix=converted;
+                n.transform.convertInPlaceYUpToZUp();
             }
         }
 
@@ -443,26 +436,8 @@ namespace importers
                 if(!n.name.empty()) on.name.assign(n.name.begin(),n.name.end());
                 if(n.meshIndex) on.mesh=*n.meshIndex;
                 on.children.assign(n.children.begin(),n.children.end());
-                if(std::holds_alternative<fastgltf::TRS>(n.transform))
-                {
-                    const auto &trs=std::get<fastgltf::TRS>(n.transform);
-                    on.hasMatrix=false;
-                    on.translation=glm::dvec3(trs.translation.x(),trs.translation.y(),trs.translation.z());
-                    on.rotation=glm::dquat(trs.rotation.w(),trs.rotation.x(),trs.rotation.y(),trs.rotation.z());
-                    on.scale=glm::dvec3(trs.scale.x(),trs.scale.y(),trs.scale.z());
-                }
-                else
-                {
-                    const auto &mat=std::get<fastgltf::math::fmat4x4>(n.transform);
-                    glm::dmat4 m(1.0);
-                    const float *d=mat.data();
-                    // column-major fill
-                    for(int c=0; c<4; ++c)
-                        for(int r=0; r<4; ++r)
-                            m[c][r]=static_cast<double>(d[c*4+r]);
-                    on.hasMatrix=true;
-                    on.matrix=m;
-                }
+
+                on.transform=n.transform;
             }
         }
 
@@ -521,14 +496,8 @@ namespace importers
         // Adjust node local transforms for Y-up -> Z-up before computing world matrices
         ApplyYUpToZUpNodeTransforms(outModel);
 
-        // compute derived data
-        outModel.computeWorldMatrices();
-
         // Convert geometry data from Y-up to Z-up (positions/normals/tangent/bitangent) and update local bounds
         ApplyYUpToZUp(outModel);
-
-        // Recompute scene AABBs after orientation change
-        outModel.computeSceneAABBs();
 
         return true;
     }

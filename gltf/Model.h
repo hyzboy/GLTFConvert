@@ -18,7 +18,4 @@ struct GLTFModel
     std::vector<GLTFNode> nodes;
     std::vector<GLTFScene> scenes;
     std::vector<GLTFMaterial> materials;
-
-    void computeWorldMatrices();
-    void computeSceneAABBs();
 };

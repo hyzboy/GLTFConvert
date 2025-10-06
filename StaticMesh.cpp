@@ -4,7 +4,6 @@
 #include "pure/Scene.h"
 #include "SceneExporter.h"
 #include <algorithm>
-#include "MeshBounds.h"
 
 namespace pure
 {
@@ -62,11 +61,6 @@ namespace pure
                 ps.name=s.name;
                 ps.nodes.reserve(s.nodes.size());
                 for(auto ni:s.nodes) ps.nodes.push_back(static_cast<int32_t>(ni));
-                BoundingBox bb;
-                bb.aabb=s.worldAABB;
-                bb.obb.reset();
-                bb.sphere.reset();
-                ps.boundsIndex=dst.internBounds(bb);
                 dst.scenes.push_back(std::move(ps));
             }
         }
@@ -77,33 +71,13 @@ namespace pure
             for(const auto &n:src.nodes)
             {
                 MeshNode pn;
+
                 pn.name=n.name;
                 pn.children.reserve(n.children.size());
                 for(auto c:n.children) pn.children.push_back(static_cast<int32_t>(c));
 
-                glm::mat4 local=glm::mat4(n.localMatrix());
-                glm::mat4 world=glm::mat4(n.worldMatrix);
-                int32_t lidx=dst.internMatrix(local);
-                pn.localMatrixIndexPlusOne=lidx>=0?lidx+1:0;
-                int32_t widx=dst.internMatrix(world);
-                pn.worldMatrixIndexPlusOne=widx>=0?widx+1:0;
+                pn.node_transform=n.transform;
 
-                if(!n.hasMatrix)
-                {
-                    TRS tf;
-                    tf.translation=glm::vec3(n.translation);
-                    tf.rotation=glm::quat(n.rotation);
-                    tf.scale=glm::vec3(n.scale);
-                    if(!(tf.translation==TRS{}.translation&&
-                       tf.rotation==TRS{}.rotation&&
-                       tf.scale==TRS{}.scale))
-                    {
-                        int32_t tidx=dst.internTRS(tf);
-                        pn.trsIndexPlusOne=tidx+1;
-                    }
-                }
-
-                pn.boundsIndex=kInvalidBoundsIndex;
                 dst.mesh_nodes.push_back(std::move(pn));
             }
         }
@@ -173,8 +147,6 @@ namespace pure
                     pg.attributes.push_back(std::move(ga));
                 }
 
-                ComputeGeometryBoundsFromGLTF(dst,g,pg);
-
                 if(g.indices) pg.indicesData=*g.indices;
                 if(g.indexCount&&g.indexComponentType)
                 {
@@ -216,12 +188,6 @@ namespace pure
             }
         }
 
-        static void ComputeAllBounds(Model &dst)
-        {
-            ComputeAllMeshNodeBounds(dst);
-            ComputeAllSceneBounds(dst);
-        }
-
     } // anonymous namespace
 
     Model ConvertFromGLTF(const GLTFModel &src)
@@ -237,7 +203,6 @@ namespace pure
         CreateUniqueGeometryEntries(dst,src,uniqueMap);
         BuildSubMeshes(dst,src,uniqueMap);
         AttachNodeSubMeshes(dst,src);
-        ComputeAllBounds(dst);
 
         return dst;
     }

@@ -14,6 +14,15 @@ struct TRS
     glm::quat rotation{ 1.0f,0.0f,0.0f,0.0f }; // w,x,y,z
     glm::vec3 scale{ 1.0f };
 
+public:
+
+    void init()
+    {
+        translation=glm::vec3(0.0f);
+        rotation=glm::quat(1.0f,0.0f,0.0f,0.0f);
+        scale=glm::vec3(1.0f);
+    }
+
     // 判断是否为空（单位变换）
     bool empty() const {
         return translation == glm::vec3(0.0f)
