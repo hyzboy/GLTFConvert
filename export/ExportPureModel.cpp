@@ -1,14 +1,26 @@
 #include <filesystem>
+#include <string>
+#include <vector>
 
 #include "Exporter.h"
 #include "MaterialExporter.h"
 #include "pure/ModelCore.h"
+#include "SceneExporter.h"
 
 namespace exporters
 {
-    // 外部实现声明
-    void ExportGeometries(const pure::Model &sm,const std::filesystem::path &targetDir);
-    bool ExportScene(const pure::Model &sm,std::size_t si,const std::filesystem::path &targetDir,const std::string &baseName);
+    // 新签名：几何导出
+    void ExportGeometries(const std::string &gltf_source,
+                          const std::vector<pure::Geometry> &geometries,
+                          const std::vector<BoundingBox> &boundsPool,
+                          const std::filesystem::path &targetDir);
+
+    // 场景导出（精简接口）
+    bool ExportScene(const std::string &sceneName,
+                     std::size_t sceneIndex,
+                     const pure::SceneExporter &sceneExporter,
+                     const std::filesystem::path &targetDir,
+                     const std::string &baseName);
 
     static std::string stem_noext(const std::filesystem::path &p)
     {
@@ -29,8 +41,8 @@ namespace exporters
         std::filesystem::path targetDir=baseDir/(baseName+".StaticMesh");
         std::filesystem::create_directories(targetDir,ec);
 
-        // 几何数据
-        ExportGeometries(sm,targetDir);
+        // 几何数据（使用精简后的接口）
+        ExportGeometries(sm.gltf_source, sm.geometry, sm.bounds, targetDir);
 
         // 材质
         if(!ExportMaterials(sm.materials,targetDir))
@@ -39,7 +51,9 @@ namespace exporters
         // 场景
         for(std::size_t si=0; si<sm.scenes.size(); ++si)
         {
-            if(!ExportScene(sm,si,targetDir,baseName))
+            const auto &scene = sm.scenes[si];
+            pure::SceneExporter sceneExporter = pure::SceneExporter::Build(sm, static_cast<int32_t>(si));
+            if(!ExportScene(scene.name, si, sceneExporter, targetDir, baseName))
                 return false;
         }
 

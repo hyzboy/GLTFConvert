@@ -1,9 +1,7 @@
 #include <filesystem>
 #include <string>
+#include <cctype>
 
-#include "pure/Scene.h"
-#include "pure/ModelCore.h"
-#include "pure/MeshNode.h"
 #include "SceneExporter.h"
 
 namespace exporters
@@ -12,43 +10,31 @@ namespace exporters
     {
         static std::string SanitizeName(const std::string &in)
         {
-            if(in.empty())
-                return {};
+            if(in.empty()) return {};
             std::string out; out.reserve(in.size());
             for(char c:in)
-            {
-                if(std::isalnum(static_cast<unsigned char>(c))||c=='_'||c=='-')
-                    out.push_back(c);
-                else
-                    out.push_back('_');
-            }
+                out.push_back( (std::isalnum(static_cast<unsigned char>(c))||c=='_'||c=='-') ? c : '_' );
             return out;
         }
     }
 
-    bool ExportScene(const pure::Model &sm,
-                     std::size_t si,
+    // 精简后的接口：不再接收整个 Model，只接收场景名称、索引、已构建的 SceneExporter
+    bool ExportScene(const std::string &sceneName,
+                     std::size_t sceneIndex,
+                     const pure::SceneExporter &sceneExporter,
                      const std::filesystem::path &targetDir,
                      const std::string &baseName)
     {
-        const auto &sc=sm.scenes[si];
-        pure::SceneExporter sl=pure::SceneExporter::Build(sm,static_cast<int32_t>(si));
+        std::string sane = SanitizeName(sceneName);
+        std::string sceneFolderName = sane.empty()
+            ? ("Scene_" + std::to_string(sceneIndex))
+            : (std::to_string(sceneIndex) + "_" + sane);
 
-        std::string sceneFolderName;
-        {
-            std::string sane=SanitizeName(sc.name);
-            if(sane.empty())
-                sceneFolderName="Scene_"+std::to_string(si);
-            else
-                sceneFolderName=std::to_string(si)+"_"+sane;
-        }
+        std::filesystem::path sceneDir = targetDir / sceneFolderName;
+        std::error_code ec; std::filesystem::create_directories(sceneDir, ec);
 
-        std::filesystem::path sceneDir=targetDir/sceneFolderName;
-        std::error_code ec; std::filesystem::create_directories(sceneDir,ec);
-
-        if(!sl.WriteSceneBinary(sceneDir,baseName))
+        if(!sceneExporter.WriteSceneBinary(sceneDir, baseName))
             return false;
-
         return true;
     }
 } // namespace exporters
