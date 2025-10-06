@@ -30,6 +30,8 @@ include_directories(${CMAKE_CURRENT_SOURCE_DIR})
 
 set(MATH_FILES  math/AABB.h
                 math/BoundingVolumes.h
+                math/BoundingVolumes.cpp
+                math/BoundingSphere.h
                 math/BoundingSphere.cpp
                 math/TRS.h
                 math/TRS.cpp
