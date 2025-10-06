@@ -1,4 +1,5 @@
 ﻿#include "pure/Geometry.h"
+#include "math/BoundingVolumes.h"
 #include "mini_pack_builder.h"
 #include <fstream>
 #include <iostream>
@@ -18,19 +19,6 @@ namespace pure
         uint8_t  indexStride;    // 0 if no indices, otherwise 1,2,4
         uint32_t indexCount;     // Number of indices (0 if no indices)
         uint8_t  attributeCount; // Number of attributes
-    };
-
-    struct PackedBounds
-    {
-        float aabbMin[3];
-        float aabbMax[3];
-        float obbCenter[3];
-        float obbAxisX[3];
-        float obbAxisY[3];
-        float obbAxisZ[3];
-        float obbHalfSize[3];
-        float sphereCenter[3];
-        float sphereRadius;
     };
 #pragma pack(pop)
 
@@ -106,20 +94,6 @@ namespace pure
             return true;
         }
 
-        void make_packed_bounds(const BoundingVolumes &volumes,PackedBounds &pb)
-        {
-            pb=PackedBounds{};
-            pb.aabbMin[0]=static_cast<float>(volumes.aabb.min.x); pb.aabbMin[1]=static_cast<float>(volumes.aabb.min.y); pb.aabbMin[2]=static_cast<float>(volumes.aabb.min.z);
-            pb.aabbMax[0]=static_cast<float>(volumes.aabb.max.x); pb.aabbMax[1]=static_cast<float>(volumes.aabb.max.y); pb.aabbMax[2]=static_cast<float>(volumes.aabb.max.z);
-            pb.obbCenter[0]=static_cast<float>(volumes.obb.center.x); pb.obbCenter[1]=static_cast<float>(volumes.obb.center.y); pb.obbCenter[2]=static_cast<float>(volumes.obb.center.z);
-            pb.obbAxisX[0]=static_cast<float>(volumes.obb.axisX.x); pb.obbAxisX[1]=static_cast<float>(volumes.obb.axisX.y); pb.obbAxisX[2]=static_cast<float>(volumes.obb.axisX.z);
-            pb.obbAxisY[0]=static_cast<float>(volumes.obb.axisY.x); pb.obbAxisY[1]=static_cast<float>(volumes.obb.axisY.y); pb.obbAxisY[2]=static_cast<float>(volumes.obb.axisY.z);
-            pb.obbAxisZ[0]=static_cast<float>(volumes.obb.axisZ.x); pb.obbAxisZ[1]=static_cast<float>(volumes.obb.axisZ.y); pb.obbAxisZ[2]=static_cast<float>(volumes.obb.axisZ.z);
-            pb.obbHalfSize[0]=static_cast<float>(volumes.obb.halfSize.x); pb.obbHalfSize[1]=static_cast<float>(volumes.obb.halfSize.y); pb.obbHalfSize[2]=static_cast<float>(volumes.obb.halfSize.z);
-            pb.sphereCenter[0]=static_cast<float>(volumes.sphere.center.x); pb.sphereCenter[1]=static_cast<float>(volumes.sphere.center.y); pb.sphereCenter[2]=static_cast<float>(volumes.sphere.center.z);
-            pb.sphereRadius=static_cast<float>(volumes.sphere.radius);
-        }
-
         bool add_header_entry(MiniPackBuilder &builder,const GeometryHeader &header,std::string &err)
         {
             return builder.add_entry_from_buffer("GeometryHeader",&header,static_cast<std::uint32_t>(sizeof(GeometryHeader)),err);
@@ -144,8 +118,10 @@ namespace pure
 
         bool add_bounds_entry(MiniPackBuilder &builder,const BoundingVolumes &volumes,std::string &err)
         {
-            PackedBounds pb{};
-            make_packed_bounds(volumes,pb);
+            PackedBounds pb;
+
+            volumes.Pack(&pb);
+
             return builder.add_entry_from_buffer("Bounds",&pb,static_cast<std::uint32_t>(sizeof(PackedBounds)),err);
         }
 
