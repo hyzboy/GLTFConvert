@@ -1,4 +1,6 @@
 #include "Orientation.h"
+#include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp>
 #include "common/VkFormat.h"
 
 namespace importers {
@@ -7,11 +9,11 @@ namespace {
     inline void RotateYUpToZUp(double& x,double& y,double& z){ double nx=x; double ny=-z; double nz=y; x=nx; y=ny; z=nz; }
 }
 
-void ApplyYUpToZUp(GLTFModel& model)
+void RotatePrimitivesYUpToZUp(std::vector<GLTFPrimitive>& primitives)
 {
     glm::dmat4 rot(1.0);
     rot = glm::rotate(rot, glm::radians(90.0), glm::dvec3(1.0,0.0,0.0));
-    for (auto& prim : model.primitives) {
+    for (auto& prim : primitives) {
         auto& geom = prim.geometry;
         for (auto& attr : geom.attributes) {
             const std::string& name = attr.name;
@@ -39,13 +41,6 @@ void ApplyYUpToZUp(GLTFModel& model)
         if(!geom.localAABB.empty()) {
             geom.localAABB = geom.localAABB.transformed(rot);
         }
-    }
-}
-
-void ApplyYUpToZUpNodeTransforms(GLTFModel& model)
-{
-    for (auto& n : model.nodes) {
-        n.transform.convertInPlaceYUpToZUp();
     }
 }
 

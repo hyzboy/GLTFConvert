@@ -108,7 +108,8 @@ set(IMPORT_FILES
     import/ImportScenes.h
     import/ImportScenes.cpp
     import/Orientation.h
-    import/Orientation.cpp)
+    import/OrientationNodes.cpp
+    import/OrientationPrimitives.cpp)
 SOURCE_GROUP("import" FILES ${IMPORT_FILES})
 
 # Add executable (include new modules for pure glTF data, importer and exporter)

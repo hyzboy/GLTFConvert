@@ -1,8 +1,10 @@
 #pragma once
 
 #include <fastgltf/core.hpp>
-#include "gltf/Model.h"
+#include <vector>
+#include "gltf/Mesh.h"
 
 namespace importers {
-    void ImportMeshes(const fastgltf::Asset& asset, GLTFModel& outModel);
+    // Build mesh list and primitive index mapping; only needs meshes container.
+    void ImportMeshes(const fastgltf::Asset& asset, std::vector<GLTFMesh>& meshes);
 } // namespace importers

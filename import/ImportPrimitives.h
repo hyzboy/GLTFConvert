@@ -2,9 +2,11 @@
 
 #include <fastgltf/core.hpp>
 #include <fastgltf/tools.hpp>
-#include "gltf/Model.h"
+#include <vector>
+#include "gltf/Primitive.h"
 #include "common/FastGLTFConversions.h"
 
 namespace importers {
-    void ImportPrimitives(const fastgltf::Asset& asset, GLTFModel& outModel);
+    // Import all primitives (geometry + material index) from asset in linear order.
+    void ImportPrimitives(const fastgltf::Asset& asset, std::vector<GLTFPrimitive>& primitives);
 } // namespace importers

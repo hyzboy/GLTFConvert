@@ -1,8 +1,10 @@
 #pragma once
 
 #include <fastgltf/core.hpp>
-#include "gltf/Model.h"
+#include "gltf/Material.h"
+#include <vector>
 
 namespace importers {
-    void ImportMaterials(const fastgltf::Asset& asset, GLTFModel& outModel);
+    // Import only materials from asset into provided materials vector.
+    void ImportMaterials(const fastgltf::Asset& asset, std::vector<GLTFMaterial>& materials);
 } // namespace importers

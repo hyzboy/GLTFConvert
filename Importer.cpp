@@ -40,16 +40,16 @@ namespace importers
 
         outModel.source = std::filesystem::absolute(inputPath).string();
 
-        ImportMaterials(asset, outModel);
+        ImportMaterials(asset, outModel.materials);
         outModel.primitives.clear();
         outModel.primitives.reserve([&]{ std::size_t c=0; for(auto &m:asset.meshes) c+=m.primitives.size(); return c; }());
-        ImportPrimitives(asset, outModel);
-        ImportMeshes(asset, outModel);
-        ImportNodes(asset, outModel);
-        ImportScenes(asset, outModel);
+        ImportPrimitives(asset, outModel.primitives);
+        ImportMeshes(asset, outModel.meshes);
+        ImportNodes(asset, outModel.nodes);
+        ImportScenes(asset, outModel.scenes);
 
-        ApplyYUpToZUpNodeTransforms(outModel);
-        ApplyYUpToZUp(outModel);
+        RotateNodeLocalTransformsYUpToZUp(outModel.nodes);
+        RotatePrimitivesYUpToZUp(outModel.primitives);
         return true;
     }
 } // namespace importers

@@ -57,7 +57,7 @@ namespace {
     }
 }
 
-void ImportPrimitives(const fastgltf::Asset& asset, GLTFModel& outModel)
+void ImportPrimitives(const fastgltf::Asset& asset, std::vector<GLTFPrimitive>& primitives)
 {
     for (const auto& mesh : asset.meshes) {
         for (const auto& prim : mesh.primitives) {
@@ -90,7 +90,7 @@ void ImportPrimitives(const fastgltf::Asset& asset, GLTFModel& outModel)
                 }
             }
             if (prim.materialIndex) p.material = *prim.materialIndex;
-            outModel.primitives.emplace_back(std::move(p));
+            primitives.emplace_back(std::move(p));
         }
     }
 }
