@@ -27,6 +27,14 @@ struct AABB
         max=glm::max(max,p);
     }
 
+    void include(const glm::vec4 &p)
+    {
+        glm::vec3 p3(p);
+
+        min=glm::min(min,p3);
+        max=glm::max(max,p3);
+    }
+
     void merge(const AABB &other)
     {
         if(other.empty()) return;
@@ -50,7 +58,8 @@ struct AABB
         return out;
     }
 
-    static AABB fromPoints(const std::vector<glm::vec3>& points)
+    template<typename T>
+    static AABB fromPoints(const std::vector<T> &points)
     {
         AABB box;
         box.reset();

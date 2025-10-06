@@ -25,10 +25,10 @@ namespace pure
         std::vector<MeshNode> mesh_nodes;
         std::vector<Geometry> geometry;
         std::vector<SubMesh> subMeshes;
-        std::vector<BoundingBox> bounds;
+        std::vector<BoundingVolumes> bounds;
         std::vector<glm::mat4> matrixData;
         std::vector<TRS> trsPool;
-        int32_t internBounds(const BoundingBox &b);
+        int32_t internBounds(const BoundingVolumes &volumes);
         int32_t internTRS(const TRS &t);
         int32_t internMatrix(const glm::mat4 &m);
     };

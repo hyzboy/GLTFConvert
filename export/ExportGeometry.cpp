@@ -106,18 +106,18 @@ namespace pure
             return true;
         }
 
-        void make_packed_bounds(const BoundingBox &bounds,PackedBounds &pb)
+        void make_packed_bounds(const BoundingVolumes &volumes,PackedBounds &pb)
         {
             pb=PackedBounds{};
-            pb.aabbMin[0]=static_cast<float>(bounds.aabb.min.x); pb.aabbMin[1]=static_cast<float>(bounds.aabb.min.y); pb.aabbMin[2]=static_cast<float>(bounds.aabb.min.z);
-            pb.aabbMax[0]=static_cast<float>(bounds.aabb.max.x); pb.aabbMax[1]=static_cast<float>(bounds.aabb.max.y); pb.aabbMax[2]=static_cast<float>(bounds.aabb.max.z);
-            pb.obbCenter[0]=static_cast<float>(bounds.obb.center.x); pb.obbCenter[1]=static_cast<float>(bounds.obb.center.y); pb.obbCenter[2]=static_cast<float>(bounds.obb.center.z);
-            pb.obbAxisX[0]=static_cast<float>(bounds.obb.axisX.x); pb.obbAxisX[1]=static_cast<float>(bounds.obb.axisX.y); pb.obbAxisX[2]=static_cast<float>(bounds.obb.axisX.z);
-            pb.obbAxisY[0]=static_cast<float>(bounds.obb.axisY.x); pb.obbAxisY[1]=static_cast<float>(bounds.obb.axisY.y); pb.obbAxisY[2]=static_cast<float>(bounds.obb.axisY.z);
-            pb.obbAxisZ[0]=static_cast<float>(bounds.obb.axisZ.x); pb.obbAxisZ[1]=static_cast<float>(bounds.obb.axisZ.y); pb.obbAxisZ[2]=static_cast<float>(bounds.obb.axisZ.z);
-            pb.obbHalfSize[0]=static_cast<float>(bounds.obb.halfSize.x); pb.obbHalfSize[1]=static_cast<float>(bounds.obb.halfSize.y); pb.obbHalfSize[2]=static_cast<float>(bounds.obb.halfSize.z);
-            pb.sphereCenter[0]=static_cast<float>(bounds.sphere.center.x); pb.sphereCenter[1]=static_cast<float>(bounds.sphere.center.y); pb.sphereCenter[2]=static_cast<float>(bounds.sphere.center.z);
-            pb.sphereRadius=static_cast<float>(bounds.sphere.radius);
+            pb.aabbMin[0]=static_cast<float>(volumes.aabb.min.x); pb.aabbMin[1]=static_cast<float>(volumes.aabb.min.y); pb.aabbMin[2]=static_cast<float>(volumes.aabb.min.z);
+            pb.aabbMax[0]=static_cast<float>(volumes.aabb.max.x); pb.aabbMax[1]=static_cast<float>(volumes.aabb.max.y); pb.aabbMax[2]=static_cast<float>(volumes.aabb.max.z);
+            pb.obbCenter[0]=static_cast<float>(volumes.obb.center.x); pb.obbCenter[1]=static_cast<float>(volumes.obb.center.y); pb.obbCenter[2]=static_cast<float>(volumes.obb.center.z);
+            pb.obbAxisX[0]=static_cast<float>(volumes.obb.axisX.x); pb.obbAxisX[1]=static_cast<float>(volumes.obb.axisX.y); pb.obbAxisX[2]=static_cast<float>(volumes.obb.axisX.z);
+            pb.obbAxisY[0]=static_cast<float>(volumes.obb.axisY.x); pb.obbAxisY[1]=static_cast<float>(volumes.obb.axisY.y); pb.obbAxisY[2]=static_cast<float>(volumes.obb.axisY.z);
+            pb.obbAxisZ[0]=static_cast<float>(volumes.obb.axisZ.x); pb.obbAxisZ[1]=static_cast<float>(volumes.obb.axisZ.y); pb.obbAxisZ[2]=static_cast<float>(volumes.obb.axisZ.z);
+            pb.obbHalfSize[0]=static_cast<float>(volumes.obb.halfSize.x); pb.obbHalfSize[1]=static_cast<float>(volumes.obb.halfSize.y); pb.obbHalfSize[2]=static_cast<float>(volumes.obb.halfSize.z);
+            pb.sphereCenter[0]=static_cast<float>(volumes.sphere.center.x); pb.sphereCenter[1]=static_cast<float>(volumes.sphere.center.y); pb.sphereCenter[2]=static_cast<float>(volumes.sphere.center.z);
+            pb.sphereRadius=static_cast<float>(volumes.sphere.radius);
         }
 
         bool add_header_entry(MiniPackBuilder &builder,const GeometryHeader &header,std::string &err)
@@ -142,10 +142,10 @@ namespace pure
             }
         }
 
-        bool add_bounds_entry(MiniPackBuilder &builder,const BoundingBox &bounds,std::string &err)
+        bool add_bounds_entry(MiniPackBuilder &builder,const BoundingVolumes &volumes,std::string &err)
         {
             PackedBounds pb{};
-            make_packed_bounds(bounds,pb);
+            make_packed_bounds(volumes,pb);
             return builder.add_entry_from_buffer("Bounds",&pb,static_cast<std::uint32_t>(sizeof(PackedBounds)),err);
         }
 
@@ -216,7 +216,7 @@ namespace pure
         }
     }
 
-    bool SaveGeometry(const Geometry &geometry,const BoundingBox &bounds,const std::string &filename)
+    bool SaveGeometry(const Geometry &geometry,const BoundingVolumes &volumes,const std::string &filename)
     {
         uint8_t index_stride=0;
         std::string err;
@@ -246,7 +246,7 @@ namespace pure
             std::cerr<<"Error: "<<err<<std::endl;
             return false;
         }
-        if(!add_bounds_entry(builder,bounds,err))
+        if(!add_bounds_entry(builder,volumes,err))
         {
             std::cerr<<"Error: "<<err<<std::endl;
             return false;

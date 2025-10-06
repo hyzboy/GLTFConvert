@@ -29,7 +29,7 @@ set_target_properties(minipack_writer PROPERTIES
 include_directories(${CMAKE_CURRENT_SOURCE_DIR})
 
 set(MATH_FILES  math/AABB.h
-                math/BoundingBox.h
+                math/BoundingVolumes.h
                 math/BoundingSphere.cpp
                 math/TRS.h
                 math/TRS.cpp

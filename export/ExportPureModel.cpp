@@ -12,7 +12,7 @@ namespace exporters
     // 新签名：几何导出
     void ExportGeometries(const std::string &gltf_source,
                           const std::vector<pure::Geometry> &geometries,
-                          const std::vector<BoundingBox> &boundsPool,
+                          const std::vector<BoundingVolumes> &boundsPool,
                           const std::filesystem::path &targetDir);
 
     // 场景导出（精简接口）

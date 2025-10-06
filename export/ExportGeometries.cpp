@@ -19,7 +19,7 @@ namespace exporters
     // 仅导出几何数据；不再传递整个 Model，改为传递需要的最小集合
     void ExportGeometries(const std::string &gltf_source,
                           const std::vector<pure::Geometry> &geometries,
-                          const std::vector<BoundingBox> &boundsPool,
+                          const std::vector<BoundingVolumes> &boundsPool,
                           const std::filesystem::path &targetDir)
     {
         const std::string baseName = stem_noext(gltf_source);
@@ -28,9 +28,9 @@ namespace exporters
             const auto &g = geometries[u];
             std::filesystem::path binName = baseName + "." + std::to_string(u) + ".geometry";
             std::filesystem::path binPath = targetDir / binName;
-            const BoundingBox &geo_bounds = (g.boundsIndex!=pure::kInvalidBoundsIndex)
+            const BoundingVolumes &geo_bounds = (g.boundsIndex!=pure::kInvalidBoundsIndex)
                 ? boundsPool[g.boundsIndex]
-                : BoundingBox{};
+                : BoundingVolumes{};
             if(!pure::SaveGeometry(g, geo_bounds, binPath.string()))
                 std::cerr << "[Export] Failed to write geometry binary: " << binPath << "\n";
         }

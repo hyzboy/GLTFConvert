@@ -15,12 +15,13 @@ struct BoundingSphere
 
 BoundingSphere SphereFromAABB(const AABB &a);
 BoundingSphere SphereFromPoints(const std::vector<glm::vec3> &pts); // now float precision input
+BoundingSphere SphereFromPoints(const std::vector<glm::vec4> &pts); // vec4 version (w component ignored)
 
-// Combined bounding info holding both an AABB and an OBB (now single precision primitives, sphere center float)
-struct BoundingBox
+// Combined bounding volumes holding AABB, OBB, and Sphere (all single precision)
+struct BoundingVolumes
 {
-    AABB aabb; // axis-aligned (float)
-    OBB  obb;  // oriented (float)
+    AABB aabb; // axis-aligned bounding box (float)
+    OBB  obb;  // oriented bounding box (float)
     BoundingSphere sphere; // bounding sphere (float)
 
     void reset()
@@ -47,4 +48,4 @@ struct BoundingBox
     }
 };
 
-void Write(std::ostream &os,const BoundingBox &b);
+void Write(std::ostream &os,const BoundingVolumes &volumes);

@@ -7,7 +7,7 @@ namespace pure
     {
         auto &node=model.mesh_nodes[static_cast<std::size_t>(nodeIndex)];
 
-        BoundingBox nb; // start empty
+        BoundingVolumes nb; // start empty
 
         if(node.subMeshes.empty()) { node.boundsIndex=model.internBounds(nb); return; }
 
@@ -51,7 +51,7 @@ namespace pure
 
     void ComputeSceneBounds(pure::Model &model,pure::Scene &scene)
     {
-        BoundingBox sb; sb.obb.reset(); sb.sphere.reset();
+        BoundingVolumes sb; sb.obb.reset(); sb.sphere.reset();
 
         std::vector<glm::vec3> scenePtsF; scenePtsF.reserve(4096);
 

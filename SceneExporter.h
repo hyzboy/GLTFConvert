@@ -13,7 +13,7 @@
 #include "math/TRS.h"
 #include "pure/ModelCore.h"
 
-struct BoundingBox; // forward declaration
+struct BoundingVolumes; // forward declaration
 
 namespace pure
 {
@@ -28,7 +28,7 @@ namespace pure
         std::vector<SubMesh> subMeshes;
         std::vector<glm::mat4> matrixData;
         std::vector<TRS> trsPool;
-        std::vector<BoundingBox> bounds;
+        std::vector<BoundingVolumes> bounds;
         int32_t sceneBoundsIndex=kInvalidBoundsIndex;
         std::vector<std::string> nameList;
         std::unordered_map<std::string,uint32_t> nameMap;

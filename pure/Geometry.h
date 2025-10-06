@@ -8,7 +8,7 @@
 
 #include "common/PrimitiveType.h"
 #include "pure/BoundsIndex.h"
-#include "math/BoundingBox.h"
+#include "math/BoundingVolumes.h"
 #include "common/GeometryAttribute.h" // moved from pure/
 #include "pure/GeometryIndicesMeta.h"
 
@@ -29,6 +29,6 @@ namespace pure
         std::optional<std::vector<glm::vec3>> positions;
     };
 
-    bool SaveGeometry(const Geometry &geometry,const BoundingBox &,const std::string &filename);
+    bool SaveGeometry(const Geometry &geometry,const BoundingVolumes &volumes,const std::string &filename);
 
 } // namespace pure

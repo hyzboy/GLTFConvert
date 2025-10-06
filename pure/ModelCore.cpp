@@ -13,25 +13,25 @@ namespace pure
         return Mat4Equal(m,glm::mat4(1.0f));
     }
 
-    int32_t Model::internBounds(const BoundingBox &b)
+    int32_t Model::internBounds(const BoundingVolumes &volumes)
     {
         for(size_t i=0; i<bounds.size(); ++i)
         {
             const auto &e=bounds[i];
-            if(e.aabb.min==b.aabb.min&&
-               e.aabb.max==b.aabb.max&&
-               e.obb.center==b.obb.center&&
-               e.obb.axisX==b.obb.axisX&&
-               e.obb.axisY==b.obb.axisY&&
-               e.obb.axisZ==b.obb.axisZ&&
-               e.obb.halfSize==b.obb.halfSize&&
-               e.sphere.center==b.sphere.center&&
-               e.sphere.radius==b.sphere.radius)
+            if(e.aabb.min==volumes.aabb.min&&
+               e.aabb.max==volumes.aabb.max&&
+               e.obb.center==volumes.obb.center&&
+               e.obb.axisX==volumes.obb.axisX&&
+               e.obb.axisY==volumes.obb.axisY&&
+               e.obb.axisZ==volumes.obb.axisZ&&
+               e.obb.halfSize==volumes.obb.halfSize&&
+               e.sphere.center==volumes.sphere.center&&
+               e.sphere.radius==volumes.sphere.radius)
             {
                 return static_cast<int32_t>(i);
             }
         }
-        bounds.push_back(b);
+        bounds.push_back(volumes);
         return static_cast<int32_t>(bounds.size()-1);
     }
 
