@@ -2,7 +2,7 @@
 #include <vector>
 #include "gltf/GLTFMesh.h"
 
-namespace importers
+namespace gltf
 {
     void ImportMeshes(const fastgltf::Asset &asset,std::vector<GLTFMesh> &meshes)
     {
@@ -17,4 +17,4 @@ namespace importers
             meshes.emplace_back(std::move(m));
         }
     }
-} // namespace importers
+} // namespace gltf

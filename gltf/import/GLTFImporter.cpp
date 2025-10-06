@@ -1,5 +1,3 @@
-#include "Importer.h"
-
 #include <fastgltf/core.hpp>
 #include <fastgltf/tools.hpp>
 #include <iostream>
@@ -10,8 +8,9 @@
 #include "gltf/GLTFMesh.h"
 #include "gltf/GLTFNode.h"
 #include "gltf/GLTFScene.h"
+#include "gltf/GLTFModel.h"
 
-namespace importers
+namespace gltf
 {
     // Forward declarations (headers removed)
     void ImportMaterials(const fastgltf::Asset &asset,std::vector<GLTFMaterial> &materials);
@@ -65,4 +64,4 @@ namespace importers
         RotatePrimitivesYUpToZUp(outModel.primitives);
         return true;
     }
-} // namespace importers
+} // namespace gltf

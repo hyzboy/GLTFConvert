@@ -1,7 +1,7 @@
 #include <vector>
 #include "gltf/GLTFNode.h"
 
-namespace importers
+namespace gltf
 {
     void RotateNodeLocalTransformsYUpToZUp(std::vector<GLTFNode> &nodes)
     {
@@ -10,4 +10,4 @@ namespace importers
             n.transform.convertInPlaceYUpToZUp();
         }
     }
-} // namespace importers
+} // namespace gltf

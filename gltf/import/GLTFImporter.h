@@ -3,7 +3,7 @@
 #include <filesystem>
 #include "gltf/GLTFModel.h"
 
-namespace importers
+namespace gltf
 {
     bool ImportFastGLTF(const std::filesystem::path &inputPath,GLTFModel &outModel);
-}//namespace importers
+}//namespace gltf

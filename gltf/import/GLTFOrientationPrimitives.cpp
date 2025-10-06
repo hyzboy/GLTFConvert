@@ -5,7 +5,7 @@
 #include "gltf/GLTFPrimitive.h"
 #include "common/VkFormat.h"
 
-namespace importers
+namespace gltf
 {
     namespace
     {
@@ -71,4 +71,4 @@ namespace importers
             }
         }
     }
-} // namespace importers
+} // namespace gltf

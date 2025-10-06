@@ -2,7 +2,7 @@
 #include <vector>
 #include "gltf/GLTFScene.h"
 
-namespace importers
+namespace gltf
 {
     void ImportScenes(const fastgltf::Asset &asset,std::vector<GLTFScene> &scenes)
     {
@@ -15,4 +15,4 @@ namespace importers
             os.nodes.assign(sc.nodeIndices.begin(),sc.nodeIndices.end());
         }
     }
-} // namespace importers
+} // namespace gltf

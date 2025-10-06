@@ -8,7 +8,7 @@
 #include "gltf/GLTFPrimitive.h"
 #include "common/FastGLTFConversions.h"
 
-namespace importers
+namespace gltf
 {
     namespace
     {
@@ -91,4 +91,4 @@ namespace importers
             }
         }
     }
-} // namespace importers
+} // namespace gltf

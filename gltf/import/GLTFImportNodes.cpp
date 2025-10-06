@@ -2,7 +2,7 @@
 #include <vector>
 #include "gltf/GLTFNode.h"
 
-namespace importers
+namespace gltf
 {
     void ImportNodes(const fastgltf::Asset &asset,std::vector<GLTFNode> &nodes)
     {
@@ -17,4 +17,4 @@ namespace importers
             on.transform=n.transform;
         }
     }
-} // namespace importers
+} // namespace gltf

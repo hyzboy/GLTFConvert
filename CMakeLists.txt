@@ -68,7 +68,10 @@ set(GLTF_IMPORT_FILES
     gltf/import/GLTFImportNodes.cpp
     gltf/import/GLTFImportScenes.cpp
     gltf/import/GLTFOrientationNodes.cpp
-    gltf/import/GLTFOrientationPrimitives.cpp)
+    gltf/import/GLTFOrientationPrimitives.cpp
+
+    gltf/import/GLTFImporter.cpp
+    gltf/import/GLTFImporter.h)
 SOURCE_GROUP("gltf\\import" FILES ${GLTF_IMPORT_FILES})
 
 # New pure geometry split headers
@@ -120,7 +123,6 @@ add_executable(GLTFConvert
     ${CONVERT_FILES}
     ${EXPORT_FILES}
 
-    Importer.cpp Importer.h
     Geometry.cpp
     GLTF2Pure.cpp
     MeshBounds.cpp MeshBounds.h

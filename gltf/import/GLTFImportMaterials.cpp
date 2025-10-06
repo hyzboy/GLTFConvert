@@ -2,7 +2,7 @@
 #include <vector>
 #include "gltf/GLTFMaterial.h"
 
-namespace importers
+namespace gltf
 {
     void ImportMaterials(const fastgltf::Asset &asset,std::vector<GLTFMaterial> &materials)
     {
@@ -16,4 +16,4 @@ namespace importers
             materials.emplace_back(std::move(om));
         }
     }
-} // namespace importers
+} // namespace gltf

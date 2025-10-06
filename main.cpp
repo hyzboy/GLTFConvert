@@ -1,7 +1,7 @@
 #include <iostream>
 #include <filesystem>
 
-#include "Importer.h"
+#include "gltf/import/GLTFImporter.h"
 #include "Exporter.h"
 
 int main(int argc,char *argv[])
@@ -19,7 +19,7 @@ int main(int argc,char *argv[])
     }
 
     GLTFModel model;
-    if(!importers::ImportFastGLTF(inputPath,model))
+    if(!gltf::ImportFastGLTF(inputPath,model))
     {
         return 1;
     }
