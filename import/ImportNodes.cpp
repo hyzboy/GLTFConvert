@@ -1,18 +1,20 @@
-#include "ImportNodes.h"
+#include <fastgltf/core.hpp>
+#include <vector>
+#include "gltf/Node.h"
 
-namespace importers {
-
-void ImportNodes(const fastgltf::Asset& asset, std::vector<GLTFNode>& nodes)
+namespace importers
 {
-    nodes.resize(asset.nodes.size());
-    for (std::size_t i = 0; i < asset.nodes.size(); ++i) {
-        const auto& n = asset.nodes[i];
-        auto& on = nodes[i];
-        if (!n.name.empty()) on.name.assign(n.name.begin(), n.name.end());
-        if (n.meshIndex) on.mesh = *n.meshIndex;
-        on.children.assign(n.children.begin(), n.children.end());
-        on.transform = n.transform;
+    void ImportNodes(const fastgltf::Asset &asset,std::vector<GLTFNode> &nodes)
+    {
+        nodes.resize(asset.nodes.size());
+        for(std::size_t i=0; i<asset.nodes.size(); ++i)
+        {
+            const auto &n=asset.nodes[i];
+            auto &on=nodes[i];
+            if(!n.name.empty()) on.name.assign(n.name.begin(),n.name.end());
+            if(n.meshIndex) on.mesh=*n.meshIndex;
+            on.children.assign(n.children.begin(),n.children.end());
+            on.transform=n.transform;
+        }
     }
-}
-
 } // namespace importers

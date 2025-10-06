@@ -1,12 +1,13 @@
-#include "Orientation.h"
+#include <vector>
+#include "gltf/Node.h"
 
-namespace importers {
-
-void RotateNodeLocalTransformsYUpToZUp(std::vector<GLTFNode>& nodes)
+namespace importers
 {
-    for (auto& n : nodes) {
-        n.transform.convertInPlaceYUpToZUp();
+    void RotateNodeLocalTransformsYUpToZUp(std::vector<GLTFNode> &nodes)
+    {
+        for(auto &n:nodes)
+        {
+            n.transform.convertInPlaceYUpToZUp();
+        }
     }
-}
-
 } // namespace importers

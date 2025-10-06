@@ -1,18 +1,19 @@
-#include "ImportMaterials.h"
+#include <fastgltf/core.hpp>
+#include <vector>
+#include "gltf/Material.h"
 
-namespace importers {
-
-void ImportMaterials(const fastgltf::Asset& asset, std::vector<GLTFMaterial>& materials)
+namespace importers
 {
-    materials.clear();
-    materials.reserve(asset.materials.size());
-    for (const auto& m : asset.materials)
+    void ImportMaterials(const fastgltf::Asset &asset,std::vector<GLTFMaterial> &materials)
     {
-        GLTFMaterial om{};
-        if (!m.name.empty())
-            om.name.assign(m.name.begin(), m.name.end());
-        materials.emplace_back(std::move(om));
+        materials.clear();
+        materials.reserve(asset.materials.size());
+        for(const auto &m:asset.materials)
+        {
+            GLTFMaterial om{};
+            if(!m.name.empty())
+                om.name.assign(m.name.begin(),m.name.end());
+            materials.emplace_back(std::move(om));
+        }
     }
-}
-
 } // namespace importers
