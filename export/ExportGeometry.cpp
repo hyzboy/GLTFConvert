@@ -122,7 +122,7 @@ namespace pure
 
             volumes.Pack(&pb);
 
-            return builder.add_entry_from_buffer("Bounds",&pb,static_cast<std::uint32_t>(sizeof(PackedBounds)),err);
+            return builder.add_entry_from_buffer("BoundingVolumes",&pb,static_cast<std::uint32_t>(sizeof(PackedBounds)),err);
         }
 
         bool add_attributes_entries(MiniPackBuilder &builder,const Geometry &geometry,const GeometryHeader &header,std::string &err)
