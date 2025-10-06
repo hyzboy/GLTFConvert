@@ -10,10 +10,7 @@
 namespace exporters
 {
     // 新签名：几何导出
-    void ExportGeometries(const std::string &gltf_source,
-                          const std::vector<pure::Geometry> &geometries,
-                          const std::vector<BoundingVolumes> &boundsPool,
-                          const std::filesystem::path &targetDir);
+    void ExportGeometries(pure::Model *,const std::filesystem::path &targetDir);
 
     // 场景导出（精简接口）
     bool ExportScene(const std::string &sceneName,
@@ -27,7 +24,7 @@ namespace exporters
         return p.stem().string();
     }
 
-    bool ExportPureModel(const GLTFModel &model,const std::filesystem::path &outDir)
+    bool ExportPureModel(GLTFModel &model,const std::filesystem::path &outDir)
     {
         pure::Model sm=pure::ConvertFromGLTF(model);
 
@@ -41,8 +38,10 @@ namespace exporters
         std::filesystem::path targetDir=baseDir/(baseName+".StaticMesh");
         std::filesystem::create_directories(targetDir,ec);
 
+        sm.bounds.clear();  //清空所有bounds信息，geometry导出时计算每个geometry自己的Bound信息
+
         // 几何数据（使用精简后的接口）
-        ExportGeometries(sm.gltf_source, sm.geometry, sm.bounds, targetDir);
+        ExportGeometries(&sm, targetDir);
 
         // 材质
         if(!ExportMaterials(sm.materials,targetDir))

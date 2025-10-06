@@ -5,6 +5,5 @@
 
 namespace exporters
 {
-    bool ExportPureModel(const GLTFModel &model,const std::filesystem::path &outDir);
-
+    bool ExportPureModel(GLTFModel &model,const std::filesystem::path &outDir);
 } // namespace exporters
