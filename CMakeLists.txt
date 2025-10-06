@@ -78,6 +78,19 @@ set(PURE_GEOM_FILES
 )
 SOURCE_GROUP("pure" FILES ${PURE_GEOM_FILES})
 
+# New convert sources and header
+set(CONVERT_FILES
+    convert/ConvertInternals.h
+    convert/CopyMaterials.cpp
+    convert/CopyScenes.cpp
+    convert/CopyNodes.cpp
+    convert/GeometryMapping.cpp
+    convert/CreateGeometry.cpp
+    convert/BuildSubMeshes.cpp
+    convert/AttachNodeSubMeshes.cpp
+)
+SOURCE_GROUP("convert" FILES ${CONVERT_FILES})
+
 # Add executable (include new modules for pure glTF data, importer and exporter)
 add_executable(GLTFConvert
     main.cpp
@@ -86,6 +99,7 @@ add_executable(GLTFConvert
     ${COMMON_FILES}
     ${GLTF_FILES}
     ${PURE_GEOM_FILES}
+    ${CONVERT_FILES}
 
     Importer.cpp Importer.h
     Geometry.cpp
