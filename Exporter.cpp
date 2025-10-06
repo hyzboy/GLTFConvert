@@ -117,7 +117,7 @@ namespace exporters
         ExportGeometries(sm,targetDir);
 
         // Separate materials export
-        if(!ExportMaterials(sm,targetDir))
+        if(!ExportMaterials(sm.materials,targetDir))
             return false;
 
         // Scene binaries (one folder per scene)

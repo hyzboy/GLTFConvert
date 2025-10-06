@@ -3,18 +3,18 @@
 #include <nlohmann/json.hpp>
 #include <fstream>
 #include <iostream>
+#include <vector>
 
-#include "pure/ModelCore.h"
 #include "pure/Material.h"
 
 using nlohmann::json;
 
 namespace exporters
 {
-    static json BuildMaterialsJson(const pure::Model &sm)
+    static json BuildMaterialsJson(const std::vector<pure::Material> &materials)
     {
         json arr=json::array();
-        for(const auto &m:sm.materials)
+        for(const auto &m:materials)
         {
             json mj=json::object();
             if(!m.name.empty())
@@ -24,10 +24,10 @@ namespace exporters
         return arr;
     }
 
-    bool ExportMaterials(const pure::Model &model,const std::filesystem::path &dir)
+    bool ExportMaterials(const std::vector<pure::Material> &materials,const std::filesystem::path &dir)
     {
         json root=json::object();
-        root["materials"]=BuildMaterialsJson(model);
+        root["materials"]=BuildMaterialsJson(materials);
 
         auto path=dir/"Materials.json";
         std::ofstream ofs(path,std::ios::binary);
