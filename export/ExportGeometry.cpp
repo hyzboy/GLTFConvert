@@ -192,8 +192,14 @@ namespace pure
         }
     }
 
-    bool SaveGeometry(const Geometry &geometry,const BoundingVolumes &volumes,const std::string &filename)
+    bool SaveGeometry(const Geometry &geometry,BoundingVolumes &volumes,const std::string &filename)
     {
+        // Recalculate bounding volumes from positions if available
+        if(geometry.positions.has_value() && !geometry.positions->empty())
+        {
+            volumes.fromPoints(*geometry.positions);
+        }
+
         uint8_t index_stride=0;
         std::string err;
         if(!get_index_stride(geometry,index_stride,err))

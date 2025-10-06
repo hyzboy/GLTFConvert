@@ -28,7 +28,7 @@ namespace exporters
             const auto &g = geometries[u];
             std::filesystem::path binName = baseName + "." + std::to_string(u) + ".geometry";
             std::filesystem::path binPath = targetDir / binName;
-            const BoundingVolumes &geo_bounds = (g.boundsIndex!=pure::kInvalidBoundsIndex)
+            BoundingVolumes geo_bounds = (g.boundsIndex!=pure::kInvalidBoundsIndex)
                 ? boundsPool[g.boundsIndex]
                 : BoundingVolumes{};
             if(!pure::SaveGeometry(g, geo_bounds, binPath.string()))

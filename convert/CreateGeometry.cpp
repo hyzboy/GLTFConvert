@@ -23,6 +23,41 @@ namespace pure
                 pg.attributes.reserve(g.attributes.size());
                 // Copy slice derived -> base (data members from GeometryAttribute portion)
                 pg.attributes.insert(pg.attributes.end(), g.attributes.begin(), g.attributes.end());
+
+                for(const GeometryAttribute &ga:pg.attributes)
+                {
+                    if(ga.name=="POSITION" && !ga.data.empty())
+                    {
+                        if(ga.format==VK_FORMAT_R32G32B32_SFLOAT)
+                        {
+                            const size_t count=ga.data.size()/sizeof(glm::vec3);
+                            pg.positions=std::vector<glm::vec3>(count);
+                            std::memcpy(pg.positions->data(),ga.data.data(),ga.data.size());
+                        }
+                        else
+                        if(ga.format==VK_FORMAT_R32G32B32A32_SFLOAT)
+                        {
+                            const size_t count=ga.data.size()/sizeof(glm::vec3);
+                            pg.positions=std::vector<glm::vec3>(count);
+
+                            const float *sp=(float *)ga.data.data();
+                            glm::vec3 *tp=pg.positions->data();
+
+                            for(size_t i=0;i<count;i++)
+                            {
+                                tp->x=*sp;++sp;
+                                tp->y=*sp;++sp;
+                                tp->z=*sp;++sp;
+                                ++tp;
+                            }
+                        }
+                        else
+                        {
+                            // Unsupported POSITION format for decoding
+                            pg.positions=std::nullopt;
+                        }
+                    }
+                }
             }
 
             if (g.indices)
