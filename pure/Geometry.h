@@ -14,7 +14,6 @@
 
 namespace pure
 {
-
     struct Geometry
     {
         std::string mode; // e.g. TRIANGLES

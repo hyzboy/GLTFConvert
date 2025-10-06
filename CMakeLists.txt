@@ -96,6 +96,21 @@ set(EXPORT_FILES
 )
 SOURCE_GROUP("export" FILES ${EXPORT_FILES})
 
+set(IMPORT_FILES
+    import/ImportMaterials.h
+    import/ImportMaterials.cpp
+    import/ImportPrimitives.h
+    import/ImportPrimitives.cpp
+    import/ImportMeshes.h
+    import/ImportMeshes.cpp
+    import/ImportNodes.h
+    import/ImportNodes.cpp
+    import/ImportScenes.h
+    import/ImportScenes.cpp
+    import/Orientation.h
+    import/Orientation.cpp)
+SOURCE_GROUP("import" FILES ${IMPORT_FILES})
+
 # Add executable (include new modules for pure glTF data, importer and exporter)
 add_executable(GLTFConvert
     main.cpp
@@ -106,6 +121,7 @@ add_executable(GLTFConvert
     ${PURE_GEOM_FILES}
     ${CONVERT_FILES}
     ${EXPORT_FILES}
+    ${IMPORT_FILES}
 
     Importer.cpp Importer.h
     Geometry.cpp
