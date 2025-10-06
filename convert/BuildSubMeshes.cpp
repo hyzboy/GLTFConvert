@@ -3,7 +3,7 @@
 
 #include "convert/UniqueGeometryMapping.h"
 #include "pure/SubMesh.h"
-#include "gltf/Primitive.h"
+#include "gltf/GLTFPrimitive.h"
 
 namespace pure
 {

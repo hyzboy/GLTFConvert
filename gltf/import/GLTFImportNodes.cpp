@@ -1,6 +1,6 @@
 #include <fastgltf/core.hpp>
 #include <vector>
-#include "gltf/Node.h"
+#include "gltf/GLTFNode.h"
 
 namespace importers
 {

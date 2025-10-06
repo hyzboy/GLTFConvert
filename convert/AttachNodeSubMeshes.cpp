@@ -1,8 +1,8 @@
 #include <vector>
 
 #include "pure/MeshNode.h"
-#include "gltf/Node.h"
-#include "gltf/Mesh.h"
+#include "gltf/GLTFNode.h"
+#include "gltf/GLTFMesh.h"
 
 namespace pure
 {

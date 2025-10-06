@@ -2,8 +2,8 @@
 #include <vector>
 
 #include "convert/UniqueGeometryMapping.h"
-#include "gltf/Primitive.h"
-#include "gltf/Geometry.h"
+#include "gltf/GLTFPrimitive.h"
+#include "gltf/GLTFGeometry.h"
 
 namespace pure
 {

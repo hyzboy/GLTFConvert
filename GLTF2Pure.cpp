@@ -5,7 +5,7 @@
 #include "pure/MeshNode.h"
 #include "pure/Geometry.h"
 #include "pure/SubMesh.h"
-#include "gltf/Model.h"
+#include "gltf/GLTFModel.h"
 
 namespace pure
 {

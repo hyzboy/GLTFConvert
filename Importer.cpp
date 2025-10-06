@@ -5,6 +5,12 @@
 #include <iostream>
 #include <vector>
 
+#include "gltf/GLTFMaterial.h"
+#include "gltf/GLTFPrimitive.h"
+#include "gltf/GLTFMesh.h"
+#include "gltf/GLTFNode.h"
+#include "gltf/GLTFScene.h"
+
 namespace importers
 {
     // Forward declarations (headers removed)

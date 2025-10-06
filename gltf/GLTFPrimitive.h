@@ -2,7 +2,7 @@
 
 #include <optional>
 #include <cstddef>
-#include "gltf/Geometry.h"
+#include "gltf/GLTFGeometry.h"
 
 struct GLTFPrimitive
 {

@@ -3,11 +3,11 @@
 #include <string>
 #include <vector>
 #include <cstddef>
-#include "gltf/Primitive.h"
-#include "gltf/Mesh.h"
-#include "gltf/Node.h"
-#include "gltf/Scene.h"
-#include "gltf/Material.h"
+#include "gltf/GLTFPrimitive.h"
+#include "gltf/GLTFMesh.h"
+#include "gltf/GLTFNode.h"
+#include "gltf/GLTFScene.h"
+#include "gltf/GLTFMaterial.h"
 
 struct GLTFModel
 {

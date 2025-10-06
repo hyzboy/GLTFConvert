@@ -51,15 +51,25 @@ SOURCE_GROUP("Common" FILES ${COMMON_FILES})
 
 # New gltf split headers
 set(GLTF_FILES
-    gltf/Geometry.h
-    gltf/Primitive.h
-    gltf/Material.h
-    gltf/Mesh.h
-    gltf/Node.h
-    gltf/Scene.h
-    gltf/Model.h
+    gltf/GLTFGeometry.h
+    gltf/GLTFPrimitive.h
+    gltf/GLTFMaterial.h
+    gltf/GLTFMesh.h
+    gltf/GLTFNode.h
+    gltf/GLTFScene.h
+    gltf/GLTFModel.h
 )
 SOURCE_GROUP("gltf" FILES ${GLTF_FILES})
+
+set(GLTF_IMPORT_FILES
+    gltf/import/GLTFImportMaterials.cpp
+    gltf/import/GLTFImportPrimitives.cpp
+    gltf/import/GLTFImportMeshes.cpp
+    gltf/import/GLTFImportNodes.cpp
+    gltf/import/GLTFImportScenes.cpp
+    gltf/import/GLTFOrientationNodes.cpp
+    gltf/import/GLTFOrientationPrimitives.cpp)
+SOURCE_GROUP("gltf\\import" FILES ${GLTF_IMPORT_FILES})
 
 # New pure geometry split headers
 set(PURE_GEOM_FILES
@@ -96,33 +106,19 @@ set(EXPORT_FILES
 )
 SOURCE_GROUP("export" FILES ${EXPORT_FILES})
 
-set(IMPORT_FILES
-    import/ImportMaterials.h
-    import/ImportMaterials.cpp
-    import/ImportPrimitives.h
-    import/ImportPrimitives.cpp
-    import/ImportMeshes.h
-    import/ImportMeshes.cpp
-    import/ImportNodes.h
-    import/ImportNodes.cpp
-    import/ImportScenes.h
-    import/ImportScenes.cpp
-    import/Orientation.h
-    import/OrientationNodes.cpp
-    import/OrientationPrimitives.cpp)
-SOURCE_GROUP("import" FILES ${IMPORT_FILES})
-
 # Add executable (include new modules for pure glTF data, importer and exporter)
 add_executable(GLTFConvert
     main.cpp
 
     ${MATH_FILES}
     ${COMMON_FILES}
+
     ${GLTF_FILES}
+    ${GLTF_IMPORT_FILES}
+
     ${PURE_GEOM_FILES}
     ${CONVERT_FILES}
     ${EXPORT_FILES}
-    ${IMPORT_FILES}
 
     Importer.cpp Importer.h
     Geometry.cpp

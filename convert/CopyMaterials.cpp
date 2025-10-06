@@ -1,7 +1,7 @@
 #include <vector>
 
 #include "pure/Material.h"
-#include "gltf/Material.h"
+#include "gltf/GLTFMaterial.h"
 
 namespace pure
 {

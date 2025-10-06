@@ -13,7 +13,7 @@
 #include "pure/SubMesh.h"
 #include "math/TRS.h"
 #include "pure/BoundsIndex.h"
-#include "gltf/Model.h"
+#include "gltf/GLTFModel.h"
 
 namespace pure
 {

@@ -1,5 +1,5 @@
 #include <vector>
-#include "gltf/Node.h"
+#include "gltf/GLTFNode.h"
 
 namespace importers
 {

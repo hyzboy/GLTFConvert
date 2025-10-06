@@ -5,7 +5,7 @@
 #include <limits>
 #include <cstring>
 
-#include "gltf/Primitive.h"
+#include "gltf/GLTFPrimitive.h"
 #include "common/FastGLTFConversions.h"
 
 namespace importers

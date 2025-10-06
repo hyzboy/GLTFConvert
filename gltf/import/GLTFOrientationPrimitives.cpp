@@ -2,7 +2,7 @@
 #include <string>
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
-#include "gltf/Primitive.h"
+#include "gltf/GLTFPrimitive.h"
 #include "common/VkFormat.h"
 
 namespace importers

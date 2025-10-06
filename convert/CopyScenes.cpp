@@ -1,7 +1,7 @@
 #include <vector>
 
 #include "pure/Scene.h"
-#include "gltf/Scene.h"
+#include "gltf/GLTFScene.h"
 
 namespace pure
 {

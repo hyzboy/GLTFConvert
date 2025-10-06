@@ -1,6 +1,6 @@
 #include <fastgltf/core.hpp>
 #include <vector>
-#include "gltf/Mesh.h"
+#include "gltf/GLTFMesh.h"
 
 namespace importers
 {
