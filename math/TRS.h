@@ -4,7 +4,8 @@
 #include <glm/gtc/quaternion.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 
-namespace fastgltf { struct TRS; }
+#include "fastgltf/math.hpp"
+#include "fastgltf/types.hpp"
 
 // Restore TRS-based transform representation (float for real-time use)
 struct TRS
@@ -23,6 +24,18 @@ struct TRS
     // 支持从fastgltf::TRS赋值
     TRS& operator=(const fastgltf::TRS& rhs);
 
+    bool operator == (const TRS& rhs) const
+    {
+        return translation == rhs.translation
+            && rotation == rhs.rotation
+            && scale == rhs.scale;
+    }
+
+    bool operator != (const TRS& rhs) const
+    {
+        return !(*this == rhs);
+    }
+
     // 转换为glm::mat4
     glm::mat4 toMat4() const {
         glm::mat4 m = glm::mat4(1.0f);
@@ -32,3 +45,5 @@ struct TRS
         return m;
     }
 };
+
+glm::mat4 toMat4(const fastgltf::math::fmat4x4 &mat);
