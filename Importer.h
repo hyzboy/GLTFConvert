@@ -5,7 +5,5 @@
 
 namespace importers
 {
-
     bool ImportFastGLTF(const std::filesystem::path &inputPath,GLTFModel &outModel);
-
-} // namespace importers
+}//namespace importers

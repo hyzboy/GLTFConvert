@@ -42,7 +42,10 @@ set(COMMON_FILES    common/IndexType.h
                     common/VertexAttrib.h
                     common/VkFormat.cpp
                     common/VkFormat.h
-                    common/PrimitiveType.h)
+                    common/PrimitiveType.h
+                    common/GeometryAttribute.h
+                    common/FastGLTFConversions.h
+                    common/FastGLTFConversions.cpp)
 
 SOURCE_GROUP("Common" FILES ${COMMON_FILES})
 
@@ -61,7 +64,6 @@ SOURCE_GROUP("gltf" FILES ${GLTF_FILES})
 # New pure geometry split headers
 set(PURE_GEOM_FILES
     pure/BoundsIndex.h
-    pure/GeometryAttribute.h
     pure/GeometryIndicesMeta.h
     pure/Geometry.h
     pure/Material.h
