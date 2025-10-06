@@ -55,6 +55,3 @@ struct BoundingVolumes
 
     void Pack(PackedBounds *packed) const;
 };
-
-// Serialization functions
-void Write(std::ostream &os,const BoundingVolumes &volumes);
