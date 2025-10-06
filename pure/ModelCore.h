@@ -11,7 +11,7 @@
 #include "pure/Scene.h"
 #include "pure/Geometry.h"
 #include "pure/SubMesh.h"
-#include "math/MeshNodeTransform.h"
+#include "math/TRS.h"
 #include "pure/BoundsIndex.h"
 #include "gltf/Model.h"
 
@@ -27,15 +27,15 @@ namespace pure
         std::vector<SubMesh> subMeshes;
         std::vector<BoundingBox> bounds;
         std::vector<glm::mat4> matrixData;
-        std::vector<MeshNodeTransform> trsPool;
+        std::vector<TRS> trsPool;
         int32_t internBounds(const BoundingBox &b);
-        int32_t internTRS(const MeshNodeTransform &t);
+        int32_t internTRS(const TRS &t);
         int32_t internMatrix(const glm::mat4 &m);
     };
 
     glm::mat4 GetNodeWorldMatrix(const Model &m,const MeshNode &n);
     glm::mat4 GetNodeLocalMatrix(const Model &m,const MeshNode &n);
-    const std::optional<MeshNodeTransform> &GetNodeTRS(const Model &m,const MeshNode &n);
+    const std::optional<TRS> &GetNodeTRS(const Model &m,const MeshNode &n);
 
     Model ConvertFromGLTF(const GLTFModel &src);
 }

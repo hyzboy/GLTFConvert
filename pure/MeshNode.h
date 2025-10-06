@@ -5,7 +5,7 @@
 #include <optional>
 #include <glm/glm.hpp>
 #include "pure/BoundsIndex.h"
-#include "math/MeshNodeTransform.h"
+#include "math/TRS.h"
 
 namespace pure
 {

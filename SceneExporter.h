@@ -10,7 +10,7 @@
 #include "pure/BoundsIndex.h"
 #include "pure/MeshNode.h"
 #include "pure/SubMesh.h"
-#include "math/MeshNodeTransform.h"
+#include "math/TRS.h"
 #include "pure/ModelCore.h"
 
 struct BoundingBox; // forward declaration
@@ -27,7 +27,7 @@ namespace pure
         std::vector<int32_t> roots;
         std::vector<SubMesh> subMeshes;
         std::vector<glm::mat4> matrixData;
-        std::vector<MeshNodeTransform> trsPool;
+        std::vector<TRS> trsPool;
         std::vector<BoundingBox> bounds;
         int32_t sceneBoundsIndex=kInvalidBoundsIndex;
         std::vector<std::string> nameList;

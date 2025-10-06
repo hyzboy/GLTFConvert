@@ -90,13 +90,13 @@ namespace pure
 
                 if(!n.hasMatrix)
                 {
-                    MeshNodeTransform tf;
+                    TRS tf;
                     tf.translation=glm::vec3(n.translation);
                     tf.rotation=glm::quat(n.rotation);
                     tf.scale=glm::vec3(n.scale);
-                    if(!(tf.translation==MeshNodeTransform{}.translation&&
-                       tf.rotation==MeshNodeTransform{}.rotation&&
-                       tf.scale==MeshNodeTransform{}.scale))
+                    if(!(tf.translation==TRS{}.translation&&
+                       tf.rotation==TRS{}.rotation&&
+                       tf.scale==TRS{}.scale))
                     {
                         int32_t tidx=dst.internTRS(tf);
                         pn.trsIndexPlusOne=tidx+1;

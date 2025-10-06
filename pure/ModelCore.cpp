@@ -35,7 +35,7 @@ namespace pure
         return static_cast<int32_t>(bounds.size()-1);
     }
 
-    int32_t Model::internTRS(const MeshNodeTransform &t)
+    int32_t Model::internTRS(const TRS &t)
     {
         for(size_t i=0; i<trsPool.size(); ++i)
         {
@@ -75,15 +75,15 @@ namespace pure
         return m.matrixData[(size_t)idx];
     }
 
-    const std::optional<MeshNodeTransform> &GetNodeTRS(const Model &m,const MeshNode &n)
+    const std::optional<TRS> &GetNodeTRS(const Model &m,const MeshNode &n)
     {
         if(n.trsIndexPlusOne==0)
         {
-            static const std::optional<MeshNodeTransform> kEmpty{};
+            static const std::optional<TRS> kEmpty{};
             return kEmpty;
         }
         auto idx=n.trsIndexPlusOne-1;
-        struct Holder { std::optional<MeshNodeTransform> opt; };
+        struct Holder { std::optional<TRS> opt; };
         static thread_local Holder holder;
         holder.opt=m.trsPool[(size_t)idx];
         return holder.opt;

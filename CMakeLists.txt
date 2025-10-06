@@ -36,7 +36,7 @@ include_directories(${CMAKE_CURRENT_SOURCE_DIR})
 set(MATH_FILES  math/AABB.h
                 math/BoundingBox.h
                 math/BoundingSphere.cpp
-                math/MeshNodeTransform.h
+                math/TRS.h
                 math/OBB.cpp
                 math/OBB.h)
 
