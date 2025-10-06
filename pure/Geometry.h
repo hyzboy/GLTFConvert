@@ -9,7 +9,7 @@
 #include "common/PrimitiveType.h"
 #include "pure/BoundsIndex.h"
 #include "math/BoundingBox.h"
-#include "pure/GeometryAttribute.h"
+#include "common/GeometryAttribute.h" // moved from pure/
 #include "pure/GeometryIndicesMeta.h"
 
 namespace pure
