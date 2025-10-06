@@ -63,7 +63,7 @@ struct AABB
     {
         AABB box;
         box.reset();
-        for(const auto& p : points) box.include(p);
+        for(const auto &p:points) box.include(p);
         return box;
     }
 };

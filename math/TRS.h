@@ -24,33 +24,35 @@ public:
     }
 
     // 判断是否为空（单位变换）
-    bool empty() const {
-        return translation == glm::vec3(0.0f)
-            && rotation == glm::quat(1.0f,0.0f,0.0f,0.0f)
-            && scale == glm::vec3(1.0f);
+    bool empty() const
+    {
+        return translation==glm::vec3(0.0f)
+            &&rotation==glm::quat(1.0f,0.0f,0.0f,0.0f)
+            &&scale==glm::vec3(1.0f);
     }
 
     // 支持从fastgltf::TRS赋值
-    TRS& operator=(const fastgltf::TRS& rhs);
+    TRS &operator=(const fastgltf::TRS &rhs);
 
-    bool operator == (const TRS& rhs) const
+    bool operator == (const TRS &rhs) const
     {
-        return translation == rhs.translation
-            && rotation == rhs.rotation
-            && scale == rhs.scale;
+        return translation==rhs.translation
+            &&rotation==rhs.rotation
+            &&scale==rhs.scale;
     }
 
-    bool operator != (const TRS& rhs) const
+    bool operator != (const TRS &rhs) const
     {
-        return !(*this == rhs);
+        return !(*this==rhs);
     }
 
     // 转换为glm::mat4
-    glm::mat4 toMat4() const {
-        glm::mat4 m = glm::mat4(1.0f);
-        m = glm::translate(m, translation);
-        m *= glm::mat4_cast(rotation);
-        m = glm::scale(m, scale);
+    glm::mat4 toMat4() const
+    {
+        glm::mat4 m=glm::mat4(1.0f);
+        m=glm::translate(m,translation);
+        m*=glm::mat4_cast(rotation);
+        m=glm::scale(m,scale);
         return m;
     }
 };

@@ -37,24 +37,28 @@ namespace exporters
         const std::string baseName=stem_noext(sm.gltf_source);
         std::filesystem::path targetDir=baseDir/(baseName+".StaticMesh");
         std::filesystem::create_directories(targetDir,ec);
+        
+        // 材质
+        if(!ExportMaterials(sm.materials,targetDir))
+            return false;
 
         sm.bounds.clear();  //清空所有bounds信息，geometry导出时计算每个geometry自己的Bound信息
 
         // 几何数据（使用精简后的接口）
         ExportGeometries(&sm, targetDir);
 
-        // 材质
-        if(!ExportMaterials(sm.materials,targetDir))
-            return false;
+        // 重新计算所有的node的bounds和world matrix
 
-        //// 场景
-        //for(std::size_t si=0; si<sm.scenes.size(); ++si)
-        //{
-        //    const auto &scene = sm.scenes[si];
-        //    pure::SceneExporter sceneExporter = pure::SceneExporter::Build(sm, static_cast<int32_t>(si));
-        //    if(!ExportScene(scene.name, si, sceneExporter, targetDir, baseName))
-        //        return false;
-        //}
+        // 现在没有计算，现只输local matrix/trs，看下效果再说
+
+        // 场景
+        for(std::size_t si=0; si<sm.scenes.size(); ++si)
+        {
+            const auto &scene = sm.scenes[si];
+            pure::SceneExporter sceneExporter = pure::SceneExporter::Build(sm, static_cast<int32_t>(si));
+            if(!ExportScene(scene.name, si, sceneExporter, targetDir, baseName))
+                return false;
+        }
 
         return true;
     }

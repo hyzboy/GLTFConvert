@@ -60,33 +60,4 @@ namespace pure
         matrixData.push_back(m);
         return static_cast<int32_t>(matrixData.size()-1);
     }
-
-    glm::mat4 GetNodeWorldMatrix(const Model &m,const MeshNode &n)
-    {
-        if(n.worldMatrixIndexPlusOne==0) return glm::mat4(1.0f);
-        auto idx=n.worldMatrixIndexPlusOne-1;
-        return m.matrixData[(size_t)idx];
-    }
-
-    glm::mat4 GetNodeLocalMatrix(const Model &m,const MeshNode &n)
-    {
-        if(n.localMatrixIndexPlusOne==0) return glm::mat4(1.0f);
-        auto idx=n.localMatrixIndexPlusOne-1;
-        return m.matrixData[(size_t)idx];
-    }
-
-    const std::optional<TRS> &GetNodeTRS(const Model &m,const MeshNode &n)
-    {
-        if(n.trsIndexPlusOne==0)
-        {
-            static const std::optional<TRS> kEmpty{};
-            return kEmpty;
-        }
-        auto idx=n.trsIndexPlusOne-1;
-        struct Holder { std::optional<TRS> opt; };
-        static thread_local Holder holder;
-        holder.opt=m.trsPool[(size_t)idx];
-        return holder.opt;
-    }
-
 } // namespace pure

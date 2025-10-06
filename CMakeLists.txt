@@ -130,7 +130,6 @@ add_executable(GLTFConvert
     ${CONVERT_FILES}
     ${EXPORT_FILES}
 
-    MeshBounds.cpp MeshBounds.h
     Exporter.h
     MaterialExporter.cpp MaterialExporter.h
     # new split scene-local module and split headers

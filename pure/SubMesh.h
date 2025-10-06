@@ -6,7 +6,6 @@
 
 namespace pure
 {
-
     struct SubMesh
     {
         int32_t geometry=static_cast<int32_t>(-1); // index into Model::geometry

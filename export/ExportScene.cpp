@@ -26,14 +26,10 @@ namespace exporters
                      const std::string &baseName)
     {
         std::string sane = SanitizeName(sceneName);
-        std::string sceneFolderName = sane.empty()
-            ? ("Scene_" + std::to_string(sceneIndex))
-            : (std::to_string(sceneIndex) + "_" + sane);
 
-        std::filesystem::path sceneDir = targetDir / sceneFolderName;
-        std::error_code ec; std::filesystem::create_directories(sceneDir, ec);
+        std::string finalName=baseName+"."+(sane.empty()?(std::to_string(sceneIndex)):sane);
 
-        if(!sceneExporter.WriteSceneBinary(sceneDir, baseName))
+        if(!sceneExporter.WriteSceneBinary(targetDir,finalName))
             return false;
         return true;
     }

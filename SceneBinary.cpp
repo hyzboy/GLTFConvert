@@ -15,14 +15,11 @@ namespace pure
 {
     namespace
     {
-
     #pragma pack(push, 1)
         struct SceneHeader
         {
             uint32_t version;
             uint32_t rootCount;
-            uint32_t matrixCount;
-            uint32_t trsCount;
             uint32_t subMeshCount;
             uint32_t nodeCount;
         };
@@ -38,9 +35,9 @@ namespace pure
 
     } // anonymous namespace
 
-    bool SceneExporter::WriteSceneBinary(const std::filesystem::path &sceneDir,const std::string &baseName) const
+    bool SceneExporter::WriteSceneBinary(const std::filesystem::path &sceneDir,const std::string &finalName) const
     {
-        std::string fileName=name.empty()?std::string("Scene.scene"):(name+".scene");
+        std::string fileName=finalName+".scene";
         std::filesystem::path binPath=sceneDir/fileName;
 
         MiniPackBuilder builder;
@@ -49,8 +46,6 @@ namespace pure
         SceneHeader sh{};
         sh.version=1;
         sh.rootCount=static_cast<uint32_t>(roots.size());
-        sh.matrixCount=static_cast<uint32_t>(matrixData.size());
-        sh.trsCount=static_cast<uint32_t>(trsPool.size());
         sh.subMeshCount=static_cast<uint32_t>(subMeshes.size());
         sh.nodeCount=static_cast<uint32_t>(nodes.size());
 
@@ -73,36 +68,6 @@ namespace pure
             return false;
         }
 
-        if(!builder.add_entry_from_array<glm::mat4>("Matrices",matrixData,err))
-        {
-            std::cerr<<"[Export] Failed Matrices: "<<err<<"\n";
-            return false;
-        }
-
-        // Flatten TRS data (translation xyz, rotation xyzw, scale xyz) per entry => 10 floats
-        {
-            std::vector<float> flat;
-            flat.reserve(trsPool.size()*10);
-            for(const auto &t:trsPool)
-            {
-                flat.push_back(t.translation.x);
-                flat.push_back(t.translation.y);
-                flat.push_back(t.translation.z);
-                flat.push_back(t.rotation.x);
-                flat.push_back(t.rotation.y);
-                flat.push_back(t.rotation.z);
-                flat.push_back(t.rotation.w);
-                flat.push_back(t.scale.x);
-                flat.push_back(t.scale.y);
-                flat.push_back(t.scale.z);
-            }
-            if(!builder.add_entry_from_array<float>("TRS",flat,err))
-            {
-                std::cerr<<"[Export] Failed TRS: "<<err<<"\n";
-                return false;
-            }
-        }
-
         if(!builder.add_entry_from_array<uint32_t>("SubMeshes",subMeshNameIndices,err))
         {
             std::cerr<<"[Export] Failed SubMeshes: "<<err<<"\n";
@@ -121,9 +86,6 @@ namespace pure
                 uint32_t nameIdx=(i<nodeNameIndices.size())?nodeNameIndices[i]:0u;
 
                 AppendU32(buf,nameIdx);
-                AppendU32(buf,static_cast<uint32_t>(n.localMatrixIndexPlusOne));
-                AppendU32(buf,static_cast<uint32_t>(n.worldMatrixIndexPlusOne));
-                AppendU32(buf,static_cast<uint32_t>(n.trsIndexPlusOne));
 
                 AppendU32(buf,static_cast<uint32_t>(n.children.size()));
                 for(auto c:n.children)

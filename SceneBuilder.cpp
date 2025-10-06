@@ -18,9 +18,6 @@ namespace pure
             std::vector<int32_t> nodeOrder;                    // old node indices in traversal order
             std::unordered_map<int32_t,int32_t> nodeRemap;    // old node index -> new node index
             std::unordered_map<int32_t,int32_t> subMeshRemap; // old submesh index -> new submesh index
-            std::unordered_map<int32_t,int32_t> matrixRemap; // old matrix index -> new index
-            std::unordered_map<int32_t,int32_t> trsRemap;    // old trs index -> new index
-            std::unordered_map<int32_t,int32_t> boundsRemap; // old bounds index -> new index (currently unused in remap build)
         };
 
         static SceneBuildContext CollectReachable(const Model &sm,const Scene &sc)
@@ -60,13 +57,6 @@ namespace pure
                 const auto &n=sm.mesh_nodes[(size_t)oldNi];
                 for(auto smi:n.subMeshes)
                     ctx.subMeshRemap.try_emplace(smi,(int32_t)ctx.subMeshRemap.size());
-                if(n.localMatrixIndexPlusOne)
-                    ctx.matrixRemap.try_emplace((int32_t)(n.localMatrixIndexPlusOne-1),(int32_t)ctx.matrixRemap.size());
-                if(n.worldMatrixIndexPlusOne)
-                    ctx.matrixRemap.try_emplace((int32_t)(n.worldMatrixIndexPlusOne-1),(int32_t)ctx.matrixRemap.size());
-                if(n.trsIndexPlusOne)
-                    ctx.trsRemap.try_emplace((int32_t)(n.trsIndexPlusOne-1),(int32_t)ctx.trsRemap.size());
-                // boundsRemap only used if bounds referenced; built later when copying nodes.
             }
         }
 
@@ -79,27 +69,6 @@ namespace pure
             {
                 out.subMeshes.push_back(tmp[(size_t)kv.first]);
             }
-
-            // Matrices
-            out.matrixData.reserve(ctx.matrixRemap.size());
-            for(auto &kv:ctx.matrixRemap)
-            {
-                out.matrixData.push_back(sm.matrixData[(size_t)kv.first]);
-            }
-
-            // TRS pool
-            out.trsPool.reserve(ctx.trsRemap.size());
-            for(auto &kv:ctx.trsRemap)
-            {
-                out.trsPool.push_back(sm.trsPool[(size_t)kv.first]);
-            }
-
-            // Bounds (if any were remapped)
-            out.bounds.reserve(ctx.boundsRemap.size());
-            for(auto &kv:ctx.boundsRemap)
-            {
-                out.bounds.push_back(sm.bounds[(size_t)kv.first]);
-            }
         }
 
         static void BuildNodes(const Model &sm,const SceneBuildContext &ctx,SceneExporter &out)
@@ -109,15 +78,6 @@ namespace pure
                 const auto &on=sm.mesh_nodes[(size_t)oldNi];
                 MeshNode nn;
                 nn.name=on.name;
-                nn.boundsIndex=on.boundsIndex;
-                if(nn.boundsIndex!=kInvalidBoundsIndex)
-                    nn.boundsIndex=(int32_t)ctx.boundsRemap.at((int32_t)nn.boundsIndex);
-                if(on.localMatrixIndexPlusOne)
-                    nn.localMatrixIndexPlusOne=(int32_t)ctx.matrixRemap.at((int32_t)(on.localMatrixIndexPlusOne-1))+1;
-                if(on.worldMatrixIndexPlusOne)
-                    nn.worldMatrixIndexPlusOne=(int32_t)ctx.matrixRemap.at((int32_t)(on.worldMatrixIndexPlusOne-1))+1;
-                if(on.trsIndexPlusOne)
-                    nn.trsIndexPlusOne=(int32_t)ctx.trsRemap.at((int32_t)(on.trsIndexPlusOne-1))+1;
 
                 nn.children.reserve(on.children.size());
                 for(auto oc:on.children)
@@ -135,20 +95,6 @@ namespace pure
 
                 out.nodes.push_back(std::move(nn));
             }
-        }
-
-        static void BuildRootsAndSceneBounds(const Scene &sc,const SceneBuildContext &ctx,SceneExporter &out)
-        {
-            out.roots.clear();
-            out.roots.reserve(sc.nodes.size());
-            for(auto r:sc.nodes)
-            {
-                auto it=ctx.nodeRemap.find(r);
-                if(it!=ctx.nodeRemap.end()) out.roots.push_back(it->second);
-            }
-            out.sceneBoundsIndex=(sc.boundsIndex!=kInvalidBoundsIndex)
-                ?(int32_t)ctx.boundsRemap.at((int32_t)sc.boundsIndex)
-                :(int32_t)kInvalidBoundsIndex;
         }
 
         static void BuildNameTable(const Model &sm,SceneExporter &out)
@@ -198,7 +144,6 @@ namespace pure
         BuildResourceRemaps(sm,sc,ctx);
         CopyResourcePools(sm,ctx,out);
         BuildNodes(sm,ctx,out);
-        BuildRootsAndSceneBounds(sc,ctx,out);
         BuildNameTable(sm,out);
 
         return out;

@@ -28,14 +28,13 @@ namespace pure
         std::vector<BoundingVolumes> bounds;
         std::vector<glm::mat4> matrixData;
         std::vector<TRS> trsPool;
+
+    public:
+
         int32_t internBounds(const BoundingVolumes &volumes);
         int32_t internTRS(const TRS &t);
         int32_t internMatrix(const glm::mat4 &m);
     };
-
-    glm::mat4 GetNodeWorldMatrix(const Model &m,const MeshNode &n);
-    glm::mat4 GetNodeLocalMatrix(const Model &m,const MeshNode &n);
-    const std::optional<TRS> &GetNodeTRS(const Model &m,const MeshNode &n);
 
     Model ConvertFromGLTF(const GLTFModel &src);
 }
