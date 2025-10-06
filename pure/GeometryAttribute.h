@@ -12,7 +12,6 @@ namespace pure
 {
     struct GeometryAttribute
     {
-        uint8_t id=0; // index in the attributes array
         std::string name;
         std::size_t count=0;
         // componentType and type removed; VkFormat encodes layout now

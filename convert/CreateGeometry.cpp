@@ -9,10 +9,10 @@ namespace pure
 {
     namespace
     {
-        static GeometryAttribute MakeGeometryAttribute(const GLTFGeometry::GLTFGeometryAttribute &srcAttr, uint8_t id)
+        static GeometryAttribute MakeGeometryAttribute(const GLTFGeometry::GLTFGeometryAttribute &srcAttr)
         {
             GeometryAttribute ga;
-            ga.id = id;
+
             ga.name = srcAttr.name;
             ga.count = srcAttr.count;
             ga.format = srcAttr.format;
@@ -34,7 +34,7 @@ namespace pure
             pg.attributes.reserve(g.attributes.size());
             for (size_t ai = 0; ai < g.attributes.size(); ++ai)
             {
-                pg.attributes.push_back(MakeGeometryAttribute(g.attributes[ai], static_cast<uint8_t>(ai)));
+                pg.attributes.push_back(MakeGeometryAttribute(g.attributes[ai]));
             }
             if (g.indices)
                 pg.indicesData = *g.indices;
