@@ -15,8 +15,6 @@ namespace pure
             ga.id = id;
             ga.name = srcAttr.name;
             ga.count = srcAttr.count;
-            ga.componentType = srcAttr.componentType;
-            ga.type = srcAttr.type;
             ga.format = srcAttr.format;
             ga.data = srcAttr.data; // copy raw data
             return ga;
@@ -40,10 +38,9 @@ namespace pure
             }
             if (g.indices)
                 pg.indicesData = *g.indices;
-            if (g.indexCount && g.indexComponentType)
+            if (g.indexCount && g.indexType!=IndexType::ERR)
             {
-                pg.indices = GeometryIndicesMeta{ *g.indexCount, *g.indexComponentType };
-                pg.indices->indexType = g.indexType;
+                pg.indices = GeometryIndicesMeta{ *g.indexCount, g.indexType };
             }
             dstGeometry.push_back(std::move(pg));
         }

@@ -11,12 +11,14 @@ namespace pure
         out.clear();
         for(const auto &a:g.attributes)
         {
-            if(a.name=="POSITION"&&a.componentType=="FLOAT"&&(a.type=="VEC3"||a.type=="VEC4"))
+            if(a.name=="POSITION")
             {
-                // assume tightly packed float3/float4
+                bool isVec3 = (a.format==PF_RGB32F);
+                bool isVec4 = (a.format==PF_RGBA32F);
+                if(!isVec3 && !isVec4) continue;
                 const std::byte *ptr=a.data.data();
                 const std::size_t elementCount=a.count;
-                const std::size_t stride=(a.type=="VEC3")?sizeof(float)*3:sizeof(float)*4;
+                const std::size_t stride=isVec3?sizeof(float)*3:sizeof(float)*4;
                 if(a.data.size()<elementCount*stride) return false;
                 out.resize(elementCount);
                 for(std::size_t i=0; i<elementCount; ++i)
@@ -35,14 +37,11 @@ namespace pure
         BoundingBox bb; // local aggregate
         bb.aabb=srcGeom.localAABB; // AABB comes from glTF primitive local AABB
 
-        // Decode positions once (float) and compute OBB and sphere
         std::vector<glm::vec3> posF;
         bool hasPos = TryDecodePositionsAsVec3(srcGeom,posF) && !posF.empty();
         if(hasPos)
         {
-            dstGeom.positions = posF; // cache local-space positions (float)
-
-            // Build OBB directly from float points
+            dstGeom.positions = posF;
             bb.obb = OBB::fromPointsMinVolume(posF);
             bb.sphere = SphereFromPoints(posF);
         }
@@ -78,7 +77,6 @@ namespace pure
             if(sm.geometry==static_cast<std::size_t>(-1)) continue;
             const auto &g=model.geometry[sm.geometry];
 
-            // collect transformed positions using cached (float) positions
             if(g.positions && !g.positions->empty())
             {
                 for(const auto &p:*g.positions)
@@ -114,7 +112,6 @@ namespace pure
 
         std::vector<glm::vec3> scenePtsF; scenePtsF.reserve(4096);
 
-        // traverse nodes of scene and gather each node's world-space points again
         std::vector<int32_t> stack; stack.reserve(scene.nodes.size());
         for(auto v:scene.nodes) stack.push_back(static_cast<int32_t>(v));
         while(!stack.empty())
@@ -154,7 +151,6 @@ namespace pure
             sb.sphere.reset();
         }
 
-        // Keep existing AABB if any (copied from glTF at scene creation)
         if(scene.boundsIndex!=kInvalidBoundsIndex)
         {
             const auto &existing=model.bounds[static_cast<std::size_t>(scene.boundsIndex)];

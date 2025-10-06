@@ -26,22 +26,6 @@ namespace importers
             }
         }
 
-        static std::string ComponentTypeToString(fastgltf::ComponentType ct)
-        {
-            switch(ct)
-            {
-            case fastgltf::ComponentType::Byte: return "BYTE";
-            case fastgltf::ComponentType::UnsignedByte: return "UNSIGNED_BYTE";
-            case fastgltf::ComponentType::Short: return "SHORT";
-            case fastgltf::ComponentType::UnsignedShort: return "UNSIGNED_SHORT";
-            case fastgltf::ComponentType::Int: return "INT";
-            case fastgltf::ComponentType::UnsignedInt: return "UNSIGNED_INT";
-            case fastgltf::ComponentType::Float: return "FLOAT";
-            case fastgltf::ComponentType::Double: return "DOUBLE";
-            default: return "UNKNOWN";
-            }
-        }
-
         static IndexType ComponentTypeToIndexType(fastgltf::ComponentType ct)
         {
             switch(ct)
@@ -50,21 +34,6 @@ namespace importers
             case fastgltf::ComponentType::UnsignedShort:    return IndexType::U16;
             case fastgltf::ComponentType::UnsignedInt:      return IndexType::U32;
             default: return IndexType::ERR;
-            }
-        }
-
-        static std::string AccessorTypeToString(fastgltf::AccessorType at)
-        {
-            switch(at)
-            {
-            case fastgltf::AccessorType::Scalar: return "SCALAR";
-            case fastgltf::AccessorType::Vec2: return "VEC2";
-            case fastgltf::AccessorType::Vec3: return "VEC3";
-            case fastgltf::AccessorType::Vec4: return "VEC4";
-            case fastgltf::AccessorType::Mat2: return "MAT2";
-            case fastgltf::AccessorType::Mat3: return "MAT3";
-            case fastgltf::AccessorType::Mat4: return "MAT4";
-            default: return "UNKNOWN";
             }
         }
 
@@ -347,8 +316,6 @@ namespace importers
                         GLTFGeometry::GLTFGeometryAttribute a{};
                         a.name=attr.name;
                         a.count=acc.count;
-                        a.componentType=ComponentTypeToString(acc.componentType);
-                        a.type=AccessorTypeToString(acc.type);
                         a.format=AccessorTypeToVkFormat(acc.type,acc.componentType);
                         a.accessorIndex=attr.accessorIndex; // record accessor identity for dedup
                         if(!CopyAccessorToBytes(asset,acc,a.data))
@@ -376,7 +343,6 @@ namespace importers
                         {
                             p.geometry.indices=std::move(buf);
                             p.geometry.indexCount=acc.count;
-                            p.geometry.indexComponentType=ComponentTypeToString(acc.componentType);
                             p.geometry.indicesAccessorIndex=prim.indicesAccessor; // record indices accessor identity
                             p.geometry.indexType=ComponentTypeToIndexType(acc.componentType);
                         }

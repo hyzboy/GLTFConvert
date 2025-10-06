@@ -19,9 +19,6 @@ struct GLTFGeometry
     {
         std::string name;
         std::size_t count=0;
-        std::string componentType; // e.g. FLOAT
-        std::string type;          // e.g. VEC3
-
         VkFormat format{}; // Vulkan format
 
         std::vector<std::byte> data; // raw data as-is
@@ -31,7 +28,6 @@ struct GLTFGeometry
     std::vector<GLTFGeometryAttribute> attributes;
     std::optional<std::vector<std::byte>> indices; // raw index data
     std::optional<std::size_t> indexCount;         // number of indices
-    std::optional<std::string> indexComponentType; // e.g. UNSIGNED_SHORT
 
     IndexType indexType=IndexType::ERR;
     std::optional<std::size_t> indicesAccessorIndex; // source accessor index
