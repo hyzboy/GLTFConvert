@@ -32,23 +32,34 @@ namespace pure
                         {
                             const size_t count=ga.data.size()/sizeof(glm::vec3);
                             pg.positions=std::vector<glm::vec3>(count);
-                            std::memcpy(pg.positions->data(),ga.data.data(),ga.data.size());
+                            
+                            // Cannot use memcpy directly because glm::vec3 may have 16-byte alignment (AVX2)
+                            // while source data is tightly packed (12 bytes per vec3)
+                            const float *sp = reinterpret_cast<const float*>(ga.data.data());
+                            glm::vec3 *tp = pg.positions->data();
+                            
+                            for(size_t i = 0; i < count; i++)
+                            {
+                                tp[i].x = sp[i * 3 + 0];
+                                tp[i].y = sp[i * 3 + 1];
+                                tp[i].z = sp[i * 3 + 2];
+                            }
                         }
                         else
                         if(ga.format==VK_FORMAT_R32G32B32A32_SFLOAT)
                         {
-                            const size_t count=ga.data.size()/sizeof(glm::vec3);
+                            const size_t count=ga.data.size()/sizeof(glm::vec4);
                             pg.positions=std::vector<glm::vec3>(count);
 
-                            const float *sp=(float *)ga.data.data();
+                            const float *sp=reinterpret_cast<const float*>(ga.data.data());
                             glm::vec3 *tp=pg.positions->data();
 
                             for(size_t i=0;i<count;i++)
                             {
-                                tp->x=*sp;++sp;
-                                tp->y=*sp;++sp;
-                                tp->z=*sp;++sp;
-                                ++tp;
+                                tp[i].x = sp[i * 4 + 0];
+                                tp[i].y = sp[i * 4 + 1];
+                                tp[i].z = sp[i * 4 + 2];
+                                // Skip w component (sp[i * 4 + 3])
                             }
                         }
                         else
