@@ -1,6 +1,7 @@
 #include <fastgltf/core.hpp>
 #include <vector>
 #include "gltf/GLTFNode.h"
+#include "gltf/ToNodeTransform.h"
 
 namespace gltf
 {
@@ -14,7 +15,7 @@ namespace gltf
             if(!n.name.empty()) on.name.assign(n.name.begin(),n.name.end());
             if(n.meshIndex) on.mesh=*n.meshIndex;
             on.children.assign(n.children.begin(),n.children.end());
-            on.transform=n.transform;
+            on.transform = ToNodeTransform(n.transform);
         }
     }
 } // namespace gltf

@@ -35,6 +35,8 @@ set(MATH_FILES  math/AABB.h
                 math/BoundingSphere.cpp
                 math/TRS.h
                 math/TRS.cpp
+                math/NodeTransform.h
+                math/NodeTransform.cpp
                 math/OBB.cpp
                 math/OBB.h)
 
@@ -60,6 +62,8 @@ set(GLTF_FILES
     gltf/GLTFNode.h
     gltf/GLTFScene.h
     gltf/GLTFModel.h
+    gltf/ToNodeTransform.h
+    gltf/ToNodeTransform.cpp
 )
 SOURCE_GROUP("gltf" FILES ${GLTF_FILES})
 
