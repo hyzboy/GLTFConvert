@@ -6,7 +6,6 @@
 #include "pure/Scene.h"
 #include "pure/Geometry.h"
 #include "pure/SubMesh.h"
-#include "gltf/GLTFModel.h"
 
 namespace pure
 {
@@ -19,6 +18,4 @@ namespace pure
         std::vector<Geometry> geometry;
         std::vector<SubMesh> subMeshes;
     };
-
-    Model ConvertFromGLTF(const GLTFModel &src);
 }

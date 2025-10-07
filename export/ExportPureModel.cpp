@@ -2,9 +2,8 @@
 #include <string>
 #include <vector>
 
-#include "Exporter.h"
 #include "MaterialExporter.h"
-#include "pure/ModelCore.h"
+#include "pure/Model.h"
 
 namespace exporters
 {
@@ -16,10 +15,8 @@ namespace exporters
         return p.stem().string();
     }
 
-    bool ExportPureModel(GLTFModel &model,const std::filesystem::path &outDir)
+    bool ExportPureModel(pure::Model &sm,const std::filesystem::path &outDir)
     {
-        pure::Model sm=pure::ConvertFromGLTF(model);
-
         std::filesystem::path baseDir=outDir.empty()
             ?std::filesystem::path(sm.gltf_source).parent_path()
             :outDir;

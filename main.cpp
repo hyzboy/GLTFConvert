@@ -2,7 +2,18 @@
 #include <filesystem>
 
 #include "gltf/import/GLTFImporter.h"
-#include "export/Exporter.h"
+#include "gltf/GLTFModel.h"
+#include "pure/Model.h"
+
+namespace pure
+{
+    pure::Model ConvertFromGLTF(const GLTFModel &src);
+}
+
+namespace exporters
+{
+    bool ExportPureModel(pure::Model &sm,const std::filesystem::path &outDir);
+}
 
 int main(int argc,char *argv[])
 {
@@ -23,8 +34,10 @@ int main(int argc,char *argv[])
     {
         return 1;
     }
+    
+    pure::Model sm=pure::ConvertFromGLTF(model);
 
-    if(!exporters::ExportPureModel(model,outDir))
+    if(!exporters::ExportPureModel(sm,outDir))
     {
         return 1;
     }

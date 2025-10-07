@@ -4,7 +4,7 @@
 #include <vector>
 
 #include "pure/Geometry.h"        // Geometry + SaveGeometry
-#include "pure/ModelCore.h"       // BoundingBox + kInvalidBoundsIndex (could be moved to a smaller header if available)
+#include "pure/Model.h"       // BoundingBox + kInvalidBoundsIndex (could be moved to a smaller header if available)
 
 namespace exporters
 {

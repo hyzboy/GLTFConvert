@@ -88,7 +88,7 @@ set(PURE_GEOM_FILES
     pure/MeshNode.h
     pure/SubMesh.h
     pure/Scene.h
-    pure/ModelCore.h
+    pure/Model.h
 )
 SOURCE_GROUP("pure" FILES ${PURE_GEOM_FILES})
 
@@ -114,8 +114,6 @@ set(EXPORT_FILES
     
     export/MaterialExporter.cpp
     export/MaterialExporter.h
-
-    export/Exporter.h
 )
 SOURCE_GROUP("export" FILES ${EXPORT_FILES})
 

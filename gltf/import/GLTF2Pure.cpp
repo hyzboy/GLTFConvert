@@ -1,4 +1,4 @@
-#include "pure/ModelCore.h"
+#include "pure/Model.h"
 #include "convert/UniqueGeometryMapping.h"
 #include "pure/Material.h"
 #include "pure/Scene.h"
