@@ -115,6 +115,11 @@ set(EXPORT_FILES
     
     export/MaterialExporter.cpp
     export/MaterialExporter.h
+
+    export/Exporter.h
+    export/SceneExporter.h
+    export/SceneBinary.cpp
+    export/SceneBuilder.cpp
 )
 SOURCE_GROUP("export" FILES ${EXPORT_FILES})
 
@@ -131,10 +136,6 @@ add_executable(GLTFConvert
     ${PURE_GEOM_FILES}
     ${CONVERT_FILES}
     ${EXPORT_FILES}
-
-    Exporter.h
-    # new split scene-local module and split headers
-    SceneExporter.h SceneBinary.cpp SceneBuilder.cpp
 )
 
 # GLM SIMD/AVX2 宏定义（仅作用于目标）

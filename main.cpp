@@ -2,7 +2,7 @@
 #include <filesystem>
 
 #include "gltf/import/GLTFImporter.h"
-#include "Exporter.h"
+#include "export/Exporter.h"
 
 int main(int argc,char *argv[])
 {

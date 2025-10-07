@@ -31,6 +31,7 @@ namespace exporters
 
         if(!sceneExporter.WriteSceneBinary(targetDir,finalName))
             return false;
+
         return true;
     }
 } // namespace exporters
