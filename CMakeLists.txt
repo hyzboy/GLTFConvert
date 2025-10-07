@@ -129,6 +129,8 @@ set(SCENE_EXPORT_INTERNAL_FILES
     export/SceneExportTransforms.cpp
     export/SceneExportBounds.h
     export/SceneExportBounds.cpp
+    export/SceneExportLists.h
+    export/SceneExportLists.cpp
 )
 SOURCE_GROUP("export\\SceneBuildInternalsFine" FILES ${SCENE_EXPORT_INTERNAL_FILES})
 

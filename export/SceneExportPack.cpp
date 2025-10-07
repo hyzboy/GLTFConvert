@@ -2,6 +2,7 @@
 #include <fstream>
 #include <iostream>
 #include "mini_pack_builder.h"
+#include "SceneExportLists.h"
 
 namespace exporters
 {
@@ -19,13 +20,6 @@ namespace exporters
         int32_t  sceneNameIndex { -1 };   // index into name table
         int32_t  sceneBoundsIndex { -1 }; // index into bounds table
     };
-
-    static std::string strip_extension(const std::string &fname)
-    {
-        auto pos = fname.find_last_of('.');
-        if (pos == std::string::npos) return fname;
-        return fname.substr(0, pos);
-    }
 
     bool WriteScenePack(const SceneExportData &data, const std::filesystem::path &filePath)
     {
@@ -123,37 +117,7 @@ namespace exporters
             }
         }
 
-        // Geometry list (strip extensions)
-        if (!data.geometries.empty())
-        {
-            std::vector<std::string> geomFiles;
-            geomFiles.reserve(data.geometries.size());
-            for (const auto &g : data.geometries)
-                geomFiles.push_back(strip_extension(g.file));
-            write_string_list(&builder, "GeometryList", geomFiles, err);
-            if (!err.empty())
-            {
-                std::cerr << "[Export] pack geometry list fail: " << err << "\n";
-                return false;
-            }
-        }
-
-        // Material list (strip extensions)
-        if (!data.materials.empty())
-        {
-            std::vector<std::string> matFiles;
-            matFiles.reserve(data.materials.size());
-            for (const auto &m : data.materials)
-                matFiles.push_back(strip_extension(m.file));
-            write_string_list(&builder, "MaterialList", matFiles, err);
-            if (!err.empty())
-            {
-                std::cerr << "[Export] pack material list fail: " << err << "\n";
-                return false;
-            }
-        }
-
-        // SubMesh list
+        // SubMesh list (geometryIndex, materialIndex/-1)
         if (!data.subMeshes.empty())
         {
             std::vector<int32_t> pairs;
@@ -170,6 +134,7 @@ namespace exporters
             }
         }
 
+        // Build pack file first
         auto writer = create_file_writer(filePath.string());
         if (!writer)
         {
@@ -182,6 +147,26 @@ namespace exporters
             std::cerr << "[Export] build pack fail: " << err << "\n";
             return false;
         }
+
+        const std::filesystem::path dir = filePath.parent_path();
+        const std::string sceneBase = filePath.stem().string();
+
+        if (!data.geometries.empty())
+        {
+            std::vector<std::string> geoNames;
+            geoNames.reserve(data.geometries.size());
+            for (const auto &g : data.geometries) geoNames.push_back(g.file);
+            WriteIndexedListFile(dir / (sceneBase + ".geo_list"), geoNames, "geometry");
+        }
+
+        if (!data.materials.empty())
+        {
+            std::vector<std::string> matNames;
+            matNames.reserve(data.materials.size());
+            for (const auto &m : data.materials) matNames.push_back(m.file);
+            WriteIndexedListFile(dir / (sceneBase + ".mat_list"), matNames, "material");
+        }
+
         return true;
     }
 }

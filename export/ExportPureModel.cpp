@@ -15,6 +15,22 @@ namespace exporters
         return p.stem().string();
     }
 
+    static std::string sanitize_name(const std::string &n)
+    {
+        if (n.empty()) return std::string();
+        std::string out=n;
+        for(char &c:out)
+        {
+            switch(c)
+            {
+            case '/':case '\\':case ':':case '*':case '?':case '"':case '<':case '>':case '|':
+                c='_'; break;
+            default: break;
+            }
+        }
+        return out;
+    }
+
     bool ExportPureModel(pure::Model &sm, const std::filesystem::path &outDir)
     {
         std::filesystem::path baseDir = outDir.empty()
@@ -35,13 +51,18 @@ namespace exporters
 
         for (std::size_t si = 0; si < sm.scenes.size(); ++si)
         {
+            const auto &scene = sm.scenes[si];
             auto data = BuildSceneExportData(sm, si, baseName);
 
-            auto jsonPath = targetDir / ("Scene" + std::to_string(si) + ".json");
+            std::string sceneName = sanitize_name(scene.name);
+            if (sceneName.empty()) // fallback to index if no name
+                sceneName = "scene" + std::to_string(si);
+
+            auto jsonPath = targetDir / (baseName + "." + sceneName + ".json");
             if (!WriteSceneJson(data, jsonPath))
                 return false;
 
-            auto packPath = targetDir / ("Scene" + std::to_string(si) + ".scene");
+            auto packPath = targetDir / (baseName + "." + sceneName + ".scene");
             if (!WriteScenePack(data, packPath))
                 return false;
         }
