@@ -6,6 +6,7 @@
 #include <optional>
 #include <cstdint>
 #include <glm/glm.hpp>
+#include "math/BoundingVolumes.h"
 
 namespace pure { struct Model; }
 
@@ -19,6 +20,8 @@ namespace exporters
         int32_t originalIndex { -1 };          // index in source model
         int32_t nameIndex { -1 };              // index into nameTable (-1 if no name)
         glm::mat4 localMatrix { 1.0f };
+        glm::mat4 worldMatrix { 1.0f };        // computed world transform (scene space)
+        BoundingVolumes worldBounds;           // recomputed from all descendant geometry points in scene space
         std::vector<int32_t> subMeshes;        // remapped scene-local subMesh indices
         std::vector<int32_t> children;         // remapped scene-local node indices
     };
@@ -48,6 +51,8 @@ namespace exporters
         // Name table shared by scene, nodes, materials.
         std::vector<std::string> nameTable;    // deduplicated names
         int32_t sceneNameIndex { -1 };         // index into nameTable (-1 if empty)
+
+        BoundingVolumes sceneBounds;           // whole scene bounding volumes (all geometry instances)
 
         std::vector<SceneNodeExport>      nodes;       // index is scene-local node id
         std::vector<SceneSubMeshExport>   subMeshes;   // index is scene-local subMesh id

@@ -7,17 +7,50 @@ namespace exporters
 {
     using nlohmann::json;
 
+    static json SerializeMat4(const glm::mat4 &m)
+    {
+        json arr = json::array();
+        for (int c = 0; c < 4; ++c)
+            for (int r = 0; r < 4; ++r)
+                arr.push_back(m[c][r]);
+        return arr;
+    }
+
+    static json SerializeBounds(const BoundingVolumes &bv)
+    {
+        json jb;
+        if (!bv.emptyAABB())
+        {
+            jb["aabb"] = { bv.aabb.min.x, bv.aabb.min.y, bv.aabb.min.z, bv.aabb.max.x, bv.aabb.max.y, bv.aabb.max.z };
+        }
+        if (!bv.emptyOBB())
+        {
+            jb["obb"] = {
+                bv.obb.center.x, bv.obb.center.y, bv.obb.center.z,
+                bv.obb.axisX.x, bv.obb.axisX.y, bv.obb.axisX.z,
+                bv.obb.axisY.x, bv.obb.axisY.y, bv.obb.axisY.z,
+                bv.obb.axisZ.x, bv.obb.axisZ.y, bv.obb.axisZ.z,
+                bv.obb.halfSize.x, bv.obb.halfSize.y, bv.obb.halfSize.z
+            };
+        }
+        if (!bv.emptySphere())
+        {
+            jb["sphere"] = { bv.sphere.center.x, bv.sphere.center.y, bv.sphere.center.z, bv.sphere.radius };
+        }
+        return jb;
+    }
+
     bool WriteSceneJson(const SceneExportData &data, const std::filesystem::path &filePath)
     {
         json j;
 
-        // name table
         if (!data.nameTable.empty())
             j["nameTable"] = data.nameTable;
         if (data.sceneNameIndex >= 0)
             j["nameIndex"] = data.sceneNameIndex;
+        if (!data.sceneBounds.emptyAABB() || !data.sceneBounds.emptyOBB() || !data.sceneBounds.emptySphere())
+            j["sceneBounds"] = SerializeBounds(data.sceneBounds);
 
-        // Nodes
         j["nodes"] = json::array();
         for (const auto &n : data.nodes)
         {
@@ -25,26 +58,17 @@ namespace exporters
             jn["index"] = n.originalIndex;
             if (n.nameIndex >= 0)
                 jn["nameIndex"] = n.nameIndex;
-
-            json arr = json::array();
-            for (int c = 0; c < 4; ++c)
-            {
-                for (int r = 0; r < 4; ++r)
-                {
-                    arr.push_back(n.localMatrix[c][r]);
-                }
-            }
-            jn["matrix"] = arr;
-
+            jn["localMatrix"] = SerializeMat4(n.localMatrix);
+            jn["worldMatrix"] = SerializeMat4(n.worldMatrix);
+            if (!n.worldBounds.emptyAABB() || !n.worldBounds.emptyOBB() || !n.worldBounds.emptySphere())
+                jn["bounds"] = SerializeBounds(n.worldBounds);
             if (!n.subMeshes.empty())
                 jn["subMeshes"] = n.subMeshes;
             if (!n.children.empty())
                 jn["children"] = n.children;
-
             j["nodes"].push_back(std::move(jn));
         }
 
-        // SubMeshes
         j["subMeshes"] = json::array();
         for (const auto &s : data.subMeshes)
         {
@@ -58,7 +82,6 @@ namespace exporters
             j["subMeshes"].push_back(std::move(js));
         }
 
-        // Materials
         if (!data.materials.empty())
         {
             j["materials"] = json::array();
@@ -72,7 +95,6 @@ namespace exporters
             }
         }
 
-        // Geometries
         if (!data.geometries.empty())
         {
             j["geometries"] = json::array();

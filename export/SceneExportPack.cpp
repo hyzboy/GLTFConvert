@@ -36,10 +36,9 @@ namespace exporters
             return false;
         }
 
-        // Name table (JSON array) - optional
         if (!data.nameTable.empty())
         {
-            json nt = data.nameTable; // simple array of strings
+            json nt = data.nameTable;
             std::string dumped = nt.dump();
             if (!builder.add_entry_from_buffer("NameTable", dumped.data(), static_cast<uint32_t>(dumped.size()), err))
             {
@@ -47,9 +46,6 @@ namespace exporters
                 return false;
             }
         }
-
-        // NOTE: Mirror (SceneMirror) intentionally removed per request; pack now only contains header + name table.
-        // Future: if binary arrays for nodes / subMeshes / etc. are needed, add dedicated entries here.
 
         auto writer = create_file_writer(filePath.string());
         if (!writer)
