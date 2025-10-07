@@ -1,3 +1,6 @@
 #pragma once
-#include <string>
-namespace pure { struct Material { std::string name; }; }
+#include "gltf/GLTFMaterial.h"
+
+namespace pure {
+    using Material = GLTFMaterial;
+}

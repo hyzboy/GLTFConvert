@@ -3,10 +3,10 @@
 #include <filesystem>
 #include <vector>
 
-namespace pure { struct Material; }
+#include "pure/Material.h" // now Material is alias to GLTFMaterial
 
 namespace exporters
 {
-    // 导出材质信息到指定目录下的 Materials.json，仅基于材质数组
+    // 导出：每个材质独立 .material 文件（baseName.materialName.material）
     bool ExportMaterials(const std::vector<pure::Material> &materials,const std::filesystem::path &dir);
 }
