@@ -35,6 +35,8 @@ namespace pure
         BuildSubMeshes              (dst.subMeshes, src.primitives, uniqueMap);
         AttachNodeSubMeshes         (dst.mesh_nodes,src.nodes,      src.meshes);
 
+        dst.images = src.images; // copy images
+
         return dst;
     }
 } // namespace pure

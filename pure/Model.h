@@ -6,6 +6,7 @@
 #include "pure/Scene.h"
 #include "pure/Geometry.h"
 #include "pure/SubMesh.h"
+#include "pure/Image.h"
 
 namespace pure
 {
@@ -17,5 +18,6 @@ namespace pure
         std::vector<MeshNode> mesh_nodes;
         std::vector<Geometry> geometry;
         std::vector<SubMesh> subMeshes;
+        std::vector<Image> images; // new images
     };
 }

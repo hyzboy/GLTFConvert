@@ -5,6 +5,7 @@
 #include "MaterialExporter.h"
 #include "pure/Model.h"
 #include "SceneExportData.h" // scene export data + serialization declarations
+#include "ExportImages.h"
 
 namespace exporters
 {
@@ -48,6 +49,7 @@ namespace exporters
             return false;
 
         ExportGeometries(&sm, targetDir);
+        ExportImages(sm, targetDir); // new: export images
 
         for (std::size_t si = 0; si < sm.scenes.size(); ++si)
         {
