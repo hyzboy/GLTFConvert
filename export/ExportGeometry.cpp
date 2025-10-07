@@ -15,7 +15,7 @@ namespace pure
     {
         uint16_t version;        // 1
         uint8_t  primitiveType;  // PrimitiveType as uint8_t
-        uint32_t vertexCount;    // Number of vertices
+        uint32_t vertexCount;    // Number of vertices (prefer positions.size if available)
         uint8_t  indexStride;    // 0 if no indices, otherwise 1,2,4
         uint32_t indexCount;     // Number of indices (0 if no indices)
         uint8_t  attributeCount; // Number of attributes
@@ -45,7 +45,19 @@ namespace pure
             GeometryHeader h{};
             h.version=1;
             h.primitiveType=static_cast<uint8_t>(geometry.primitiveType);
-            h.vertexCount=static_cast<uint32_t>(geometry.attributes.empty()?0:geometry.attributes[0].count);
+            // Prefer positions count if available; fallback to first attribute count; otherwise 0
+            if(geometry.positions.has_value() && !geometry.positions->empty())
+            {
+                h.vertexCount=static_cast<uint32_t>(geometry.positions->size());
+            }
+            else if(!geometry.attributes.empty())
+            {
+                h.vertexCount=static_cast<uint32_t>(geometry.attributes[0].count);
+            }
+            else
+            {
+                h.vertexCount=0;
+            }
             h.indexStride=index_stride;
             h.indexCount=static_cast<uint32_t>(geometry.indices.has_value()?geometry.indices->count:0);
             h.attributeCount=static_cast<uint8_t>(geometry.attributes.size());
