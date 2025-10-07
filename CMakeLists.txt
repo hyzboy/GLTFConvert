@@ -111,9 +111,13 @@ set(EXPORT_FILES
     export/ExportGeometry.cpp
     export/ExportGeometries.cpp
     export/ExportPureModel.cpp
-    
+    export/SceneExportBuild.cpp
+    export/SceneExportJson.cpp
+    export/SceneExportPack.cpp
+
     export/MaterialExporter.cpp
     export/MaterialExporter.h
+    export/SceneExportData.h
 )
 SOURCE_GROUP("export" FILES ${EXPORT_FILES})
 
