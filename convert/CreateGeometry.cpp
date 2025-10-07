@@ -30,7 +30,7 @@ namespace pure
                     {
                         if(ga.format==VK_FORMAT_R32G32B32_SFLOAT)
                         {
-                            const size_t count=ga.data.size()/sizeof(glm::vec3);
+                            const size_t count=ga.data.size()/(sizeof(float)*3);
                             pg.positions=std::vector<glm::vec3>(count);
                             
                             // Cannot use memcpy directly because glm::vec3 may have 16-byte alignment (AVX2)
@@ -48,7 +48,7 @@ namespace pure
                         else
                         if(ga.format==VK_FORMAT_R32G32B32A32_SFLOAT)
                         {
-                            const size_t count=ga.data.size()/sizeof(glm::vec4);
+                            const size_t count=ga.data.size()/(sizeof(float)*4);
                             pg.positions=std::vector<glm::vec3>(count);
 
                             const float *sp=reinterpret_cast<const float*>(ga.data.data());
