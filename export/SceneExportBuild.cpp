@@ -35,6 +35,20 @@ namespace exporters
                 CollectNodes(model, c, nodeSet, subMeshSet);
             }
         }
+
+        // Helper for inserting a name into table and returning its index (-1 if empty string)
+        int32_t GetOrAddName(std::unordered_map<std::string,int32_t> &map,
+                              std::vector<std::string> &table,
+                              const std::string &name)
+        {
+            if (name.empty()) return -1;
+            auto it = map.find(name);
+            if (it != map.end()) return it->second;
+            int32_t idx = static_cast<int32_t>(table.size());
+            table.push_back(name);
+            map.emplace(name, idx);
+            return idx;
+        }
     } // namespace
 
     SceneExportData BuildSceneExportData(const pure::Model &model, std::size_t sceneIndex, const std::string &geometryBaseName)
@@ -44,7 +58,6 @@ namespace exporters
             return data;
 
         const auto &scene = model.scenes[sceneIndex];
-        data.sceneName = scene.name;
 
         // 1. Collect raw original indices used by this scene.
         std::unordered_set<int32_t> nodeSet;
@@ -102,16 +115,21 @@ namespace exporters
         for (int32_t i = 0; i < static_cast<int32_t>(sortedMaterials.size()); ++i)  materialRemap[sortedMaterials[i]] = i;
         for (int32_t i = 0; i < static_cast<int32_t>(sortedGeometries.size()); ++i) geometryRemap[sortedGeometries[i]] = i;
 
-        // 3. Populate exported arrays in the remapped sorted order so index == scene-local id.
+        // 3. Build name table (scene + nodes + materials) with deduplication and assign indices.
+        std::unordered_map<std::string,int32_t> nameToIndex; // for deduplication
+        nameToIndex.reserve(sortedNodes.size() + sortedMaterials.size() + 1);
+
+        data.sceneNameIndex = GetOrAddName(nameToIndex, data.nameTable, scene.name);
+
+        // 4. Populate exported arrays in the remapped sorted order so index == scene-local id.
         data.nodes.reserve(sortedNodes.size());
         for (int32_t originalNode : sortedNodes)
         {
             const auto &srcNode = model.mesh_nodes[originalNode];
             SceneNodeExport ne;
             ne.originalIndex = originalNode;
-            ne.name = srcNode.name;
+            ne.nameIndex = GetOrAddName(nameToIndex, data.nameTable, srcNode.name);
             ne.localMatrix = srcNode.node_transform.rawMat4();
-            // Remap subMesh indices
             ne.subMeshes.reserve(srcNode.subMeshes.size());
             for (int32_t sm : srcNode.subMeshes)
             {
@@ -119,7 +137,6 @@ namespace exporters
                 if (it != subMeshRemap.end())
                     ne.subMeshes.push_back(it->second);
             }
-            // Remap child node indices
             ne.children.reserve(srcNode.children.size());
             for (int32_t c : srcNode.children)
             {
@@ -136,7 +153,6 @@ namespace exporters
             const auto &sm = model.subMeshes[originalSM];
             SceneSubMeshExport se;
             se.originalIndex = originalSM;
-            // Remap geometry
             if (sm.geometry >= 0)
             {
                 auto gIt = geometryRemap.find(sm.geometry);
@@ -148,7 +164,6 @@ namespace exporters
             {
                 se.geometryIndex = -1;
             }
-            // Remap material
             if (sm.material.has_value())
             {
                 auto mIt = materialRemap.find(sm.material.value());
@@ -164,7 +179,7 @@ namespace exporters
             const auto &mat = model.materials[originalMat];
             SceneMaterialExport me;
             me.originalIndex = originalMat;
-            me.name = mat.name;
+            me.nameIndex = GetOrAddName(nameToIndex, data.nameTable, mat.name);
             data.materials.push_back(std::move(me));
         }
 

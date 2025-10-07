@@ -10,8 +10,12 @@ namespace exporters
     bool WriteSceneJson(const SceneExportData &data, const std::filesystem::path &filePath)
     {
         json j;
-        if (!data.sceneName.empty())
-            j["name"] = data.sceneName;
+
+        // name table
+        if (!data.nameTable.empty())
+            j["nameTable"] = data.nameTable;
+        if (data.sceneNameIndex >= 0)
+            j["nameIndex"] = data.sceneNameIndex;
 
         // Nodes
         j["nodes"] = json::array();
@@ -19,8 +23,8 @@ namespace exporters
         {
             json jn;
             jn["index"] = n.originalIndex;
-            if (!n.name.empty())
-                jn["name"] = n.name;
+            if (n.nameIndex >= 0)
+                jn["nameIndex"] = n.nameIndex;
 
             json arr = json::array();
             for (int c = 0; c < 4; ++c)
@@ -62,8 +66,8 @@ namespace exporters
             {
                 json jm;
                 jm["index"] = m.originalIndex;
-                if (!m.name.empty())
-                    jm["name"] = m.name;
+                if (m.nameIndex >= 0)
+                    jm["nameIndex"] = m.nameIndex;
                 j["materials"].push_back(std::move(jm));
             }
         }
@@ -89,7 +93,6 @@ namespace exporters
         }
 
         ofs << j.dump(4);
-        std::cout << "[Export] Saved scene json: " << filePath << "\n";
         return true;
     }
 }
