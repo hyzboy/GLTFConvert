@@ -12,10 +12,12 @@ namespace exporters
         uint32_t subMeshCount { 0 };
         uint32_t materialCount { 0 };
         uint32_t geometryCount { 0 };
-        uint32_t nameCount { 0 };   // number of names in table
-        uint32_t trsCount { 0 };    // number of TRS entries
-        uint32_t matrixCount { 0 }; // number of matrices
-        uint32_t boundsCount { 0 }; // number of bounds entries
+        uint32_t nameCount { 0 };      // number of names in table
+        uint32_t trsCount { 0 };       // number of TRS entries
+        uint32_t matrixCount { 0 };    // number of matrices
+        uint32_t boundsCount { 0 };    // number of bounds entries
+        int32_t  sceneNameIndex { -1 };   // index into name table
+        int32_t  sceneBoundsIndex { -1 }; // index into bounds table
     };
 
     bool WriteScenePack(const SceneExportData &data, const std::filesystem::path &filePath)
@@ -23,14 +25,16 @@ namespace exporters
         MiniPackBuilder builder;
 
         ScenePackHeader hdr;
-        hdr.nodeCount     = static_cast<uint32_t>(data.nodes.size());
-        hdr.subMeshCount  = static_cast<uint32_t>(data.subMeshes.size());
-        hdr.materialCount = static_cast<uint32_t>(data.materials.size());
-        hdr.geometryCount = static_cast<uint32_t>(data.geometries.size());
-        hdr.nameCount     = static_cast<uint32_t>(data.nameTable.size());
-        hdr.trsCount      = static_cast<uint32_t>(data.trsTable.size());
-        hdr.matrixCount   = static_cast<uint32_t>(data.matrixTable.size());
-        hdr.boundsCount   = static_cast<uint32_t>(data.boundsTable.size());
+        hdr.nodeCount        = static_cast<uint32_t>(data.nodes.size());
+        hdr.subMeshCount     = static_cast<uint32_t>(data.subMeshes.size());
+        hdr.materialCount    = static_cast<uint32_t>(data.materials.size());
+        hdr.geometryCount    = static_cast<uint32_t>(data.geometries.size());
+        hdr.nameCount        = static_cast<uint32_t>(data.nameTable.size());
+        hdr.trsCount         = static_cast<uint32_t>(data.trsTable.size());
+        hdr.matrixCount      = static_cast<uint32_t>(data.matrixTable.size());
+        hdr.boundsCount      = static_cast<uint32_t>(data.boundsTable.size());
+        hdr.sceneNameIndex   = data.sceneNameIndex;
+        hdr.sceneBoundsIndex = data.sceneBoundsIndex;
 
         std::string err;
         if (!builder.add_entry_from_buffer("ScenePackHeader", &hdr, sizeof(hdr), err))
@@ -46,6 +50,38 @@ namespace exporters
             if (!err.empty())
             {
                 std::cerr << "[Export] pack name table fail: " << err << "\n";
+                return false;
+            }
+        }
+
+        // Node list: variable-length per node. Layout per node:
+        // [originalIndex, nameIndex, localM, worldM, trsIndex, boundsIndex, subMeshCount, subMeshIndices..., childCount, childIndices...]
+        if (!data.nodes.empty())
+        {
+            std::vector<int32_t> nodeStream;
+            // Reserve rough estimate: 8 ints per node base + submeshes + children
+            size_t estimate = data.nodes.size() * 8;
+            for (const auto &n : data.nodes)
+            {
+                estimate += n.subMeshes.size() + n.children.size();
+            }
+            nodeStream.reserve(estimate);
+            for (const auto &n : data.nodes)
+            {
+                nodeStream.push_back(n.originalIndex);
+                nodeStream.push_back(n.nameIndex);
+                nodeStream.push_back(n.localMatrixIndex);
+                nodeStream.push_back(n.worldMatrixIndex);
+                nodeStream.push_back(n.trsIndex);
+                nodeStream.push_back(n.boundsIndex);
+                nodeStream.push_back(static_cast<int32_t>(n.subMeshes.size()));
+                for (int32_t sm : n.subMeshes) nodeStream.push_back(sm);
+                nodeStream.push_back(static_cast<int32_t>(n.children.size()));
+                for (int32_t c : n.children) nodeStream.push_back(c);
+            }
+            if (!builder.add_entry_from_buffer("NodeList", nodeStream.data(), static_cast<uint32_t>(nodeStream.size() * sizeof(int32_t)), err))
+            {
+                std::cerr << "[Export] pack node list fail: " << err << "\n";
                 return false;
             }
         }
