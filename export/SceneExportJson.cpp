@@ -104,7 +104,7 @@ namespace exporters
             {
                 json jm;
                 jm["index"] = m.originalIndex;
-                if (m.nameIndex >= 0) jm["nameIndex"] = m.nameIndex;
+                if (!m.file.empty()) jm["file"] = m.file;
                 j["materials"].push_back(std::move(jm));
             }
         }

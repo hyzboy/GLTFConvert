@@ -39,7 +39,7 @@ namespace exporters
     struct SceneMaterialExport
     {
         int32_t originalIndex { -1 };          // index in source model
-        int32_t nameIndex { -1 };              // index into nameTable (-1 if no name)
+        std::string file;                      // baseName.<originalMaterialIndex>.material
     };
 
     struct SceneGeometryExport

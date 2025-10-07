@@ -20,6 +20,13 @@ namespace exporters
         int32_t  sceneBoundsIndex { -1 }; // index into bounds table
     };
 
+    static std::string strip_extension(const std::string &fname)
+    {
+        auto pos = fname.find_last_of('.');
+        if (pos == std::string::npos) return fname;
+        return fname.substr(0, pos);
+    }
+
     bool WriteScenePack(const SceneExportData &data, const std::filesystem::path &filePath)
     {
         MiniPackBuilder builder;
@@ -37,13 +44,13 @@ namespace exporters
         hdr.sceneBoundsIndex = data.sceneBoundsIndex;
 
         std::string err;
-        if (!builder.add_entry_from_buffer("ScenePackHeader", &hdr, sizeof(hdr), err))
+        if (!builder.add_entry_from_buffer("SceneHeader", &hdr, sizeof(hdr), err))
         {
             std::cerr << "[Export] pack header fail: " << err << "\n";
             return false;
         }
 
-        // Name table: use mini pack helper to write string list instead of JSON
+        // Name table
         if (!data.nameTable.empty())
         {
             write_string_list(&builder, "NameTable", data.nameTable, err);
@@ -54,17 +61,13 @@ namespace exporters
             }
         }
 
-        // Node list: variable-length per node. Layout per node:
-        // [originalIndex, nameIndex, localM, worldM, trsIndex, boundsIndex, subMeshCount, subMeshIndices..., childCount, childIndices...]
+        // Node list
         if (!data.nodes.empty())
         {
             std::vector<int32_t> nodeStream;
-            // Reserve rough estimate: 8 ints per node base + submeshes + children
             size_t estimate = data.nodes.size() * 8;
             for (const auto &n : data.nodes)
-            {
                 estimate += n.subMeshes.size() + n.children.size();
-            }
             nodeStream.reserve(estimate);
             for (const auto &n : data.nodes)
             {
@@ -86,7 +89,7 @@ namespace exporters
             }
         }
 
-        // TRS table (raw binary array of TRS). Note: relies on TRS being POD-like; reader must mirror layout.
+        // TRS table
         if (!data.trsTable.empty())
         {
             if (!builder.add_entry_from_buffer("TRSTable", data.trsTable.data(), static_cast<uint32_t>(data.trsTable.size() * sizeof(TRS)), err))
@@ -96,7 +99,7 @@ namespace exporters
             }
         }
 
-        // Matrix table (raw glm::mat4 array: 16 floats per matrix, column-major as stored by glm)
+        // Matrix table
         if (!data.matrixTable.empty())
         {
             if (!builder.add_entry_from_buffer("MatrixTable", data.matrixTable.data(), static_cast<uint32_t>(data.matrixTable.size() * sizeof(glm::mat4)), err))
@@ -106,15 +109,13 @@ namespace exporters
             }
         }
 
-        // Bounds table (pack each BoundingVolumes into PackedBounds before writing)
+        // Bounds table
         if (!data.boundsTable.empty())
         {
             std::vector<PackedBounds> packed;
             packed.resize(data.boundsTable.size());
             for (size_t i = 0; i < data.boundsTable.size(); ++i)
-            {
                 data.boundsTable[i].Pack(&packed[i]);
-            }
             if (!builder.add_entry_from_buffer("BoundsTable", packed.data(), static_cast<uint32_t>(packed.size() * sizeof(PackedBounds)), err))
             {
                 std::cerr << "[Export] pack bounds table fail: " << err << "\n";
@@ -122,13 +123,13 @@ namespace exporters
             }
         }
 
-        // Geometry list: indices are implicit (0..N-1), store only file strings
+        // Geometry list (strip extensions)
         if (!data.geometries.empty())
         {
             std::vector<std::string> geomFiles;
             geomFiles.reserve(data.geometries.size());
             for (const auto &g : data.geometries)
-                geomFiles.push_back(g.file);
+                geomFiles.push_back(strip_extension(g.file));
             write_string_list(&builder, "GeometryList", geomFiles, err);
             if (!err.empty())
             {
@@ -137,7 +138,22 @@ namespace exporters
             }
         }
 
-        // SubMesh list: raw binary pairs (geometryIndex, materialIndex or -1)
+        // Material list (strip extensions)
+        if (!data.materials.empty())
+        {
+            std::vector<std::string> matFiles;
+            matFiles.reserve(data.materials.size());
+            for (const auto &m : data.materials)
+                matFiles.push_back(strip_extension(m.file));
+            write_string_list(&builder, "MaterialList", matFiles, err);
+            if (!err.empty())
+            {
+                std::cerr << "[Export] pack material list fail: " << err << "\n";
+                return false;
+            }
+        }
+
+        // SubMesh list
         if (!data.subMeshes.empty())
         {
             std::vector<int32_t> pairs;

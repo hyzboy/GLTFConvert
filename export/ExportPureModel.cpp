@@ -41,7 +41,7 @@ namespace exporters
             if (!WriteSceneJson(data, jsonPath))
                 return false;
 
-            auto packPath = targetDir / ("Scene" + std::to_string(si) + ".scenepack");
+            auto packPath = targetDir / ("Scene" + std::to_string(si) + ".scene");
             if (!WriteScenePack(data, packPath))
                 return false;
         }
