@@ -3,10 +3,7 @@
 #include <string>
 #include <vector>
 #include <cstddef>
-#include <cstdint>
-#include <optional>
-#include <glm/glm.hpp>
-#include "common/VKFormat.h"
+#include "common/VkFormat.h" // fixed case (was VKFormat.h)
 
 // GeometryAttribute moved to global namespace (previously pure::GeometryAttribute)
 struct GeometryAttribute
