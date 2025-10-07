@@ -7,6 +7,7 @@
 #include <cstdint>
 #include <glm/glm.hpp>
 #include "math/BoundingVolumes.h"
+#include "math/TRS.h"
 
 namespace pure { struct Model; }
 
@@ -19,9 +20,10 @@ namespace exporters
     {
         int32_t originalIndex { -1 };          // index in source model
         int32_t nameIndex { -1 };              // index into nameTable (-1 if no name)
-        glm::mat4 localMatrix { 1.0f };
-        glm::mat4 worldMatrix { 1.0f };        // computed world transform (scene space)
-        BoundingVolumes worldBounds;           // recomputed from all descendant geometry points in scene space
+        int32_t localMatrixIndex { -1 };       // index into matrixTable
+        int32_t worldMatrixIndex { -1 };       // index into matrixTable
+        int32_t trsIndex { -1 };               // index into trsTable if original transform was TRS, else -1
+        int32_t boundsIndex { -1 };            // index into boundsTable (-1 if empty)
         std::vector<int32_t> subMeshes;        // remapped scene-local subMesh indices
         std::vector<int32_t> children;         // remapped scene-local node indices
     };
@@ -52,7 +54,13 @@ namespace exporters
         std::vector<std::string> nameTable;    // deduplicated names
         int32_t sceneNameIndex { -1 };         // index into nameTable (-1 if empty)
 
-        BoundingVolumes sceneBounds;           // whole scene bounding volumes (all geometry instances)
+        // Transform tables
+        std::vector<TRS>       trsTable;       // unique TRS values
+        std::vector<glm::mat4> matrixTable;    // unique matrices (includes all local, world, and raw matrix transforms)
+
+        // Bounds table (scene + per-node). Each entry is a full BoundingVolumes.
+        std::vector<BoundingVolumes> boundsTable;
+        int32_t sceneBoundsIndex { -1 };       // index into boundsTable for scene-level bounds (-1 if empty)
 
         std::vector<SceneNodeExport>      nodes;       // index is scene-local node id
         std::vector<SceneSubMeshExport>   subMeshes;   // index is scene-local subMesh id

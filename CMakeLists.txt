@@ -109,19 +109,41 @@ set(CONVERT_FILES
 )
 SOURCE_GROUP("convert" FILES ${CONVERT_FILES})
 
-# Export split sources
-set(EXPORT_FILES
+# Scene export internal (fine-grained)
+set(SCENE_EXPORT_INTERNAL_FILES
+    export/SceneExportNames.h
+    export/SceneExportNames.cpp
+    export/SceneExportNodes.h
+    export/SceneExportNodes.cpp
+    export/SceneExportMaterials.h
+    export/SceneExportMaterials.cpp
+    export/SceneExportSubMeshes.h
+    export/SceneExportSubMeshes.cpp
+    export/SceneExportGeometries.h
+    export/SceneExportGeometries.cpp
+    export/SceneExportComputeBounds.h
+    export/SceneExportComputeBounds.cpp
+    export/SceneExportCollect.h
+    export/SceneExportCollect.cpp
+    export/SceneExportTransforms.h
+    export/SceneExportTransforms.cpp
+    export/SceneExportBounds.h
+    export/SceneExportBounds.cpp
+)
+SOURCE_GROUP("export\\SceneBuildInternalsFine" FILES ${SCENE_EXPORT_INTERNAL_FILES})
 
+# Export split sources (public exporter interface + material + pack/json)
+set(EXPORT_FILES
     export/ExportGeometry.cpp
     export/ExportGeometries.cpp
     export/ExportPureModel.cpp
     export/SceneExportBuild.cpp
     export/SceneExportJson.cpp
     export/SceneExportPack.cpp
-
     export/MaterialExporter.cpp
     export/MaterialExporter.h
     export/SceneExportData.h
+    ${SCENE_EXPORT_INTERNAL_FILES}
 )
 SOURCE_GROUP("export" FILES ${EXPORT_FILES})
 
