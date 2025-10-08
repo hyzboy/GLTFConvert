@@ -6,6 +6,7 @@
 #include <vector>
 #include <filesystem>
 #include <unordered_map>
+#include <limits>
 
 #include "pure/Material.h"
 #include "pure/Model.h"
@@ -53,18 +54,21 @@ namespace exporters
         }
     }
 
-    // Convert a GLTFTextureRef to local remapped texture index using provided mapping
+    // Helpers -----------------------------------------------------------------
+
+    static bool IsAll(const float *v, int n, float value)
+    { for (int i=0;i<n;++i) if (v[i]!=value) return false; return true; }
+
+    static bool IsZero3(const float *v){ return v[0]==0.f && v[1]==0.f && v[2]==0.f; }
+
     static json TextureRefToJson(const GLTFTextureRef &ref,
                                  const std::unordered_map<std::size_t,int32_t> &texRemap)
     {
+        if (!ref.index) return json();
         json j = json::object();
-        if (ref.index)
-        {
-            auto it = texRemap.find(*ref.index);
-            if (it != texRemap.end())
-                j["texture"] = it->second;
-        }
-        j["texCoord"] = ref.texCoord;
+        auto it = texRemap.find(*ref.index);
+        if (it != texRemap.end()) j["texture"] = it->second;
+        if (ref.texCoord != 0) j["texCoord"] = ref.texCoord;
         if (ref.scale    != 1.0f) j["scale"]    = ref.scale;
         if (ref.strength != 1.0f) j["strength"] = ref.strength;
         return j;
@@ -73,92 +77,163 @@ namespace exporters
     static json PBRToJson(const GLTFPBRMetallicRoughness &p,
                           const std::unordered_map<std::size_t,int32_t> &texRemap)
     {
-        json j;
-        j["baseColorFactor"] = { p.baseColorFactor[0], p.baseColorFactor[1], p.baseColorFactor[2], p.baseColorFactor[3] };
-        j["metallicFactor"]  = p.metallicFactor;
-        j["roughnessFactor"] = p.roughnessFactor;
-        j["baseColorTexture"]        = TextureRefToJson(p.baseColorTexture, texRemap);
-        j["metallicRoughnessTexture"] = TextureRefToJson(p.metallicRoughnessTexture, texRemap);
-        return j;
+        json j = json::object();
+        if (!IsAll(p.baseColorFactor,4,1.f))
+            j["baseColorFactor"] = { p.baseColorFactor[0], p.baseColorFactor[1], p.baseColorFactor[2], p.baseColorFactor[3] };
+        if (p.metallicFactor  != 1.0f) j["metallicFactor"]  = p.metallicFactor;
+        if (p.roughnessFactor != 1.0f) j["roughnessFactor"] = p.roughnessFactor;
+        if (auto bc = TextureRefToJson(p.baseColorTexture, texRemap); !bc.empty())
+            j["baseColorTexture"] = std::move(bc);
+        if (auto mr = TextureRefToJson(p.metallicRoughnessTexture, texRemap); !mr.empty())
+            j["metallicRoughnessTexture"] = std::move(mr);
+        return j; // may be empty – caller decides whether to include
     }
+
+    // Extensions filtering -----------------------------------------------------
 
     static json ExtensionsToJson(const pure::Material &m,
                                  const std::unordered_map<std::size_t,int32_t> &texRemap)
     {
         json ext = json::object();
-        if (m.extEmissiveStrength)
+        // KHR_materials_emissive_strength (default emissiveStrength = 1.0)
+        if (m.extEmissiveStrength && m.extEmissiveStrength->emissiveStrength != 1.0f)
             ext["KHR_materials_emissive_strength"] = { {"emissiveStrength", m.extEmissiveStrength->emissiveStrength } };
+        // KHR_materials_unlit has no properties (presence is the flag)
         if (m.extUnlit)
             ext["KHR_materials_unlit"] = json::object();
-        if (m.extIOR)
+        // KHR_materials_ior (default ior = 1.5)
+        if (m.extIOR && m.extIOR->ior != 1.5f)
             ext["KHR_materials_ior"] = { {"ior", m.extIOR->ior } };
+        // KHR_materials_transmission (factor default 0)
         if (m.extTransmission)
         {
-            json tx; tx["transmissionFactor"] = m.extTransmission->transmissionFactor;
-            tx["transmissionTexture"] = TextureRefToJson(m.extTransmission->transmissionTexture, texRemap);
-            ext["KHR_materials_transmission"] = std::move(tx);
+            bool hasTex = m.extTransmission->transmissionTexture.index.has_value();
+            if (m.extTransmission->transmissionFactor != 0.f || hasTex)
+            {
+                json tx; if (m.extTransmission->transmissionFactor != 0.f)
+                    tx["transmissionFactor"] = m.extTransmission->transmissionFactor;
+                if (auto t = TextureRefToJson(m.extTransmission->transmissionTexture, texRemap); !t.empty())
+                    tx["transmissionTexture"] = std::move(t);
+                ext["KHR_materials_transmission"] = std::move(tx);
+            }
         }
+        // Diffuse transmission (factor default 0)
         if (m.extDiffuseTransmission)
         {
-            json dx; dx["diffuseTransmissionFactor"]  = m.extDiffuseTransmission->diffuseTransmissionFactor;
-            dx["diffuseTransmissionTexture"] = TextureRefToJson(m.extDiffuseTransmission->diffuseTransmissionTexture, texRemap);
-            ext["KHR_materials_diffuse_transmission"] = std::move(dx);
+            bool hasTex = m.extDiffuseTransmission->diffuseTransmissionTexture.index.has_value();
+            if (m.extDiffuseTransmission->diffuseTransmissionFactor != 0.f || hasTex)
+            {
+                json dx; if (m.extDiffuseTransmission->diffuseTransmissionFactor != 0.f)
+                    dx["diffuseTransmissionFactor"]  = m.extDiffuseTransmission->diffuseTransmissionFactor;
+                if (auto t = TextureRefToJson(m.extDiffuseTransmission->diffuseTransmissionTexture, texRemap); !t.empty())
+                    dx["diffuseTransmissionTexture"] = std::move(t);
+                ext["KHR_materials_diffuse_transmission"] = std::move(dx);
+            }
         }
+        // Specular (defaults: specularFactor=1, specularColorFactor=[1,1,1])
         if (m.extSpecular)
         {
-            json sx;
-            sx["specularFactor"]      = m.extSpecular->specularFactor;
-            sx["specularColorFactor"] = { m.extSpecular->specularColorFactor[0], m.extSpecular->specularColorFactor[1], m.extSpecular->specularColorFactor[2] };
-            sx["specularTexture"]      = TextureRefToJson(m.extSpecular->specularTexture, texRemap);
-            sx["specularColorTexture"] = TextureRefToJson(m.extSpecular->specularColorTexture, texRemap);
-            ext["KHR_materials_specular"] = std::move(sx);
+            bool nonDefaultFactor = m.extSpecular->specularFactor != 1.f;
+            bool nonDefaultColor = !(m.extSpecular->specularColorFactor[0]==1.f && m.extSpecular->specularColorFactor[1]==1.f && m.extSpecular->specularColorFactor[2]==1.f);
+            bool hasTex = m.extSpecular->specularTexture.index.has_value() || m.extSpecular->specularColorTexture.index.has_value();
+            if (nonDefaultFactor || nonDefaultColor || hasTex)
+            {
+                json sx; if (nonDefaultFactor) sx["specularFactor"] = m.extSpecular->specularFactor;
+                if (nonDefaultColor) sx["specularColorFactor"] = { m.extSpecular->specularColorFactor[0], m.extSpecular->specularColorFactor[1], m.extSpecular->specularColorFactor[2] };
+                if (auto t = TextureRefToJson(m.extSpecular->specularTexture, texRemap); !t.empty())
+                    sx["specularTexture"] = std::move(t);
+                if (auto t = TextureRefToJson(m.extSpecular->specularColorTexture, texRemap); !t.empty())
+                    sx["specularColorTexture"] = std::move(t);
+                ext["KHR_materials_specular"] = std::move(sx);
+            }
         }
+        // Clearcoat (defaults factors 0)
         if (m.extClearcoat)
         {
-            json cx;
-            cx["clearcoatFactor"]          = m.extClearcoat->clearcoatFactor;
-            cx["clearcoatRoughnessFactor"] = m.extClearcoat->clearcoatRoughnessFactor;
-            cx["clearcoatTexture"]         = TextureRefToJson(m.extClearcoat->clearcoatTexture, texRemap);
-            cx["clearcoatRoughnessTexture"] = TextureRefToJson(m.extClearcoat->clearcoatRoughnessTexture, texRemap);
-            cx["clearcoatNormalTexture"]   = TextureRefToJson(m.extClearcoat->clearcoatNormalTexture, texRemap);
-            ext["KHR_materials_clearcoat"] = std::move(cx);
+            bool nonDefault = (m.extClearcoat->clearcoatFactor != 0.f) || (m.extClearcoat->clearcoatRoughnessFactor != 0.f) ||
+                               m.extClearcoat->clearcoatTexture.index.has_value() || m.extClearcoat->clearcoatRoughnessTexture.index.has_value() ||
+                               m.extClearcoat->clearcoatNormalTexture.index.has_value();
+            if (nonDefault)
+            {
+                json cx; if (m.extClearcoat->clearcoatFactor != 0.f)          cx["clearcoatFactor"] = m.extClearcoat->clearcoatFactor;
+                if (m.extClearcoat->clearcoatRoughnessFactor != 0.f)          cx["clearcoatRoughnessFactor"] = m.extClearcoat->clearcoatRoughnessFactor;
+                if (auto t = TextureRefToJson(m.extClearcoat->clearcoatTexture, texRemap); !t.empty())
+                    cx["clearcoatTexture"] = std::move(t);
+                if (auto t = TextureRefToJson(m.extClearcoat->clearcoatRoughnessTexture, texRemap); !t.empty())
+                    cx["clearcoatRoughnessTexture"] = std::move(t);
+                if (auto t = TextureRefToJson(m.extClearcoat->clearcoatNormalTexture, texRemap); !t.empty())
+                    cx["clearcoatNormalTexture"] = std::move(t);
+                ext["KHR_materials_clearcoat"] = std::move(cx);
+            }
         }
+        // Sheen (defaults color=[0,0,0], roughness=0)
         if (m.extSheen)
         {
-            json sh;
-            sh["sheenColorFactor"]    = { m.extSheen->sheenColorFactor[0], m.extSheen->sheenColorFactor[1], m.extSheen->sheenColorFactor[2] };
-            sh["sheenRoughnessFactor"] = m.extSheen->sheenRoughnessFactor;
-            sh["sheenColorTexture"]    = TextureRefToJson(m.extSheen->sheenColorTexture, texRemap);
-            sh["sheenRoughnessTexture"] = TextureRefToJson(m.extSheen->sheenRoughnessTexture, texRemap);
-            ext["KHR_materials_sheen"] = std::move(sh);
+            bool nonDefault = !IsZero3(m.extSheen->sheenColorFactor) || m.extSheen->sheenRoughnessFactor != 0.f ||
+                               m.extSheen->sheenColorTexture.index.has_value() || m.extSheen->sheenRoughnessTexture.index.has_value();
+            if (nonDefault)
+            {
+                json sh; if (!IsZero3(m.extSheen->sheenColorFactor))
+                    sh["sheenColorFactor"] = { m.extSheen->sheenColorFactor[0], m.extSheen->sheenColorFactor[1], m.extSheen->sheenColorFactor[2] };
+                if (m.extSheen->sheenRoughnessFactor != 0.f)
+                    sh["sheenRoughnessFactor"] = m.extSheen->sheenRoughnessFactor;
+                if (auto t = TextureRefToJson(m.extSheen->sheenColorTexture, texRemap); !t.empty())
+                    sh["sheenColorTexture"] = std::move(t);
+                if (auto t = TextureRefToJson(m.extSheen->sheenRoughnessTexture, texRemap); !t.empty())
+                    sh["sheenRoughnessTexture"] = std::move(t);
+                ext["KHR_materials_sheen"] = std::move(sh);
+            }
         }
+        // Volume (defaults thickness=0, attenuationColor=[1,1,1], attenuationDistance=+inf)
         if (m.extVolume)
         {
-            json vo;
-            vo["thicknessFactor"]  = m.extVolume->thicknessFactor;
-            vo["thicknessTexture"] = TextureRefToJson(m.extVolume->thicknessTexture, texRemap);
-            vo["attenuationColor"] = { m.extVolume->attenuationColor[0], m.extVolume->attenuationColor[1], m.extVolume->attenuationColor[2] };
-            vo["attenuationDistance"] = m.extVolume->attenuationDistance;
-            ext["KHR_materials_volume"] = std::move(vo);
+            bool nonDefault = (m.extVolume->thicknessFactor != 0.f) || m.extVolume->thicknessTexture.index.has_value() ||
+                               !(m.extVolume->attenuationColor[0]==1.f && m.extVolume->attenuationColor[1]==1.f && m.extVolume->attenuationColor[2]==1.f) ||
+                               (m.extVolume->attenuationDistance != std::numeric_limits<float>::infinity());
+            if (nonDefault)
+            {
+                json vo; if (m.extVolume->thicknessFactor != 0.f)
+                    vo["thicknessFactor"] = m.extVolume->thicknessFactor;
+                if (auto t = TextureRefToJson(m.extVolume->thicknessTexture, texRemap); !t.empty())
+                    vo["thicknessTexture"] = std::move(t);
+                if (!(m.extVolume->attenuationColor[0]==1.f && m.extVolume->attenuationColor[1]==1.f && m.extVolume->attenuationColor[2]==1.f))
+                    vo["attenuationColor"] = { m.extVolume->attenuationColor[0], m.extVolume->attenuationColor[1], m.extVolume->attenuationColor[2] };
+                if (m.extVolume->attenuationDistance != std::numeric_limits<float>::infinity())
+                    vo["attenuationDistance"] = m.extVolume->attenuationDistance;
+                ext["KHR_materials_volume"] = std::move(vo);
+            }
         }
+        // Anisotropy (defaults strength=0, rotation=0)
         if (m.extAnisotropy)
         {
-            json an;
-            an["anisotropyStrength"] = m.extAnisotropy->strength;
-            an["anisotropyRotation"] = m.extAnisotropy->rotation;
-            an["anisotropyTexture"]  = TextureRefToJson(m.extAnisotropy->texture, texRemap);
-            ext["KHR_materials_anisotropy"] = std::move(an);
+            bool nonDefault = (m.extAnisotropy->strength != 0.f) || (m.extAnisotropy->rotation != 0.f) || m.extAnisotropy->texture.index.has_value();
+            if (nonDefault)
+            {
+                json an; if (m.extAnisotropy->strength != 0.f) an["anisotropyStrength"] = m.extAnisotropy->strength;
+                if (m.extAnisotropy->rotation != 0.f) an["anisotropyRotation"] = m.extAnisotropy->rotation;
+                if (auto t = TextureRefToJson(m.extAnisotropy->texture, texRemap); !t.empty())
+                    an["anisotropyTexture"] = std::move(t);
+                ext["KHR_materials_anisotropy"] = std::move(an);
+            }
         }
+        // Iridescence (defaults factor=0, ior=1.3, thicknessMin=100, thicknessMax=400)
         if (m.extIridescence)
         {
-            json ir;
-            ir["iridescenceFactor"]           = m.extIridescence->factor;
-            ir["iridescenceIor"]              = m.extIridescence->ior;
-            ir["iridescenceThicknessMinimum"] = m.extIridescence->thicknessMinimum;
-            ir["iridescenceThicknessMaximum"] = m.extIridescence->thicknessMaximum;
-            ir["iridescenceTexture"]          = TextureRefToJson(m.extIridescence->texture, texRemap);
-            ir["iridescenceThicknessTexture"] = TextureRefToJson(m.extIridescence->thicknessTexture, texRemap);
-            ext["KHR_materials_iridescence"] = std::move(ir);
+            bool nonDefault = (m.extIridescence->factor != 0.f) || (m.extIridescence->ior != 1.3f) ||
+                               (m.extIridescence->thicknessMinimum != 100.f) || (m.extIridescence->thicknessMaximum != 400.f) ||
+                               m.extIridescence->texture.index.has_value() || m.extIridescence->thicknessTexture.index.has_value();
+            if (nonDefault)
+            {
+                json ir; if (m.extIridescence->factor != 0.f) ir["iridescenceFactor"] = m.extIridescence->factor;
+                if (m.extIridescence->ior != 1.3f) ir["iridescenceIor"] = m.extIridescence->ior;
+                if (m.extIridescence->thicknessMinimum != 100.f) ir["iridescenceThicknessMinimum"] = m.extIridescence->thicknessMinimum;
+                if (m.extIridescence->thicknessMaximum != 400.f) ir["iridescenceThicknessMaximum"] = m.extIridescence->thicknessMaximum;
+                if (auto t = TextureRefToJson(m.extIridescence->texture, texRemap); !t.empty())
+                    ir["iridescenceTexture"] = std::move(t);
+                if (auto t = TextureRefToJson(m.extIridescence->thicknessTexture, texRemap); !t.empty())
+                    ir["iridescenceThicknessTexture"] = std::move(t);
+                ext["KHR_materials_iridescence"] = std::move(ir);
+            }
         }
         return ext;
     }
@@ -171,33 +246,43 @@ namespace exporters
     {
         json j;
         if (!m.name.empty()) j["name"] = m.name;
-        j["pbrMetallicRoughness"] = PBRToJson(m.pbr, texRemap);
-        j["normalTexture"]        = TextureRefToJson(m.normalTexture, texRemap);
-        j["occlusionTexture"]     = TextureRefToJson(m.occlusionTexture, texRemap);
-        j["emissiveTexture"]      = TextureRefToJson(m.emissiveTexture, texRemap);
-        j["emissiveFactor"]       = { m.emissiveFactor[0], m.emissiveFactor[1], m.emissiveFactor[2] };
+        if (auto pbr = PBRToJson(m.pbr, texRemap); !pbr.empty())
+            j["pbrMetallicRoughness"] = std::move(pbr);
+        else
+            j["pbrMetallicRoughness"] = json::object(); // keep object for stability
+        if (auto nt = TextureRefToJson(m.normalTexture, texRemap); !nt.empty())
+            j["normalTexture"] = std::move(nt);
+        if (auto ot = TextureRefToJson(m.occlusionTexture, texRemap); !ot.empty())
+            j["occlusionTexture"] = std::move(ot);
+        if (auto et = TextureRefToJson(m.emissiveTexture, texRemap); !et.empty())
+            j["emissiveTexture"] = std::move(et);
+        if (!IsZero3(m.emissiveFactor))
+            j["emissiveFactor"] = { m.emissiveFactor[0], m.emissiveFactor[1], m.emissiveFactor[2] };
 
-        const char* alphaStr = "OPAQUE";
+        // alphaMode (only if not OPAQUE)
         switch (m.alphaMode)
         {
-            case pure::Material::AlphaMode::Opaque: alphaStr = "OPAQUE"; break;
-            case pure::Material::AlphaMode::Mask:   alphaStr = "MASK";   break;
-            case pure::Material::AlphaMode::Blend:  alphaStr = "BLEND";  break;
+            case pure::Material::AlphaMode::Opaque: break;
+            case pure::Material::AlphaMode::Mask:
+                j["alphaMode"] = "MASK";
+                if (m.alphaCutoff != 0.5f) j["alphaCutoff"] = m.alphaCutoff; // cutoff only meaningful here
+                break;
+            case pure::Material::AlphaMode::Blend:
+                j["alphaMode"] = "BLEND"; break;
         }
-        j["alphaMode"]   = alphaStr;
-        j["alphaCutoff"] = m.alphaCutoff;
-        j["doubleSided"] = m.doubleSided;
+        if (m.doubleSided) j["doubleSided"] = true;
 
         json ext = ExtensionsToJson(m, texRemap);
         if (!ext.empty()) j["extensions"] = std::move(ext);
 
+        // Keep resource remap lists (unchanged) ---------------------------------
         if (!m.usedTextures.empty())
         {
             json arr = json::array();
             for (std::size_t gi : m.usedTextures)
             {
                 const auto &t = model.textures[gi];
-                json jt; // no original name
+                json jt;
                 if (t.image)
                 {
                     auto itImg = imgRemap.find(*t.image);
