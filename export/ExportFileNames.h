@@ -1,49 +1,15 @@
 #pragma once
 #include <string>
-#include <filesystem>
 #include <cstdint>
 
 namespace exporters
 {
     std::string SanitizeName(std::string n);
-
-    inline std::string MakeGeometryFileName(const std::string &baseName, int32_t geometryIndex)
-    {
-        return baseName + "." + std::to_string(geometryIndex) + ".geometry";
-    }
-
-    inline std::string MakeMaterialFileName(const std::string &baseName, const std::string &matName, int32_t materialIndex)
-    {
-        if(!matName.empty())
-            return baseName + "." + SanitizeName(matName) + ".material";
-        return baseName + ".material." + std::to_string(materialIndex);
-    }
-
-    inline std::string MakeImageFileName(const std::string &baseName, const std::string &imageName, int32_t imageIndex, const std::string &ext)
-    {
-        if(!imageName.empty()) return baseName + "." + SanitizeName(imageName) + ext;
-        return baseName + ".image." + std::to_string(imageIndex) + ext;
-    }
-
-    inline std::string MakeTexturesJsonFileName(const std::string &baseName, const std::string &sceneName)
-    {
-        return baseName + "." + sceneName + ".textures";
-    }
-
-    inline std::string MakeSceneJsonFileName(const std::string &baseName, const std::string &sceneName)
-    {
-        return baseName + "." + sceneName + ".json";
-    }
-
-    inline std::string MakeScenePackFileName(const std::string &baseName, const std::string &sceneName)
-    {
-        return baseName + "." + sceneName + ".scene";
-    }
-
-    inline std::string MakeMeshFileName(const std::string &/*baseName*/, const std::string &meshName, int32_t meshIndex)
-    {
-        if(!meshName.empty())
-            return std::to_string(meshIndex) + "." + SanitizeName(meshName) + ".mesh";
-        return std::to_string(meshIndex) + ".mesh";
-    }
+    std::string MakeGeometryFileName(const std::string &baseName, int32_t geometryIndex);
+    std::string MakeMaterialFileName(const std::string &baseName, const std::string &matName, int32_t materialIndex);
+    std::string MakeImageFileName(const std::string &baseName, const std::string &imageName, int32_t imageIndex, const std::string &ext);
+    std::string MakeTexturesJsonFileName(const std::string &baseName, const std::string &sceneName);
+    std::string MakeSceneJsonFileName(const std::string &baseName, const std::string &sceneName);
+    std::string MakeScenePackFileName(const std::string &baseName, const std::string &sceneName);
+    std::string MakeMeshFileName(const std::string &baseName, const std::string &meshName, int32_t meshIndex);
 }
