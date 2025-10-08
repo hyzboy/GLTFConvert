@@ -1,24 +1,21 @@
 #include <vector>
 
-#include "pure/MeshNode.h"
-#include "gltf/GLTFNode.h"
+#include "pure/Mesh.h"
 #include "gltf/GLTFMesh.h"
 
 namespace pure
 {
-    void AttachNodeSubMeshes(std::vector<MeshNode> &dstNodes, const std::vector<GLTFNode> &srcNodes, const std::vector<GLTFMesh> &srcMeshes)
+    void BuildMeshes(std::vector<Mesh> &dstMeshes, const std::vector<GLTFMesh> &srcMeshes)
     {
-        for (int32_t ni = 0; ni < static_cast<int32_t>(srcNodes.size()); ++ni)
+        dstMeshes.reserve(srcMeshes.size());
+        for (const auto &m : srcMeshes)
         {
-            const auto &node = srcNodes[static_cast<size_t>(ni)];
-            auto &pn = dstNodes[static_cast<size_t>(ni)];
-            if (node.mesh)
-            {
-                const auto &mesh = srcMeshes[static_cast<size_t>(*node.mesh)];
-                pn.subMeshes.reserve(mesh.primitives.size());
-                for (auto primIndex : mesh.primitives)
-                    pn.subMeshes.push_back(static_cast<int32_t>(primIndex));
-            }
+            Mesh pm;
+            pm.name = m.name;
+            pm.primitives.reserve(m.primitives.size());
+            for (auto prim : m.primitives)
+                pm.primitives.push_back(static_cast<int32_t>(prim));
+            dstMeshes.push_back(std::move(pm));
         }
     }
 } // namespace pure

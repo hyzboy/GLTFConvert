@@ -9,9 +9,8 @@ namespace pure { struct Model; }
 
 namespace exporters
 {
-    void BuildSubMeshes(const pure::Model &model,
-                        const CollectedIndices &ci,
-                        const RemapTables &remap,
+    // Build exported primitive entries (legacy function name kept)
+    void BuildSubMeshes(const CollectedIndices &ci,
                         const std::string &geometryBaseName,
                         SceneExportData &outData);
 }

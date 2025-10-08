@@ -12,7 +12,7 @@ namespace exporters
     struct CollectedIndices
     {
         std::vector<int32_t> nodes;
-        std::vector<int32_t> subMeshes;
+        std::vector<int32_t> primitives; // formerly subMeshes
         std::vector<int32_t> materials;
         std::vector<int32_t> geometries;
     };
@@ -21,7 +21,7 @@ namespace exporters
     struct RemapTables
     {
         std::unordered_map<int32_t,int32_t> nodeRemap;
-        std::unordered_map<int32_t,int32_t> subMeshRemap;
+        std::unordered_map<int32_t,int32_t> primitiveRemap; // formerly subMeshRemap
         std::unordered_map<int32_t,int32_t> materialRemap;
         std::unordered_map<int32_t,int32_t> geometryRemap;
     };

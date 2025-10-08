@@ -1,8 +1,9 @@
 #include "SceneExportBounds.h"
 
 #include "pure/Model.h"
-#include "pure/MeshNode.h"
-#include "pure/SubMesh.h"
+#include "pure/Node.h"
+#include "pure/Mesh.h"
+#include "pure/SubMesh.h" // now defines Primitive
 
 namespace exporters
 {
@@ -22,26 +23,30 @@ namespace exporters
                            const std::vector<glm::mat4> &worldMatrices,
                            std::vector<glm::vec3> &outPts)
     {
-        if (nodeIndex < 0 || nodeIndex >= static_cast<int32_t>(model.mesh_nodes.size()))
+        if (nodeIndex < 0 || nodeIndex >= static_cast<int32_t>(model.nodes.size()))
             return;
 
-        const auto &node = model.mesh_nodes[nodeIndex];
+        const auto &node = model.nodes[nodeIndex];
         const glm::mat4 &W = worldMatrices[nodeIndex];
 
-        for (int32_t sm : node.subMeshes)
+        if (node.mesh && *node.mesh >= 0 && *node.mesh < static_cast<int32_t>(model.meshes.size()))
         {
-            if (sm < 0 || sm >= static_cast<int32_t>(model.subMeshes.size()))
-                continue;
-            const auto &sub = model.subMeshes[sm];
-            if (sub.geometry < 0 || sub.geometry >= static_cast<int32_t>(model.geometry.size()))
-                continue;
-            const auto &geo = model.geometry[sub.geometry];
-            if (geo.positions.has_value())
+            const auto &mesh = model.meshes[*node.mesh];
+            for (int32_t primIndex : mesh.primitives)
             {
-                const auto &pos = geo.positions.value();
-                outPts.reserve(outPts.size() + pos.size());
-                for (const auto &p : pos)
-                    outPts.emplace_back(glm::vec3(W * glm::vec4(p, 1.0f)));
+                if (primIndex < 0 || primIndex >= static_cast<int32_t>(model.primitives.size()))
+                    continue;
+                const auto &prim = model.primitives[primIndex];
+                if (prim.geometry < 0 || prim.geometry >= static_cast<int32_t>(model.geometry.size()))
+                    continue;
+                const auto &geo = model.geometry[prim.geometry];
+                if (geo.positions.has_value())
+                {
+                    const auto &pos = geo.positions.value();
+                    outPts.reserve(outPts.size() + pos.size());
+                    for (const auto &p : pos)
+                        outPts.emplace_back(glm::vec3(W * glm::vec4(p, 1.0f)));
+                }
             }
         }
 

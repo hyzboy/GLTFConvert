@@ -2,13 +2,14 @@
 #include <string>
 #include <vector>
 #include "pure/Material.h"
-#include "pure/MeshNode.h"
 #include "pure/Scene.h"
 #include "pure/Geometry.h"
-#include "pure/SubMesh.h"
+#include "pure/SubMesh.h" // now defines Primitive
 #include "pure/Image.h"
 #include "pure/Texture.h"
 #include "pure/Sampler.h"
+#include "pure/Mesh.h"
+#include "pure/Node.h"
 
 namespace pure
 {
@@ -17,11 +18,12 @@ namespace pure
         std::string gltf_source;
         std::vector<Material> materials;
         std::vector<Scene> scenes;
-        std::vector<MeshNode> mesh_nodes;
-        std::vector<Geometry> geometry;
-        std::vector<SubMesh> subMeshes;
-        std::vector<Image> images; // images
-        std::vector<Texture> textures; // textures
-        std::vector<Sampler> samplers; // samplers
+        std::vector<Node> nodes;        // nodes
+        std::vector<Mesh> meshes;       // meshes (list of primitive indices)
+        std::vector<Geometry> geometry; // unique geometry buffers
+        std::vector<Primitive> primitives; // formerly subMeshes
+        std::vector<Image> images;
+        std::vector<Texture> textures;
+        std::vector<Sampler> samplers;
     };
 }

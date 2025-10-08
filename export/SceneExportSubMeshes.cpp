@@ -1,42 +1,23 @@
 #include "SceneExportSubMeshes.h"
+#include "SceneExportData.h"
 
 #include "pure/Model.h"
 #include "pure/SubMesh.h"
 
 namespace exporters
 {
-    void BuildSubMeshes(const pure::Model &model,
-                        const CollectedIndices &ci,
-                        const RemapTables &remap,
-                        const std::string &geometryBaseName,
+    void BuildSubMeshes(const CollectedIndices &ci,
+                        const std::string &baseName,
                         SceneExportData &outData)
     {
-        outData.subMeshes.reserve(ci.subMeshes.size());
-        for (int32_t originalSM : ci.subMeshes)
+        outData.primitives.reserve(ci.primitives.size());
+        for (int32_t original : ci.primitives)
         {
-            const auto &sm = model.subMeshes[originalSM];
-            SceneSubMeshExport se;
-            se.originalIndex = originalSM;
-
-            if (sm.geometry >= 0)
-            {
-                auto gIt = remap.geometryRemap.find(sm.geometry);
-                se.geometryIndex = (gIt != remap.geometryRemap.end()) ? gIt->second : -1;
-                se.geometryFile  = geometryBaseName + "." + std::to_string(sm.geometry) + ".geometry";
-            }
-            else
-            {
-                se.geometryIndex = -1;
-            }
-
-            if (sm.material.has_value())
-            {
-                auto mIt = remap.materialRemap.find(sm.material.value());
-                if (mIt != remap.materialRemap.end())
-                    se.materialIndex = mIt->second;
-            }
-
-            outData.subMeshes.push_back(std::move(se));
+            ScenePrimitiveExport pe;
+            pe.originalIndex = original;
+            pe.geometryIndex = -1;
+            pe.geometryFile  = baseName + "." + std::to_string(original) + ".geometry";
+            outData.primitives.push_back(std::move(pe));
         }
     }
 }

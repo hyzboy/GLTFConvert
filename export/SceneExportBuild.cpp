@@ -48,7 +48,7 @@ namespace exporters
         ComputeBounds(model, worldMatrices, data);
 
         // 8. SubMeshes / Materials / Geometries
-        BuildSubMeshes(model, collected, remap, geometryBaseName, data);
+        BuildSubMeshes(collected, geometryBaseName, data);
         BuildMaterials(model, collected, nameToIndex, data);
         BuildGeometries(collected, geometryBaseName, data);
 
