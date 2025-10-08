@@ -1,11 +1,17 @@
 #include <filesystem>
 #include <string>
 #include <vector>
+#include <fstream>
+#include <iostream>
+#include <unordered_set>
 
 #include "MaterialExporter.h"
 #include "pure/Model.h"
-#include "SceneExportData.h" // scene export data + serialization declarations
+#include "SceneExportData.h"
+#include "SceneExportCollect.h"
+#include "SceneExportCollectTextures.h"
 #include "ExportImages.h"
+#include "ExportTextures.h"
 
 namespace exporters
 {
@@ -18,15 +24,17 @@ namespace exporters
 
     static std::string sanitize_name(const std::string &n)
     {
-        if (n.empty()) return std::string();
-        std::string out=n;
-        for(char &c:out)
+        if (n.empty()) return {};
+        std::string out = n;
+        for (char &c : out)
         {
-            switch(c)
+            switch (c)
             {
-            case '/':case '\\':case ':':case '*':case '?':case '"':case '<':case '>':case '|':
-                c='_'; break;
-            default: break;
+                case '/': case '\\': case ':': case '*': case '?':
+                case '"': case '<':  case '>': case '|':
+                    c = '_';
+                    break;
+                default: break;
             }
         }
         return out;
@@ -45,29 +53,43 @@ namespace exporters
         std::filesystem::path targetDir = baseDir / (baseName + ".StaticMesh");
         std::filesystem::create_directories(targetDir, ec);
 
+        if (sm.scenes.empty())
+            return false; // nothing to export
+
+        // Currently export ONLY the first scene (context-filtered)
+        const std::size_t sceneIndex = 0;
+        auto collected = CollectSceneIndices(sm, sm.scenes[sceneIndex]);
+
+        // Gather used texture / image / sampler indices
+        std::vector<std::size_t> usedTextures;
+        std::vector<std::size_t> usedImages;
+        std::vector<std::size_t> usedSamplers;
+        CollectUsedTextures(sm, collected, usedTextures, usedImages, usedSamplers);
+
         if (!ExportMaterials(sm.materials, targetDir))
             return false;
-
         ExportGeometries(&sm, targetDir);
-        ExportImages(sm, targetDir); // new: export images
 
-        for (std::size_t si = 0; si < sm.scenes.size(); ++si)
-        {
-            const auto &scene = sm.scenes[si];
-            auto data = BuildSceneExportData(sm, si, baseName);
+        std::string sceneName = sanitize_name(sm.scenes[sceneIndex].name);
+        if (sceneName.empty())
+            sceneName = "scene" + std::to_string(sceneIndex);
 
-            std::string sceneName = sanitize_name(scene.name);
-            if (sceneName.empty()) // fallback to index if no name
-                sceneName = "scene" + std::to_string(si);
+        // Filtered resource exports
+        ExportImages(sm, targetDir, &usedImages);
+        ExportTexturesJson(sm.gltf_source, sm.images, sm.textures, sm.samplers,
+                           &usedImages, &usedTextures, &usedSamplers, targetDir, sceneName);
 
-            auto jsonPath = targetDir / (baseName + "." + sceneName + ".json");
-            if (!WriteSceneJson(data, jsonPath))
-                return false;
+        // Scene export data (json + pack)
+        auto data = BuildSceneExportData(sm, sceneIndex, baseName);
 
-            auto packPath = targetDir / (baseName + "." + sceneName + ".scene");
-            if (!WriteScenePack(data, packPath))
-                return false;
-        }
+        auto jsonPath = targetDir / (baseName + "." + sceneName + ".json");
+        if (!WriteSceneJson(data, jsonPath))
+            return false;
+
+        auto packPath = targetDir / (baseName + "." + sceneName + ".scene");
+        if (!WriteScenePack(data, packPath))
+            return false;
+
         return true;
     }
 }

@@ -62,6 +62,9 @@ set(GLTF_FILES
     gltf/GLTFNode.h
     gltf/GLTFScene.h
     gltf/GLTFModel.h
+    gltf/GLTFImage.h
+    gltf/GLTFTextureInfo.h
+    gltf/GLTFSampler.h
     gltf/ToNodeTransform.h
     gltf/ToNodeTransform.cpp
 )
@@ -73,6 +76,9 @@ set(GLTF_IMPORT_FILES
     gltf/import/GLTFImportMeshes.cpp
     gltf/import/GLTFImportNodes.cpp
     gltf/import/GLTFImportScenes.cpp
+    gltf/import/GLTFImportImages.cpp
+    gltf/import/GLTFImportTextures.cpp
+    gltf/import/GLTFImportSamplers.cpp
     gltf/import/GLTFOrientationNodes.cpp
     gltf/import/GLTFOrientationPrimitives.cpp
 
@@ -93,6 +99,9 @@ set(PURE_GEOM_FILES
     pure/SubMesh.h
     pure/Scene.h
     pure/Model.h
+    pure/Image.h
+    pure/Texture.h
+    pure/Sampler.h
 )
 SOURCE_GROUP("pure" FILES ${PURE_GEOM_FILES})
 
@@ -131,6 +140,8 @@ set(SCENE_EXPORT_INTERNAL_FILES
     export/SceneExportBounds.cpp
     export/SceneExportLists.h
     export/SceneExportLists.cpp
+    export/SceneExportCollectTextures.h   # added
+    export/SceneExportCollectTextures.cpp # added
 )
 SOURCE_GROUP("export\\SceneBuildInternalsFine" FILES ${SCENE_EXPORT_INTERNAL_FILES})
 
@@ -139,6 +150,10 @@ set(EXPORT_FILES
     export/ExportGeometry.cpp
     export/ExportGeometries.cpp
     export/ExportPureModel.cpp
+    export/ExportImages.cpp
+    export/ExportImages.h
+    export/ExportTextures.cpp
+    export/ExportTextures.h
     export/SceneExportBuild.cpp
     export/SceneExportJson.cpp
     export/SceneExportPack.cpp

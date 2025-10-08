@@ -21,6 +21,8 @@ namespace gltf
     void RotatePrimitivesYUpToZUp(std::vector<GLTFPrimitive> &primitives);
     void RotateNodeLocalTransformsYUpToZUp(std::vector<GLTFNode> &nodes);
     void ImportImages(const fastgltf::Asset &asset,std::vector<GLTFImage> &images);
+    void ImportTextures(const fastgltf::Asset &asset,std::vector<GLTFTextureInfo> &textures);
+    void ImportSamplers(const fastgltf::Asset &asset,std::vector<GLTFSampler> &samplers);
 
     bool ImportFastGLTF(const std::filesystem::path &inputPath,GLTFModel &outModel)
     {
@@ -61,6 +63,8 @@ namespace gltf
         ImportNodes(asset,outModel.nodes);
         ImportScenes(asset,outModel.scenes);
         ImportImages(asset,outModel.images);
+        ImportTextures(asset,outModel.textures);
+        ImportSamplers(asset,outModel.samplers);
 
         RotateNodeLocalTransformsYUpToZUp(outModel.nodes);
         RotatePrimitivesYUpToZUp(outModel.primitives);

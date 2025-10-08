@@ -7,6 +7,8 @@
 #include "pure/Geometry.h"
 #include "pure/SubMesh.h"
 #include "pure/Image.h"
+#include "pure/Texture.h"
+#include "pure/Sampler.h"
 
 namespace pure
 {
@@ -18,6 +20,8 @@ namespace pure
         std::vector<MeshNode> mesh_nodes;
         std::vector<Geometry> geometry;
         std::vector<SubMesh> subMeshes;
-        std::vector<Image> images; // new images
+        std::vector<Image> images; // images
+        std::vector<Texture> textures; // textures
+        std::vector<Sampler> samplers; // samplers
     };
 }

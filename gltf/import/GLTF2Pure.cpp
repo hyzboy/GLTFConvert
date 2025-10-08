@@ -9,7 +9,6 @@
 
 namespace pure
 {
-    // Forward declarations of helper functions now that the central header was removed
     void                    CopyMaterials(                      std::vector<Material> &     dstMaterials,   const std::vector<GLTFMaterial> &   srcMaterials);
     void                    CopyScenes(                         std::vector<Scene> &        dstScenes,      const std::vector<GLTFScene> &      srcScenes);
     void                    CopyMeshNodesAndTransforms(         std::vector<MeshNode> &     dstNodes,       const std::vector<GLTFNode> &       srcNodes);
@@ -35,7 +34,10 @@ namespace pure
         BuildSubMeshes              (dst.subMeshes, src.primitives, uniqueMap);
         AttachNodeSubMeshes         (dst.mesh_nodes,src.nodes,      src.meshes);
 
-        dst.images = src.images; // copy images
+        dst.images   = src.images;
+        dst.textures = src.textures;
+
+        dst.samplers = src.samplers;
 
         return dst;
     }
