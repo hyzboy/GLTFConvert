@@ -24,17 +24,20 @@ namespace exporters
             const auto &m = model.meshes[mi];
 
             nlohmann::json j;
-            j["index"] = static_cast<int32_t>(mi);
+
             if (!m.name.empty()) j["name"] = m.name;
 
             nlohmann::json prims = nlohmann::json::array();
+
             for (int32_t primIndex : m.primitives)
             {
                 if (primIndex < 0 || primIndex >= static_cast<int32_t>(model.primitives.size()))
                     continue;
+
                 const auto &prim = model.primitives[primIndex];
+
                 nlohmann::json jp;
-                jp["primitiveIndex"] = primIndex;
+
                 if (prim.geometry >= 0 && prim.geometry < static_cast<int32_t>(model.geometry.size()))
                 {
                     jp["geometry"] = MakeGeometryFileName(baseName, prim.geometry);
@@ -50,6 +53,7 @@ namespace exporters
                 }
                 prims.push_back(std::move(jp));
             }
+
             if (!prims.empty()) j["primitives"] = std::move(prims);
 
             auto filePath = dir / MakeMeshFileName(baseName, m.name, static_cast<int32_t>(mi));
