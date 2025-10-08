@@ -5,22 +5,10 @@
 #include <iostream>
 #include <unordered_set>
 #include "ExportFileNames.h"
+#include "ImageMime.h" // added
 
 namespace exporters
 {
-    namespace
-    {
-        static std::string GuessExtension(const std::string &mime)
-        {
-            if (mime == "image/png")  return ".png";
-            if (mime == "image/jpeg") return ".jpg";
-            if (mime == "image/ktx2") return ".ktx2";
-            if (mime == "image/vnd-ms.dds") return ".dds";
-            if (mime == "image/webp") return ".webp";
-            return ".bin";
-        }
-    }
-
     bool ExportImages(const pure::Model &model, const std::filesystem::path &targetDir, const std::vector<std::size_t> *allowedImageIndices)
     {
         if (model.images.empty()) return true;
@@ -37,7 +25,7 @@ namespace exporters
                 continue;
 
             const auto &img = model.images[i];
-            std::string ext = GuessExtension(img.mimeType);
+            std::string ext = GuessImageExtension(img.mimeType);
             std::string fileName = MakeImageFileName(baseName, img.name, static_cast<int32_t>(i), ext);
             auto outPath = targetDir / fileName;
 

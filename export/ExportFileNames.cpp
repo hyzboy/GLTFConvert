@@ -1,11 +1,9 @@
 #include "ExportFileNames.h"
 
-#include <filesystem>
-
 namespace exporters
 {
     // ------------------------------------------------------------
-    // File name builders (SanitizeName moved to SanitizeName.cpp)
+    // File name builders
     // ------------------------------------------------------------
     std::string MakeGeometryFileName(const std::string &baseName, int32_t geometryIndex)
     {

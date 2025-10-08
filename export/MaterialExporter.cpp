@@ -14,45 +14,14 @@
 #include "pure/Image.h"
 #include "pure/Sampler.h"
 #include "ExportFileNames.h"
+#include "ImageMime.h" // added
+#include "SamplerStrings.h" // added
 
 using nlohmann::json;
 
 namespace exporters
 {
-    // Guess file extension from mime type (duplicated minimal logic to avoid dependency cycle)
-    static std::string GuessImageExtension(const std::string &mime)
-    {
-        if (mime == "image/png")  return ".png";
-        if (mime == "image/jpeg") return ".jpg";
-        if (mime == "image/ktx2") return ".ktx2";
-        if (mime == "image/vnd-ms.dds") return ".dds";
-        if (mime == "image/webp") return ".webp";
-        return ".bin"; // fallback
-    }
-
-    static std::string WrapModeToString(int v)
-    {
-        switch (v)
-        {
-            case 33071: return "CLAMP_TO_EDGE";      // GL_CLAMP_TO_EDGE
-            case 33648: return "MIRRORED_REPEAT";   // GL_MIRRORED_REPEAT
-            case 10497: return "REPEAT";            // GL_REPEAT
-            default:    return std::to_string(v);
-        }
-    }
-    static std::string FilterToString(int v)
-    {
-        switch (v)
-        {
-            case 9728: return "NEAREST";                 // GL_NEAREST
-            case 9729: return "LINEAR";                  // GL_LINEAR
-            case 9984: return "NEAREST_MIPMAP_NEAREST";  // GL_NEAREST_MIPMAP_NEAREST
-            case 9985: return "LINEAR_MIPMAP_NEAREST";   // GL_LINEAR_MIPMAP_NEAREST
-            case 9986: return "NEAREST_MIPMAP_LINEAR";   // GL_NEAREST_MIPMAP_LINEAR
-            case 9987: return "LINEAR_MIPMAP_LINEAR";    // GL_LINEAR_MIPMAP_LINEAR
-            default:   return std::to_string(v);
-        }
-    }
+    // Removed duplicated GuessImageExtension (now in ImageMime.cpp)
 
     // Helpers -----------------------------------------------------------------
 

@@ -150,9 +150,13 @@ set(EXPORT_FILES
     export/MeshExporter.h
     export/ExportFileNames.h
     export/ExportFileNames.cpp
-    export/SceneExportData.h
+    export/ImageMime.cpp
+    export/ImageMime.h
     export/SanitizeName.cpp
     export/SanitizeName.h
+    export/SamplerStrings.cpp
+    export/SamplerStrings.h
+    export/SceneExportData.h
     ${SCENE_EXPORT_INTERNAL_FILES}
 )
 SOURCE_GROUP("export" FILES ${EXPORT_FILES})
