@@ -151,6 +151,8 @@ set(EXPORT_FILES
     export/ExportFileNames.h
     export/ExportFileNames.cpp
     export/SceneExportData.h
+    export/SanitizeName.cpp
+    export/SanitizeName.h
     ${SCENE_EXPORT_INTERNAL_FILES}
 )
 SOURCE_GROUP("export" FILES ${EXPORT_FILES})
