@@ -79,10 +79,13 @@ namespace exporters
     }
 
     std::string MakeMaterialFileName(const std::string &baseName, const std::string &matName, int32_t materialIndex)
-    {
+    {   
+        std::string front = baseName + "." + std::to_string(materialIndex) + ".";
+
         if (!matName.empty())
-            return baseName + "." + SanitizeName(matName) + ".material";
-        return baseName + ".material." + std::to_string(materialIndex);
+            return front+SanitizeName(matName) + ".material";
+
+        return front+".material";
     }
 
     std::string MakeImageFileName(const std::string &baseName, const std::string &imageName, int32_t imageIndex, const std::string &ext)

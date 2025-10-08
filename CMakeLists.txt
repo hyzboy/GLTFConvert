@@ -141,8 +141,6 @@ set(EXPORT_FILES
     export/ExportPureModel.cpp
     export/ExportImages.cpp
     export/ExportImages.h
-    export/ExportTextures.cpp
-    export/ExportTextures.h
     export/SceneExportBuild.cpp
     export/SceneExportJson.cpp
     export/SceneExportPack.cpp

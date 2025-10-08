@@ -8,7 +8,7 @@
 
 namespace pure
 {
-    void                    CopyMaterials(                      std::vector<Material> &     dstMaterials,   const std::vector<GLTFMaterial> &   srcMaterials);
+    void                    CopyMaterials(                      std::vector<Material> &     dstMaterials,   const std::vector<GLTFMaterial> &   srcMaterials, const Model &model);
     void                    CopyScenes(                         std::vector<Scene> &        dstScenes,      const std::vector<GLTFScene> &      srcScenes);
     void                    CopyNodes(                          std::vector<Node> &         dstNodes,       const std::vector<GLTFNode> &       srcNodes);
     UniqueGeometryMapping   BuildUniqueGeometryMapping(const    std::vector<GLTFPrimitive> &prims);
@@ -21,7 +21,12 @@ namespace pure
         Model dst;
         dst.gltf_source = src.source;
 
-        CopyMaterials(dst.materials, src.materials);
+        // we need images/textures/samplers before collecting references in materials
+        dst.images   = src.images;
+        dst.textures = src.textures;
+        dst.samplers = src.samplers;
+
+        CopyMaterials(dst.materials, src.materials, dst);
         CopyScenes(dst.scenes, src.scenes);
         CopyNodes(dst.nodes, src.nodes);
 
@@ -30,9 +35,6 @@ namespace pure
         BuildPrimitives(dst.primitives, src.primitives, uniqueMap);
         BuildMeshes(dst.meshes, src.meshes);
 
-        dst.images   = src.images;
-        dst.textures = src.textures;
-        dst.samplers = src.samplers;
         return dst;
     }
 } // namespace pure
