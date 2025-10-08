@@ -23,7 +23,8 @@ namespace exporters
         return p.stem().string();
     }
 
-    bool ExportPureModel(pure::Model &sm,const std::filesystem::path &outDir)
+    // New extended version with flags
+    bool ExportPureModel(pure::Model &sm,const std::filesystem::path &outDir,bool exportImagesFlag,bool imagesOnly)
     {
         std::filesystem::path baseDir=outDir.empty()
             ?std::filesystem::path(sm.gltf_source).parent_path()
@@ -47,6 +48,20 @@ namespace exporters
         std::vector<std::size_t> usedSamplers; // unused now
         CollectUsedTextures(sm,collected,usedTextures,usedImages,usedSamplers);
 
+        if(imagesOnly)
+        {
+            if(exportImagesFlag)
+            {
+                std::cout << "[Export] Images-only mode: exporting images...\n";
+                ExportImages(sm,targetDir,&usedImages);
+            }
+            else
+            {
+                std::cout << "[Export] Images-only mode but exportImagesFlag==false (nothing to do).\n";
+            }
+            return true; // done
+        }
+
         if(!ExportMaterials(sm,targetDir)) return false;
         ExportGeometries(&sm,targetDir);
         if(!ExportMeshes(sm,targetDir)) return false;
@@ -54,8 +69,14 @@ namespace exporters
         std::string sceneName=SanitizeName(sm.scenes[sceneIndex].name);
         if(sceneName.empty()) sceneName="scene"+std::to_string(sceneIndex);
 
-        // Only export filtered images now
-        ExportImages(sm,targetDir,&usedImages);
+        if(exportImagesFlag)
+        {
+            ExportImages(sm,targetDir,&usedImages);
+        }
+        else
+        {
+            std::cout << "[Export] Image export disabled by command line flag.\n";
+        }
 
         auto data=BuildSceneExportData(sm,sceneIndex,baseName);
 
@@ -66,5 +87,11 @@ namespace exporters
         if(!WriteScenePack(data,packPath)) return false;
 
         return true;
+    }
+
+    // Backward compatible wrapper (default: export images, not images-only)
+    bool ExportPureModel(pure::Model &sm,const std::filesystem::path &outDir)
+    {
+        return ExportPureModel(sm,outDir,true,false);
     }
 }

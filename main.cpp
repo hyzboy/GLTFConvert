@@ -1,12 +1,12 @@
 #include <iostream>
 #include <filesystem>
+#include <string>
 
 #include "gltf/import/GLTFImporter.h"
 #include "gltf/GLTFModel.h"
 #include "pure/Model.h"
 
 // TexConv detection
-bool TexConvInitialize(); // forward if header not present
 namespace texconv { bool Initialize(std::filesystem::path *outPath=nullptr); }
 
 namespace pure
@@ -16,7 +16,12 @@ namespace pure
 
 namespace exporters
 {
-    bool ExportPureModel(pure::Model &sm,const std::filesystem::path &outDir);
+    bool ExportPureModel(pure::Model &sm,const std::filesystem::path &outDir,bool exportImagesFlag,bool imagesOnly);
+}
+
+static void PrintUsage()
+{
+    std::cout << "Usage: gltf_exporter [--no-images | --images-only] <input.gltf|.glb> [output_dir]\n";
 }
 
 int main(int argc,char *argv[])
@@ -30,14 +35,38 @@ int main(int argc,char *argv[])
 
     if(argc<2)
     {
-        std::cout<<"Usage: gltf_exporter <input.gltf or .glb> [output_dir]\n";
+        PrintUsage();
         return 1;
     }
-    std::filesystem::path inputPath=argv[1];
-    std::filesystem::path outDir;
-    if(argc>=3)
+
+    bool exportImagesFlag=true;
+    bool imagesOnly=false;
+
+    int argIndex=1;
+    for(;argIndex<argc; ++argIndex)
     {
-        outDir=argv[2];
+        std::string a=argv[argIndex];
+        if(a=="--no-images") { exportImagesFlag=false; continue; }
+        if(a=="--images-only") { imagesOnly=true; continue; }
+        // first non-flag assumed input path
+        break;
+    }
+
+    if(argIndex>=argc)
+    {
+        PrintUsage();
+        return 1;
+    }
+
+    std::filesystem::path inputPath=argv[argIndex++];
+    std::filesystem::path outDir;
+    if(argIndex<argc)
+        outDir=argv[argIndex];
+
+    if(imagesOnly && !exportImagesFlag)
+    {
+        std::cout << "[Warn] --images-only implies exporting images; ignoring --no-images.\n";
+        exportImagesFlag=true;
     }
 
     GLTFModel model;
@@ -48,7 +77,7 @@ int main(int argc,char *argv[])
     
     pure::Model sm=pure::ConvertFromGLTF(model);
 
-    if(!exporters::ExportPureModel(sm,outDir))
+    if(!exporters::ExportPureModel(sm,outDir,exportImagesFlag,imagesOnly))
     {
         return 1;
     }
