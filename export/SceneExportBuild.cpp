@@ -3,7 +3,7 @@
 #include "SceneExportTransforms.h"
 #include "SceneExportNames.h"
 #include "SceneExportNodes.h"
-#include "SceneExportSubMeshes.h"
+#include "SceneExportPrimitives.h"
 #include "SceneExportMaterials.h"
 #include "SceneExportGeometries.h"
 #include "SceneExportComputeBounds.h"
@@ -47,8 +47,8 @@ namespace exporters
         // 7. Bounds
         ComputeBounds(model, worldMatrices, data);
 
-        // 8. SubMeshes / Materials / Geometries
-        BuildSubMeshes(collected, geometryBaseName, data);
+        // 8. Primitives / Materials / Geometries
+        BuildPrimitivesExport(collected, geometryBaseName, data);
         BuildMaterials(model, collected, nameToIndex, data);
         BuildGeometries(collected, geometryBaseName, data);
 
