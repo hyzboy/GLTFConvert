@@ -12,7 +12,7 @@ namespace exporters
     // 仅导出几何数据；不再传递整个 Model，改为传递需要的最小集合
     void ExportGeometries(pure::Model *model,const std::filesystem::path &targetDir)
     {
-        const std::string baseName = GetBaseName(*model);
+        const std::string baseName = model->GetBaseName();
 
         for(std::size_t u=0; u<model->geometry.size(); ++u)
         {

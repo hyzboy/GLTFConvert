@@ -14,7 +14,7 @@ namespace exporters
         (void)nameToIndex; // no longer needed for materials
         outData.materials.reserve(ci.materials.size());
 
-        std::string baseName = GetBaseName(model);
+        std::string baseName = model.GetBaseName();
 
         for (int32_t originalMat : ci.materials)
         {

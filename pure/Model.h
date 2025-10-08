@@ -1,6 +1,7 @@
 #pragma once
 #include <string>
 #include <vector>
+#include <filesystem>
 #include "pure/Material.h"
 #include "pure/Scene.h"
 #include "pure/Geometry.h"
@@ -25,5 +26,11 @@ namespace pure
         std::vector<Image> images;
         std::vector<Texture> textures;
         std::vector<Sampler> samplers;
+
+        std::string GetBaseName() const
+        {
+            if (gltf_source.empty()) return std::string("scene");
+            return std::filesystem::path(gltf_source).stem().string();
+        }
     };
 }

@@ -29,7 +29,7 @@ namespace exporters
         if (allowedImageIndices)
             allowed.insert(allowedImageIndices->begin(), allowedImageIndices->end());
 
-        const std::string baseName = GetBaseName(model);
+        const std::string baseName = model.GetBaseName();
 
         for (std::size_t i = 0; i < model.images.size(); ++i)
         {

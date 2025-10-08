@@ -17,7 +17,7 @@ namespace exporters
         if (model.meshes.empty()) return true; // nothing to do
 
         std::error_code ec; std::filesystem::create_directories(dir, ec);
-        std::string baseName = GetBaseName(model);
+        std::string baseName = model.GetBaseName();
 
         for (std::size_t mi = 0; mi < model.meshes.size(); ++mi)
         {
