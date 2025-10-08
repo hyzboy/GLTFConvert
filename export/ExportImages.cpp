@@ -4,6 +4,7 @@
 #include <fstream>
 #include <iostream>
 #include <unordered_set>
+#include "ExportFileNames.h"
 
 namespace exporters
 {
@@ -28,7 +29,7 @@ namespace exporters
         if (allowedImageIndices)
             allowed.insert(allowedImageIndices->begin(), allowedImageIndices->end());
 
-        const std::string baseName = std::filesystem::path(model.gltf_source).stem().string();
+        const std::string baseName = GetBaseName(model);
 
         for (std::size_t i = 0; i < model.images.size(); ++i)
         {
@@ -37,8 +38,8 @@ namespace exporters
 
             const auto &img = model.images[i];
             std::string ext = GuessExtension(img.mimeType);
-            std::string fileBase = !img.name.empty() ? (baseName + "." + img.name) : (baseName + ".image." + std::to_string(i));
-            auto outPath = targetDir / (fileBase + ext);
+            std::string fileName = MakeImageFileName(baseName, img.name, static_cast<int32_t>(i), ext);
+            auto outPath = targetDir / fileName;
 
             if (!img.data.empty())
             {

@@ -12,6 +12,8 @@
 #include "SceneExportCollectTextures.h"
 #include "ExportImages.h"
 #include "ExportTextures.h"
+#include "MeshExporter.h" // added
+#include "ExportFileNames.h"
 
 namespace exporters
 {
@@ -69,6 +71,8 @@ namespace exporters
         if (!ExportMaterials(sm.materials, targetDir))
             return false;
         ExportGeometries(&sm, targetDir);
+        if (!ExportMeshes(sm, targetDir)) // updated signature
+            return false;
 
         std::string sceneName = sanitize_name(sm.scenes[sceneIndex].name);
         if (sceneName.empty())
@@ -82,11 +86,11 @@ namespace exporters
         // Scene export data (json + pack)
         auto data = BuildSceneExportData(sm, sceneIndex, baseName);
 
-        auto jsonPath = targetDir / (baseName + "." + sceneName + ".json");
+        auto jsonPath = targetDir / MakeSceneJsonFileName(baseName, sceneName);
         if (!WriteSceneJson(data, jsonPath))
             return false;
 
-        auto packPath = targetDir / (baseName + "." + sceneName + ".scene");
+        auto packPath = targetDir / MakeScenePackFileName(baseName, sceneName);
         if (!WriteScenePack(data, packPath))
             return false;
 

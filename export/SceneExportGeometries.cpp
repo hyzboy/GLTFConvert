@@ -1,4 +1,5 @@
 #include "SceneExportGeometries.h"
+#include "ExportFileNames.h"
 
 namespace exporters
 {
@@ -11,7 +12,7 @@ namespace exporters
         {
             SceneGeometryExport ge;
             ge.originalIndex = originalGeo;
-            ge.file          = geometryBaseName + "." + std::to_string(originalGeo) + ".geometry";
+            ge.file          = MakeGeometryFileName(geometryBaseName, originalGeo);
             outData.geometries.push_back(std::move(ge));
         }
     }

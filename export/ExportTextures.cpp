@@ -4,6 +4,7 @@
 #include <fstream>
 #include <iostream>
 #include <unordered_set>
+#include "ExportFileNames.h"
 
 namespace exporters
 {
@@ -75,9 +76,8 @@ namespace exporters
                 nlohmann::json ji;
                 ji["index"] = i;
                 ji["name"]  = !img.name.empty() ? img.name : ("image." + std::to_string(i));
-                std::string fileBase = !img.name.empty() ? (baseName + "." + img.name)
-                                                         : (baseName + ".image." + std::to_string(i));
-                ji["file"] = fileBase + GuessImageExtension(img.mimeType);
+                std::string fileName = MakeImageFileName(baseName, img.name, static_cast<int32_t>(i), GuessImageExtension(img.mimeType));
+                ji["file"] = fileName;
                 if (!img.mimeType.empty()) ji["mimeType"] = img.mimeType;
                 arr.push_back(std::move(ji));
             }
@@ -124,8 +124,8 @@ namespace exporters
 
         if (root.empty()) return;
 
-        std::string scenefile = baseName + "." + sceneName + ".textures";
-        auto outPath = targetDir / scenefile;
+        std::string texturesFile = MakeTexturesJsonFileName(baseName, sceneName);
+        auto outPath = targetDir / texturesFile;
         std::ofstream ofs(outPath, std::ios::binary);
         if (!ofs)
         {

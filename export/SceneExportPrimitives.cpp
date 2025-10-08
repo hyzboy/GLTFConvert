@@ -1,5 +1,6 @@
 #include "SceneExportPrimitives.h"
 #include "SceneExportData.h"
+#include "ExportFileNames.h"
 
 namespace exporters
 {
@@ -13,7 +14,7 @@ namespace exporters
             ScenePrimitiveExport pe;
             pe.originalIndex = original;
             pe.geometryIndex = -1;
-            pe.geometryFile  = baseName + "." + std::to_string(original) + ".geometry";
+            pe.geometryFile  = MakeGeometryFileName(baseName, original);
             outData.primitives.push_back(std::move(pe));
         }
     }

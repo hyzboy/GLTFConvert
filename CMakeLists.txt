@@ -148,6 +148,10 @@ set(EXPORT_FILES
     export/SceneExportPack.cpp
     export/MaterialExporter.cpp
     export/MaterialExporter.h
+    export/MeshExporter.cpp
+    export/MeshExporter.h
+    export/ExportFileNames.h
+    export/ExportFileNames.cpp
     export/SceneExportData.h
     ${SCENE_EXPORT_INTERNAL_FILES}
 )

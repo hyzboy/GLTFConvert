@@ -8,6 +8,7 @@
 
 #include "pure/Material.h"
 #include "gltf/GLTFModel.h" // for texture mapping when available
+#include "ExportFileNames.h"
 
 using nlohmann::json;
 
@@ -163,17 +164,17 @@ namespace exporters
         std::error_code ec;
         std::filesystem::create_directories(dir, ec);
 
+        const std::vector<GLTFTextureInfo>* texList = nullptr; // future integration point
+
+        // NOTE: We do not have the full model here; baseName is inferred from directory name to stay consistent.
         std::string baseName = dir.filename().string();
         if (auto pos = baseName.find(".StaticMesh"); pos != std::string::npos)
             baseName = baseName.substr(0, pos);
 
-        const std::vector<GLTFTextureInfo>* texList = nullptr; // future integration point
-
         for (std::size_t i = 0; i < materials.size(); ++i)
         {
             const auto &m = materials[i];
-            const std::string safeName = !m.name.empty() ? m.name : ("material." + std::to_string(i));
-            auto filePath = dir / (baseName + "." + safeName + ".material");
+            auto filePath = dir / MakeMaterialFileName(baseName, m.name, static_cast<int32_t>(i));
             std::ofstream ofs(filePath, std::ios::binary);
             if (!ofs)
             {

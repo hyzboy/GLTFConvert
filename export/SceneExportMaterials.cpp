@@ -2,6 +2,7 @@
 
 #include "pure/Model.h"
 #include <filesystem>
+#include "ExportFileNames.h"
 
 namespace exporters
 {
@@ -13,25 +14,14 @@ namespace exporters
         (void)nameToIndex; // no longer needed for materials
         outData.materials.reserve(ci.materials.size());
 
-        std::string baseName;
-        if (!model.gltf_source.empty())
-        {
-            baseName = std::filesystem::path(model.gltf_source).stem().string();
-        }
-        else
-        {
-            baseName = "scene"; // fallback
-        }
+        std::string baseName = GetBaseName(model);
 
         for (int32_t originalMat : ci.materials)
         {
             const auto &mat = model.materials[originalMat];
             SceneMaterialExport me;
             me.originalIndex = originalMat;
-            if (!mat.name.empty())
-                me.file = baseName + "." + mat.name + ".material";
-            else
-                me.file = baseName + ".material." + std::to_string(originalMat); // fallback unique name
+            me.file = MakeMaterialFileName(baseName, mat.name, originalMat);
             outData.materials.push_back(std::move(me));
         }
     }
