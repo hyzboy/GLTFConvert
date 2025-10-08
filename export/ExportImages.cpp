@@ -4,17 +4,26 @@
 #include <fstream>
 #include <iostream>
 #include <unordered_set>
+#include <cstdlib>
 #include "ExportFileNames.h"
 #include "ImageMime.h" // added
 #include "ImageUsage.h" // new usage inference
+#include "TexConv.h" // texconv availability
 
 namespace exporters
 {
-    // Helper: copy (later convert) external image file with usage info
+    // Helper: copy or convert external image file with usage info
     static bool CopyImageFileWithUsage(const std::filesystem::path &srcPath,
                                        const std::filesystem::path &dstPath,
                                        ImageUsage usage)
     {
+        // Try TexConv convert first
+        if(texconv::Convert(srcPath, dstPath))
+        {
+            return true;
+        }
+
+        // Fallback to plain file copy
         std::error_code ec;
         std::filesystem::copy_file(srcPath, dstPath, std::filesystem::copy_options::overwrite_existing, ec);
         if (ec)

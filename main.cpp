@@ -5,6 +5,10 @@
 #include "gltf/GLTFModel.h"
 #include "pure/Model.h"
 
+// TexConv detection
+bool TexConvInitialize(); // forward if header not present
+namespace texconv { bool Initialize(std::filesystem::path *outPath=nullptr); }
+
 namespace pure
 {
     pure::Model ConvertFromGLTF(const GLTFModel &src);
@@ -17,6 +21,13 @@ namespace exporters
 
 int main(int argc,char *argv[])
 {
+    // Detect TexConv (optional)
+    std::filesystem::path texconvPath;
+    if(texconv::Initialize(&texconvPath))
+        std::cout << "[Init] TexConv available: " << texconvPath.string() << "\n";
+    else
+        std::cout << "[Init] TexConv not found (continuing without conversion)\n";
+
     if(argc<2)
     {
         std::cout<<"Usage: gltf_exporter <input.gltf or .glb> [output_dir]\n";

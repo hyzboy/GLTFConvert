@@ -165,6 +165,7 @@ SOURCE_GROUP("export" FILES ${EXPORT_FILES})
 
 add_executable(GLTFConvert
     main.cpp
+    TexConv.cpp
     ${MATH_FILES}
     ${COMMON_FILES}
     ${GLTF_FILES}
