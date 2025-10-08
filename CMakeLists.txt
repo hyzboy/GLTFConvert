@@ -152,6 +152,8 @@ set(EXPORT_FILES
     export/ExportFileNames.cpp
     export/ImageMime.cpp
     export/ImageMime.h
+    export/ImageUsage.cpp
+    export/ImageUsage.h
     export/SanitizeName.cpp
     export/SanitizeName.h
     export/SamplerStrings.cpp
