@@ -5,6 +5,7 @@
 #include "pure/Geometry.h"
 #include "pure/SubMesh.h"
 #include "gltf/GLTFModel.h"
+#include "convert/ComputeMeshBounds.h"
 
 namespace pure
 {
@@ -34,6 +35,9 @@ namespace pure
         CreateUniqueGeometryEntries(dst.geometry, src.primitives, uniqueMap);
         BuildPrimitives(dst.primitives, src.primitives, uniqueMap);
         BuildMeshes(dst.meshes, src.meshes);
+
+        // compute mesh-level bounds from geometry positions
+        convert::ComputeMeshBounds(dst);
 
         return dst;
     }

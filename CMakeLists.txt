@@ -106,6 +106,7 @@ set(CONVERT_FILES
     convert/CreateGeometry.cpp
     convert/BuildPrimitives.cpp
     convert/AttachNodeSubMeshes.cpp
+    convert/ComputeMeshBounds.cpp
 )
 SOURCE_GROUP("convert" FILES ${CONVERT_FILES})
 
@@ -136,6 +137,8 @@ set(SCENE_EXPORT_INTERNAL_FILES
 SOURCE_GROUP("export\\SceneBuildInternalsFine" FILES ${SCENE_EXPORT_INTERNAL_FILES})
 
 set(EXPORT_FILES
+    export/BoundingVolumesJson.h
+    export/BoundingVolumesJson.cpp
     export/ExportGeometry.cpp
     export/ExportGeometries.cpp
     export/ExportPureModel.cpp

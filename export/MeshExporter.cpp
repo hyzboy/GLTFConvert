@@ -5,6 +5,9 @@
 #include <iostream>
 #include <filesystem>
 
+#include "math/BoundingVolumes.h"
+#include "export/BoundingVolumesJson.h"
+
 #include "pure/Model.h"
 #include "pure/SubMesh.h" // Primitive definition
 #include "pure/Material.h"
@@ -55,6 +58,13 @@ namespace exporters
             }
 
             if (!prims.empty()) j["primitives"] = std::move(prims);
+
+            // Use mesh-level bounding volumes computed during conversion, if present
+            const auto &bv = m.bounding_volume;
+            if (!bv.emptyAABB() || !bv.emptyOBB() || !bv.emptySphere())
+            {
+                j["bounds"] = BoundingVolumesToJson(bv);
+            }
 
             auto filePath = dir / MakeMeshFileName(baseName, m.name, static_cast<int32_t>(mi));
             std::ofstream ofs(filePath, std::ios::binary);
