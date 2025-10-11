@@ -1,5 +1,5 @@
 #include "gltf/GLTFModel.h"
-#include "gltf/GLTFTextureInfo.h"
+#include "gltf/GLTFTexture.h"
 #include "pure/Model.h"
 #include "gltf/convert/UniqueGeometryMapping.h"
 #include "gltf/convert/ComputeMeshBounds.h"
@@ -77,7 +77,13 @@ namespace gltf
         {
             pure::Texture pt;
             pt.sampler = t.sampler;
-            pt.image = t.image;
+            // Assuming image is always present as per GLTF spec
+            if (t.image) {
+                pt.image = *t.image;
+            } else {
+                // Handle missing image, perhaps set to 0 or throw error
+                pt.image = 0; // Default or error
+            }
             dstTextures.push_back(std::move(pt));
         }
     }

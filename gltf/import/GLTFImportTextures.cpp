@@ -1,10 +1,10 @@
 #include <fastgltf/core.hpp>
 #include <vector>
-#include "gltf/GLTFTextureInfo.h"
+#include "gltf/GLTFTexture.h"
 
 namespace gltf
 {
-    void ImportTextures(const fastgltf::Asset &asset,std::vector<GLTFTextureInfo> &textures)
+    void ImportTextures(const fastgltf::Asset &asset,std::vector<GLTFTexture> &textures)
     {
         textures.clear();
         textures.resize(asset.textures.size());

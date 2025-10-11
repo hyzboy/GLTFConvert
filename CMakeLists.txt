@@ -57,7 +57,7 @@ set(GLTF_FILES
     gltf/GLTFScene.h
     gltf/GLTFModel.h
     gltf/GLTFImage.h
-    gltf/GLTFTextureInfo.h
+    gltf/GLTFTexture.h
     gltf/GLTFSampler.h
     gltf/ToNodeTransform.h
     gltf/ToNodeTransform.cpp
@@ -206,6 +206,93 @@ else()
     message(FATAL_ERROR "mini_pack_writer.h not found. Please ensure the MiniPack library is available.")
 endif()
 
+# Optional: FBX SDK support (Autodesk)
+# Set FBX_SDK_ROOT to the SDK installation root (it should contain "include" and "lib" subfolders).
+set(FBX_SDK_ROOT "" CACHE PATH "Path to Autodesk FBX SDK root (contains include/ and lib/)")
+
+find_path(FBX_SDK_INCLUDE_DIR
+    NAMES fbxsdk.h
+    HINTS ${FBX_SDK_ROOT}
+    PATH_SUFFIXES include include/fbxsdk
+)
+
+# Prefer the plain libfbxsdk.lib (avoid md/mt variants)
+set(FBX_LIB_DEBUG_PATH "")
+set(FBX_LIB_RELEASE_PATH "")
+if (FBX_SDK_ROOT)
+    file(GLOB FBX_POSSIBLE_LIBS
+        "${FBX_SDK_ROOT}/lib/**/libfbxsdk.lib"
+        "${FBX_SDK_ROOT}/lib/**/fbxsdk.lib"
+    )
+    list(REMOVE_DUPLICATES FBX_POSSIBLE_LIBS)
+
+    foreach(_lib ${FBX_POSSIBLE_LIBS})
+        string(TOLOWER "${_lib}" _lib_low)
+        if(_lib_low MATCHES "[\\/](debug|dbg)[\\/]")
+            if(NOT FBX_LIB_DEBUG_PATH)
+                set(FBX_LIB_DEBUG_PATH "${_lib}")
+            endif()
+        elseif(_lib_low MATCHES "[\\/](release)[\\/]")
+            if(NOT FBX_LIB_RELEASE_PATH)
+                set(FBX_LIB_RELEASE_PATH "${_lib}")
+            endif()
+        else()
+            # prefer non-debug as release lib if release not set
+            if(NOT FBX_LIB_RELEASE_PATH)
+                set(FBX_LIB_RELEASE_PATH "${_lib}")
+            endif()
+        endif()
+    endforeach()
+
+    # If only one lib found, use it for both configs
+    if(FBX_POSSIBLE_LIBS)
+        if(NOT FBX_LIB_DEBUG_PATH)
+            list(GET FBX_POSSIBLE_LIBS 0 FBX_LIB_DEBUG_PATH)
+        endif()
+        if(NOT FBX_LIB_RELEASE_PATH)
+            list(GET FBX_POSSIBLE_LIBS 0 FBX_LIB_RELEASE_PATH)
+        endif()
+    endif()
+endif()
+
+if (FBX_SDK_INCLUDE_DIR AND (FBX_LIB_DEBUG_PATH OR FBX_LIB_RELEASE_PATH))
+    message(STATUS "Found FBX SDK include: ${FBX_SDK_INCLUDE_DIR}")
+    if(FBX_LIB_DEBUG_PATH)
+        message(STATUS "Found FBX SDK debug lib: ${FBX_LIB_DEBUG_PATH}")
+    endif()
+    if(FBX_LIB_RELEASE_PATH)
+        message(STATUS "Found FBX SDK release lib: ${FBX_LIB_RELEASE_PATH}")
+    endif()
+
+    add_library(FBXSDK_imported UNKNOWN IMPORTED GLOBAL)
+    if(FBX_LIB_DEBUG_PATH)
+        set_target_properties(FBXSDK_imported PROPERTIES IMPORTED_LOCATION_DEBUG "${FBX_LIB_DEBUG_PATH}")
+    endif()
+    if(FBX_LIB_RELEASE_PATH)
+        set_target_properties(FBXSDK_imported PROPERTIES IMPORTED_LOCATION_RELEASE "${FBX_LIB_RELEASE_PATH}")
+    endif()
+
+    target_include_directories(GLTFConvert PRIVATE "${FBX_SDK_INCLUDE_DIR}")
+    target_link_libraries(GLTFConvert PRIVATE FBXSDK_imported)
+    target_compile_definitions(GLTFConvert PRIVATE USE_FBX)
+else()
+    # fallback: only search for the plain libfbxsdk or fbxsdk (no md/mt variants)
+    find_library(FBX_SDK_LIBRARY
+        NAMES libfbxsdk fbxsdk
+        HINTS ${FBX_SDK_ROOT}
+        PATH_SUFFIXES lib lib/x64 lib/x64/debug lib/x64/release lib/debug lib/release lib/vs2019/x64 lib/vs2017/x64
+    )
+
+    if (FBX_SDK_INCLUDE_DIR AND FBX_SDK_LIBRARY)
+        message(STATUS "Found FBX SDK: include=${FBX_SDK_INCLUDE_DIR} lib=${FBX_SDK_LIBRARY}")
+        target_include_directories(GLTFConvert PRIVATE "${FBX_SDK_INCLUDE_DIR}")
+        target_link_libraries(GLTFConvert PRIVATE "${FBX_SDK_LIBRARY}")
+        target_compile_definitions(GLTFConvert PRIVATE USE_FBX)
+    else()
+        message(STATUS "FBX SDK not found. To enable FBX support set FBX_SDK_ROOT to your SDK root or install the FBX SDK.")
+    endif()
+endif()
+
 if (MSVC)
     if(USE_STATIC_CRT)
         message(STATUS "Using static runtime on MSVC toolchain")
@@ -253,7 +340,7 @@ if (Vulkan_FOUND)
     endif()
 endif()
 
-target_link_libraries(GLTFConvert
+target_link_libraries(GLTFConvert PRIVATE
     PureModel
     fastgltf::fastgltf
     minipack_writer
