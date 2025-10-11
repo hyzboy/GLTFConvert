@@ -92,6 +92,13 @@ set(FBX_IMPORT_FILES
 )
 SOURCE_GROUP("fbx\\import" FILES ${FBX_IMPORT_FILES})
 
+# FBX geometry processing moved to its own source
+list(APPEND FBX_IMPORT_FILES
+    fbx/import/FBXGeometry.h
+    fbx/import/FBXGeometry.cpp
+)
+SOURCE_GROUP("fbx\\import" FILES fbx/import/FBXGeometry.h fbx/import/FBXGeometry.cpp)
+
 set(CONVERT_FILES
     gltf/convert/UniqueGeometryMapping.h
     gltf/convert/CopyMaterials.cpp
@@ -374,6 +381,7 @@ target_link_libraries(GLTFConvert PRIVATE
 if (FBX_FOUND)
     add_executable(FBXConvert
         main_fbx.cpp
+        TexConv.cpp
         ${FBX_FILES}
         ${FBX_IMPORT_FILES}
         ${CONVERT_FILES}
