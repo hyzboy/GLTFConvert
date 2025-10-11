@@ -21,7 +21,7 @@ namespace exporters
             const auto &mat = model.materials[originalMat];
             SceneMaterialExport me;
             me.originalIndex = originalMat;
-            me.file = MakeMaterialFileName(baseName, mat.name, originalMat);
+            me.file = MakeMaterialFileName(baseName, mat->name, originalMat);
             outData.materials.push_back(std::move(me));
         }
     }

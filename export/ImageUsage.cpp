@@ -1,6 +1,7 @@
 #include "ImageUsage.h"
 #include "pure/Model.h"
 #include "pure/Material.h"
+#include "gltf/GLTFMaterialImpl.h"
 #include <algorithm>
 
 namespace exporters
@@ -60,49 +61,52 @@ namespace exporters
             AddScore(scores,imgIdx,usage,w);
         };
 
-        for(const auto &mat : model.materials)
+        for(const auto &matPtr : model.materials)
         {
-            recordTextureRef(mat.pbr.baseColorTexture, ImageUsage::BaseColor, 10);
-            recordTextureRef(mat.pbr.metallicRoughnessTexture, ImageUsage::MetallicRoughness, 9);
-            recordTextureRef(mat.normalTexture, ImageUsage::Normal, 10);
-            recordTextureRef(mat.occlusionTexture, ImageUsage::Occlusion, 6);
-            recordTextureRef(mat.emissiveTexture, ImageUsage::Emissive, 6);
-            if(mat.extSpecular)
+            const gltf::GLTFMaterialImpl *mat = dynamic_cast<const gltf::GLTFMaterialImpl*>(matPtr.get());
+            if (!mat) continue;
+            const auto& gm = mat->gltfMaterial;
+            recordTextureRef(gm.pbr.baseColorTexture, ImageUsage::BaseColor, 10);
+            recordTextureRef(gm.pbr.metallicRoughnessTexture, ImageUsage::MetallicRoughness, 9);
+            recordTextureRef(gm.normalTexture, ImageUsage::Normal, 10);
+            recordTextureRef(gm.occlusionTexture, ImageUsage::Occlusion, 6);
+            recordTextureRef(gm.emissiveTexture, ImageUsage::Emissive, 6);
+            if(gm.extSpecular)
             {
-                recordTextureRef(mat.extSpecular->specularTexture, ImageUsage::Specular, 5);
-                recordTextureRef(mat.extSpecular->specularColorTexture, ImageUsage::SpecularColor, 5);
+                recordTextureRef(gm.extSpecular->specularTexture, ImageUsage::Specular, 5);
+                recordTextureRef(gm.extSpecular->specularColorTexture, ImageUsage::SpecularColor, 5);
             }
-            if(mat.extClearcoat)
+            if(gm.extClearcoat)
             {
-                recordTextureRef(mat.extClearcoat->clearcoatTexture, ImageUsage::Clearcoat, 4);
-                recordTextureRef(mat.extClearcoat->clearcoatRoughnessTexture, ImageUsage::ClearcoatRoughness, 4);
-                recordTextureRef(mat.extClearcoat->clearcoatNormalTexture, ImageUsage::ClearcoatNormal, 8);
+                recordTextureRef(gm.extClearcoat->clearcoatTexture, ImageUsage::Clearcoat, 4);
+                recordTextureRef(gm.extClearcoat->clearcoatRoughnessTexture, ImageUsage::ClearcoatRoughness, 4);
+                recordTextureRef(gm.extClearcoat->clearcoatNormalTexture, ImageUsage::ClearcoatNormal, 8);
             }
-            if(mat.extSheen)
+            if(gm.extSheen)
             {
-                recordTextureRef(mat.extSheen->sheenColorTexture, ImageUsage::SheenColor, 4);
-                recordTextureRef(mat.extSheen->sheenRoughnessTexture, ImageUsage::SheenRoughness, 4);
+                recordTextureRef(gm.extSheen->sheenColorTexture, ImageUsage::SheenColor, 4);
+                recordTextureRef(gm.extSheen->sheenRoughnessTexture, ImageUsage::SheenRoughness, 4);
             }
-            if(mat.extTransmission)
+            if(gm.extTransmission)
             {
-                recordTextureRef(mat.extTransmission->transmissionTexture, ImageUsage::Transmission, 4);
+                recordTextureRef(gm.extTransmission->transmissionTexture, ImageUsage::Transmission, 4);
             }
-            if(mat.extDiffuseTransmission)
+            if(gm.extDiffuseTransmission)
             {
-                recordTextureRef(mat.extDiffuseTransmission->diffuseTransmissionTexture, ImageUsage::DiffuseTransmission, 4);
+                recordTextureRef(gm.extDiffuseTransmission->diffuseTransmissionTexture, ImageUsage::DiffuseTransmission, 4);
             }
-            if(mat.extVolume)
+            if(gm.extVolume)
             {
-                recordTextureRef(mat.extVolume->thicknessTexture, ImageUsage::Thickness, 3);
+                recordTextureRef(gm.extVolume->thicknessTexture, ImageUsage::Thickness, 3);
             }
-            if(mat.extAnisotropy)
+            if(gm.extAnisotropy)
             {
-                recordTextureRef(mat.extAnisotropy->texture, ImageUsage::Anisotropy, 3);
+                recordTextureRef(gm.extAnisotropy->texture, ImageUsage::Anisotropy, 3);
             }
-            if(mat.extIridescence)
+            if(gm.extIridescence)
             {
-                recordTextureRef(mat.extIridescence->texture, ImageUsage::Iridescence, 3);
-                recordTextureRef(mat.extIridescence->thicknessTexture, ImageUsage::IridescenceThickness, 3);
+                recordTextureRef(gm.extIridescence->texture, ImageUsage::Iridescence, 3);
+                recordTextureRef(gm.extIridescence->thicknessTexture, ImageUsage::IridescenceThickness, 3);
             }
         }
 

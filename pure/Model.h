@@ -1,6 +1,7 @@
 #pragma once
 #include <string>
 #include <vector>
+#include <memory>
 #include <filesystem>
 #include "pure/Material.h"
 #include "pure/Scene.h"
@@ -17,7 +18,7 @@ namespace pure
     struct Model
     {
         std::string gltf_source;
-        std::vector<Material> materials;
+        std::vector<std::unique_ptr<Material>> materials;
         std::vector<Scene> scenes;
         std::vector<Node> nodes;        // nodes
         std::vector<Mesh> meshes;       // meshes (list of primitive indices)

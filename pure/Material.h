@@ -1,18 +1,17 @@
 #pragma once
-#include <vector>
-#include <cstddef>
-#include "gltf/GLTFMaterial.h"
+#include <string>
+#include <nlohmann/json.hpp>
 
 namespace pure
 {
     struct Model; // forward
 
-    // Extended material storing references to globally used resources
-    struct Material : public GLTFMaterial
+    struct Material
     {
-        // Indices into Model::textures / images / samplers that this material references
-        std::vector<std::size_t> usedTextures;
-        std::vector<std::size_t> usedImages;
-        std::vector<std::size_t> usedSamplers;
+        std::string type;
+        std::string name;
+
+        virtual ~Material() = default;
+        virtual nlohmann::json toJson() const = 0;
     };
 }

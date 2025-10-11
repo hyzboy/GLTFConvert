@@ -51,7 +51,7 @@ namespace exporters
                     if (matIdx >= 0 && matIdx < static_cast<int32_t>(model.materials.size()))
                     {
                         const auto &mat = model.materials[matIdx];
-                        jp["material"] = MakeMaterialFileName(baseName, mat.name, matIdx);
+                        jp["material"] = MakeMaterialFileName(baseName, mat->name, matIdx);
                     }
                 }
                 prims.push_back(std::move(jp));

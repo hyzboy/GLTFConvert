@@ -2,6 +2,7 @@
 #include "SceneExportCollect.h"
 #include "pure/Model.h"
 #include "gltf/GLTFMaterial.h"
+#include "gltf/GLTFMaterialImpl.h"
 #include <unordered_set>
 
 namespace exporters
@@ -19,7 +20,9 @@ namespace exporters
             if (mid < 0 || mid >= static_cast<int32_t>(model.materials.size()))
                 continue;
 
-            const auto &mat = model.materials[mid];
+            const gltf::GLTFMaterialImpl *mat = dynamic_cast<const gltf::GLTFMaterialImpl*>(model.materials[mid].get());
+            if (!mat) continue;
+            const auto& gm = mat->gltfMaterial;
 
             auto addRef = [&](const GLTFTextureRef &ref)
             {
@@ -35,35 +38,35 @@ namespace exporters
                     sampSet.insert(*tiObj.sampler);
             };
 
-            addRef(mat.pbr.baseColorTexture);
-            addRef(mat.pbr.metallicRoughnessTexture);
-            addRef(mat.normalTexture);
-            addRef(mat.occlusionTexture);
-            addRef(mat.emissiveTexture);
-            if (mat.extTransmission)        addRef(mat.extTransmission->transmissionTexture);
-            if (mat.extDiffuseTransmission) addRef(mat.extDiffuseTransmission->diffuseTransmissionTexture);
-            if (mat.extSpecular)
+            addRef(gm.pbr.baseColorTexture);
+            addRef(gm.pbr.metallicRoughnessTexture);
+            addRef(gm.normalTexture);
+            addRef(gm.occlusionTexture);
+            addRef(gm.emissiveTexture);
+            if (gm.extTransmission)        addRef(gm.extTransmission->transmissionTexture);
+            if (gm.extDiffuseTransmission) addRef(gm.extDiffuseTransmission->diffuseTransmissionTexture);
+            if (gm.extSpecular)
             {
-                addRef(mat.extSpecular->specularTexture);
-                addRef(mat.extSpecular->specularColorTexture);
+                addRef(gm.extSpecular->specularTexture);
+                addRef(gm.extSpecular->specularColorTexture);
             }
-            if (mat.extClearcoat)
+            if (gm.extClearcoat)
             {
-                addRef(mat.extClearcoat->clearcoatTexture);
-                addRef(mat.extClearcoat->clearcoatRoughnessTexture);
-                addRef(mat.extClearcoat->clearcoatNormalTexture);
+                addRef(gm.extClearcoat->clearcoatTexture);
+                addRef(gm.extClearcoat->clearcoatRoughnessTexture);
+                addRef(gm.extClearcoat->clearcoatNormalTexture);
             }
-            if (mat.extSheen)
+            if (gm.extSheen)
             {
-                addRef(mat.extSheen->sheenColorTexture);
-                addRef(mat.extSheen->sheenRoughnessTexture);
+                addRef(gm.extSheen->sheenColorTexture);
+                addRef(gm.extSheen->sheenRoughnessTexture);
             }
-            if (mat.extVolume)      addRef(mat.extVolume->thicknessTexture);
-            if (mat.extAnisotropy)  addRef(mat.extAnisotropy->texture);
-            if (mat.extIridescence)
+            if (gm.extVolume)      addRef(gm.extVolume->thicknessTexture);
+            if (gm.extAnisotropy)  addRef(gm.extAnisotropy->texture);
+            if (gm.extIridescence)
             {
-                addRef(mat.extIridescence->texture);
-                addRef(mat.extIridescence->thicknessTexture);
+                addRef(gm.extIridescence->texture);
+                addRef(gm.extIridescence->thicknessTexture);
             }
         }
 

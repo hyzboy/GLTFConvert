@@ -9,7 +9,7 @@
 
 namespace pure
 {
-    void                    CopyMaterials(                      std::vector<Material> &     dstMaterials,   const std::vector<GLTFMaterial> &   srcMaterials, const Model &model);
+    void                    CopyMaterials(                      std::vector<std::unique_ptr<Material>> &     dstMaterials,   const std::vector<GLTFMaterial> &   srcMaterials, const Model &model);
     void                    CopyScenes(                         std::vector<Scene> &        dstScenes,      const std::vector<GLTFScene> &      srcScenes);
     void                    CopyNodes(                          std::vector<Node> &         dstNodes,       const std::vector<GLTFNode> &       srcNodes);
     UniqueGeometryMapping   BuildUniqueGeometryMapping(const    std::vector<GLTFPrimitive> &prims);

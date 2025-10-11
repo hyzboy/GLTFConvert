@@ -1,8 +1,10 @@
 #include <vector>
 #include <unordered_set>
+#include <memory>
 
 #include "pure/Material.h"
 #include "gltf/GLTFMaterial.h"
+#include "gltf/GLTFMaterialImpl.h"
 #include "pure/Model.h"
 
 namespace pure
@@ -28,7 +30,7 @@ namespace pure
     }
 
     // Now takes model to do collection directly.
-    void CopyMaterials(std::vector<Material> &dstMaterials,
+    void CopyMaterials(std::vector<std::unique_ptr<Material>> &dstMaterials,
                        const std::vector<GLTFMaterial> &srcMaterials,
                        const Model &model)
     {
@@ -36,7 +38,9 @@ namespace pure
         dstMaterials.reserve(srcMaterials.size());
         for(const auto &m:srcMaterials)
         {
-            Material pm; static_cast<GLTFMaterial &>(pm)=m;
+            auto pm = std::make_unique<gltf::GLTFMaterialImpl>();
+            pm->gltfMaterial = m;
+            pm->name = m.name;
 
             std::unordered_set<std::size_t> texSet,imgSet,sampSet;
             AddRef(model,m.pbr.baseColorTexture,texSet,imgSet,sampSet);
@@ -70,9 +74,9 @@ namespace pure
                 AddRef(model,m.extIridescence->thicknessTexture,texSet,imgSet,sampSet);
             }
 
-            pm.usedTextures.assign(texSet.begin(),texSet.end());
-            pm.usedImages.assign(imgSet.begin(),imgSet.end());
-            pm.usedSamplers.assign(sampSet.begin(),sampSet.end());
+            pm->usedTextures.assign(texSet.begin(),texSet.end());
+            pm->usedImages.assign(imgSet.begin(),imgSet.end());
+            pm->usedSamplers.assign(sampSet.begin(),sampSet.end());
 
             dstMaterials.emplace_back(std::move(pm));
         }
