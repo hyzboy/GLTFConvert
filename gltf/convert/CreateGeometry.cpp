@@ -3,7 +3,7 @@
 #include "gltf/GLTFPrimitive.h"
 #include "pure/Geometry.h"
 #include "pure/GeometryIndicesMeta.h"
-#include "convert/UniqueGeometryMapping.h"
+#include "gltf/convert/UniqueGeometryMapping.h"
 
 namespace gltf
 {

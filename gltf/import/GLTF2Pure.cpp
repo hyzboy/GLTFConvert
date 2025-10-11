@@ -1,7 +1,7 @@
 #include "gltf/GLTFModel.h"
 #include "pure/Model.h"
-#include "convert/UniqueGeometryMapping.h"
-#include "convert/ComputeMeshBounds.h"
+#include "gltf/convert/UniqueGeometryMapping.h"
+#include "gltf/convert/ComputeMeshBounds.h"
 
 namespace gltf
 {

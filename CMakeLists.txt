@@ -81,6 +81,19 @@ set(GLTF_IMPORT_FILES
 )
 SOURCE_GROUP("gltf\\import" FILES ${GLTF_IMPORT_FILES})
 
+set(CONVERT_FILES
+    gltf/convert/UniqueGeometryMapping.h
+    gltf/convert/CopyMaterials.cpp
+    gltf/convert/CopyScenes.cpp
+    gltf/convert/CopyNodes.cpp
+    gltf/convert/GeometryMapping.cpp
+    gltf/convert/CreateGeometry.cpp
+    gltf/convert/BuildPrimitives.cpp
+    gltf/convert/AttachNodeSubMeshes.cpp
+    gltf/convert/ComputeMeshBounds.cpp
+)
+SOURCE_GROUP("gltf\\convert" FILES ${CONVERT_FILES})
+
 set(PURE_GEOM_FILES
     pure/BoundsIndex.h
     pure/GeometryIndicesMeta.h
@@ -97,19 +110,6 @@ set(PURE_GEOM_FILES
     pure/Sampler.h
 )
 SOURCE_GROUP("pure" FILES ${PURE_GEOM_FILES})
-
-set(CONVERT_FILES
-    convert/UniqueGeometryMapping.h
-    convert/CopyMaterials.cpp
-    convert/CopyScenes.cpp
-    convert/CopyNodes.cpp
-    convert/GeometryMapping.cpp
-    convert/CreateGeometry.cpp
-    convert/BuildPrimitives.cpp
-    convert/AttachNodeSubMeshes.cpp
-    convert/ComputeMeshBounds.cpp
-)
-SOURCE_GROUP("convert" FILES ${CONVERT_FILES})
 
 set(SCENE_EXPORT_INTERNAL_FILES
     export/SceneExportNames.h

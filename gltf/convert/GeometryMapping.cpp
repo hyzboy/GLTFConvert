@@ -1,7 +1,7 @@
 #include <algorithm>
 #include <vector>
 
-#include "convert/UniqueGeometryMapping.h"
+#include "gltf/convert/UniqueGeometryMapping.h"
 #include "gltf/GLTFPrimitive.h"
 #include "gltf/GLTFGeometry.h"
 
