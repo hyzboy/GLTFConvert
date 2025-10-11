@@ -7,13 +7,13 @@
 #include "gltf/GLTFMaterial.h"
 #include "pure/Model.h"
 
-namespace pure
+namespace gltf
 {
     // Helper to add texture ref and collect image / sampler indices
     namespace
     {
         template<typename TSet>
-        void AddTextureIndex(const Model &model,std::optional<std::size_t> texIdx,TSet &texSet,TSet &imgSet,TSet &sampSet)
+        void AddTextureIndex(const pure::Model &model,std::optional<std::size_t> texIdx,TSet &texSet,TSet &imgSet,TSet &sampSet)
         {
             if(!texIdx) return;
             if(*texIdx>=model.textures.size()) return;
@@ -23,16 +23,16 @@ namespace pure
             if(tex.sampler&&*tex.sampler<model.samplers.size()) sampSet.insert(*tex.sampler);
         }
         template<typename TSet>
-        void AddRef(const Model &model,const GLTFTextureRef &ref,TSet &texSet,TSet &imgSet,TSet &sampSet)
+        void AddRef(const pure::Model &model,const GLTFTextureRef &ref,TSet &texSet,TSet &imgSet,TSet &sampSet)
         {
             if(!ref.index) return; AddTextureIndex(model,ref.index,texSet,imgSet,sampSet);
         }
     }
 
     // Now takes model to do collection directly.
-    void CopyMaterials(std::vector<std::unique_ptr<Material>> &dstMaterials,
+    void CopyMaterials(std::vector<std::unique_ptr<pure::Material>> &dstMaterials,
                        const std::vector<GLTFMaterial> &srcMaterials,
-                       const Model &model)
+                       const pure::Model &model)
     {
         dstMaterials.clear();
         dstMaterials.reserve(srcMaterials.size());
@@ -108,7 +108,7 @@ namespace pure
             pm->usedImages.assign(imgSet.begin(),imgSet.end());
             pm->usedSamplers.assign(sampSet.begin(),sampSet.end());
 
-            dstMaterials.emplace_back(std::unique_ptr<Material>(std::move(pm)));
+            dstMaterials.emplace_back(std::unique_ptr<pure::Material>(std::move(pm)));
         }
     }
-} // namespace pure
+} // namespace gltf

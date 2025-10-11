@@ -1,25 +1,21 @@
+#include "gltf/GLTFModel.h"
 #include "pure/Model.h"
 #include "convert/UniqueGeometryMapping.h"
-#include "pure/Material.h"
-#include "pure/Scene.h"
-#include "pure/Geometry.h"
-#include "pure/SubMesh.h"
-#include "gltf/GLTFModel.h"
 #include "convert/ComputeMeshBounds.h"
 
-namespace pure
+namespace gltf
 {
-    void                    CopyMaterials(                      std::vector<std::unique_ptr<Material>> &     dstMaterials,   const std::vector<GLTFMaterial> &   srcMaterials, const Model &model);
-    void                    CopyScenes(                         std::vector<Scene> &        dstScenes,      const std::vector<GLTFScene> &      srcScenes);
-    void                    CopyNodes(                          std::vector<Node> &         dstNodes,       const std::vector<GLTFNode> &       srcNodes);
+    void                    CopyMaterials(                      std::vector<std::unique_ptr<pure::Material>> &     dstMaterials,   const std::vector<GLTFMaterial> &   srcMaterials, const pure::Model &model);
+    void                    CopyScenes(                         std::vector<pure::Scene> &        dstScenes,      const std::vector<GLTFScene> &      srcScenes);
+    void                    CopyNodes(                          std::vector<pure::Node> &         dstNodes,       const std::vector<GLTFNode> &       srcNodes);
     UniqueGeometryMapping   BuildUniqueGeometryMapping(const    std::vector<GLTFPrimitive> &prims);
-    void                    CreateUniqueGeometryEntries(        std::vector<Geometry> &     dstGeometry,    const std::vector<GLTFPrimitive> &  prims,      const UniqueGeometryMapping &map);
-    void                    BuildPrimitives(                    std::vector<Primitive> &    dst,            const std::vector<GLTFPrimitive> &  prims,      const UniqueGeometryMapping &map);
-    void                    BuildMeshes(                        std::vector<Mesh> &         dstMeshes,      const std::vector<GLTFMesh> &       srcMeshes);
+    void                    CreateUniqueGeometryEntries(        std::vector<pure::Geometry> &     dstGeometry,    const std::vector<GLTFPrimitive> &  prims,      const gltf::UniqueGeometryMapping &map);
+    void                    BuildPrimitives(                    std::vector<pure::Primitive> &    dst,            const std::vector<GLTFPrimitive> &  prims,      const gltf::UniqueGeometryMapping &map);
+    void                    BuildMeshes(                        std::vector<pure::Mesh> &         dstMeshes,      const std::vector<GLTFMesh> &       srcMeshes);
 
-    Model ConvertFromGLTF(const GLTFModel &src)
+    pure::Model ConvertFromGLTF(const GLTFModel &src)
     {
-        Model dst;
+        pure::Model dst;
         dst.gltf_source = src.source;
 
         // we need images/textures/samplers before collecting references in materials
@@ -27,18 +23,18 @@ namespace pure
         dst.textures = src.textures;
         dst.samplers = src.samplers;
 
-        CopyMaterials(dst.materials, src.materials, dst);
-        CopyScenes(dst.scenes, src.scenes);
-        CopyNodes(dst.nodes, src.nodes);
+        gltf::CopyMaterials(dst.materials, src.materials, dst);
+        gltf::CopyScenes(dst.scenes, src.scenes);
+        gltf::CopyNodes(dst.nodes, src.nodes);
 
-        auto uniqueMap = BuildUniqueGeometryMapping(src.primitives);
-        CreateUniqueGeometryEntries(dst.geometry, src.primitives, uniqueMap);
-        BuildPrimitives(dst.primitives, src.primitives, uniqueMap);
-        BuildMeshes(dst.meshes, src.meshes);
+        auto uniqueMap = gltf::BuildUniqueGeometryMapping(src.primitives);
+        gltf::CreateUniqueGeometryEntries(dst.geometry, src.primitives, uniqueMap);
+        gltf::BuildPrimitives(dst.primitives, src.primitives, uniqueMap);
+        gltf::BuildMeshes(dst.meshes, src.meshes);
 
         // compute mesh-level bounds from geometry positions
         convert::ComputeMeshBounds(dst);
 
         return dst;
     }
-} // namespace pure
+} // namespace gltf

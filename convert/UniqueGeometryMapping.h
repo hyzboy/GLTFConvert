@@ -2,7 +2,7 @@
 #include <vector>
 #include <cstdint>
 
-namespace pure
+namespace gltf
 {
     // Mapping from glTF primitive indices to unique geometry entries
     struct UniqueGeometryMapping

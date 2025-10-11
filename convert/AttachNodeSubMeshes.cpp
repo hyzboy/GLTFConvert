@@ -1,16 +1,16 @@
 #include <vector>
 
-#include "pure/Mesh.h"
 #include "gltf/GLTFMesh.h"
+#include "pure/Mesh.h"
 
-namespace pure
+namespace gltf
 {
-    void BuildMeshes(std::vector<Mesh> &dstMeshes, const std::vector<GLTFMesh> &srcMeshes)
+    void BuildMeshes(std::vector<pure::Mesh> &dstMeshes, const std::vector<GLTFMesh> &srcMeshes)
     {
         dstMeshes.reserve(srcMeshes.size());
         for (const auto &m : srcMeshes)
         {
-            Mesh pm;
+            pure::Mesh pm;
             pm.name = m.name;
             pm.primitives.reserve(m.primitives.size());
             for (auto prim : m.primitives)
@@ -18,4 +18,4 @@ namespace pure
             dstMeshes.push_back(std::move(pm));
         }
     }
-} // namespace pure
+} // namespace gltf

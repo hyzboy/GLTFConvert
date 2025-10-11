@@ -5,7 +5,7 @@
 #include "gltf/GLTFPrimitive.h"
 #include "gltf/GLTFGeometry.h"
 
-namespace pure
+namespace gltf
 {
     namespace
     {
@@ -68,4 +68,4 @@ namespace pure
         }
         return map;
     }
-} // namespace pure
+} // namespace gltf

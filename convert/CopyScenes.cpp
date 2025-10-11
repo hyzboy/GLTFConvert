@@ -1,16 +1,16 @@
 #include <vector>
 
-#include "pure/Scene.h"
 #include "gltf/GLTFScene.h"
+#include "pure/Scene.h"
 
-namespace pure
+namespace gltf
 {
-    void CopyScenes(std::vector<Scene> &dstScenes, const std::vector<GLTFScene> &srcScenes)
+    void CopyScenes(std::vector<pure::Scene> &dstScenes, const std::vector<GLTFScene> &srcScenes)
     {
         dstScenes.reserve(srcScenes.size());
         for (const auto &s : srcScenes)
         {
-            Scene ps;
+            pure::Scene ps;
             ps.name = s.name;
             ps.nodes.reserve(s.nodes.size());
             for (auto ni : s.nodes)
@@ -18,4 +18,4 @@ namespace pure
             dstScenes.push_back(std::move(ps));
         }
     }
-} // namespace pure
+} // namespace gltf

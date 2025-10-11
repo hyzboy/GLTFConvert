@@ -9,7 +9,7 @@
 // TexConv detection
 namespace texconv { bool Initialize(std::filesystem::path *outPath=nullptr); }
 
-namespace pure
+namespace gltf
 {
     pure::Model ConvertFromGLTF(const GLTFModel &src);
 }
@@ -75,7 +75,7 @@ int main(int argc,char *argv[])
         return 1;
     }
     
-    pure::Model sm=pure::ConvertFromGLTF(model);
+    pure::Model sm=gltf::ConvertFromGLTF(model);
 
     if(!exporters::ExportPureModel(sm,outDir,exportImagesFlag,imagesOnly))
     {

@@ -1,16 +1,16 @@
 #include <vector>
 
-#include "pure/Node.h"
 #include "gltf/GLTFNode.h"
+#include "pure/Node.h"
 
-namespace pure
+namespace gltf
 {
-    void CopyNodes(std::vector<Node> &dstNodes, const std::vector<GLTFNode> &srcNodes)
+    void CopyNodes(std::vector<pure::Node> &dstNodes, const std::vector<GLTFNode> &srcNodes)
     {
         dstNodes.reserve(srcNodes.size());
         for (const auto &n : srcNodes)
         {
-            Node pn;
+            pure::Node pn;
             pn.name = n.name;
             pn.children.reserve(n.children.size());
             for (auto c : n.children)
@@ -20,4 +20,4 @@ namespace pure
             dstNodes.push_back(std::move(pn));
         }
     }
-} // namespace pure
+} // namespace gltf
