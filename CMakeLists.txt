@@ -6,7 +6,7 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 find_package(glm REQUIRED)
-find_package(fastgltf REQUIRED)
+find_package(fastgltf QUIET)
 find_package(nlohmann_json REQUIRED)
 find_package(Vulkan REQUIRED)
 
@@ -80,6 +80,17 @@ set(GLTF_IMPORT_FILES
     gltf/import/GLTF2Pure.cpp
 )
 SOURCE_GROUP("gltf\\import" FILES ${GLTF_IMPORT_FILES})
+
+set(FBX_FILES
+    fbx/FBXModel.h
+)
+SOURCE_GROUP("fbx" FILES ${FBX_FILES})
+
+set(FBX_IMPORT_FILES
+    fbx/import/FBXImporter.h
+    fbx/import/FBXImporter.cpp
+)
+SOURCE_GROUP("fbx\\import" FILES ${FBX_IMPORT_FILES})
 
 set(CONVERT_FILES
     gltf/convert/UniqueGeometryMapping.h
@@ -216,6 +227,10 @@ find_path(FBX_SDK_INCLUDE_DIR
     PATH_SUFFIXES include include/fbxsdk
 )
 
+# Track whether FBX was located and what to link
+set(FBX_FOUND OFF)
+set(FBX_LIB_TARGET "")
+
 # Prefer the plain libfbxsdk.lib (avoid md/mt variants)
 set(FBX_LIB_DEBUG_PATH "")
 set(FBX_LIB_RELEASE_PATH "")
@@ -271,10 +286,13 @@ if (FBX_SDK_INCLUDE_DIR AND (FBX_LIB_DEBUG_PATH OR FBX_LIB_RELEASE_PATH))
     if(FBX_LIB_RELEASE_PATH)
         set_target_properties(FBXSDK_imported PROPERTIES IMPORTED_LOCATION_RELEASE "${FBX_LIB_RELEASE_PATH}")
     endif()
+    # mark found and set link target to the imported target
+    set(FBX_FOUND ON)
+    set(FBX_LIB_TARGET "FBXSDK_imported")
 
-    target_include_directories(GLTFConvert PRIVATE "${FBX_SDK_INCLUDE_DIR}")
-    target_link_libraries(GLTFConvert PRIVATE FBXSDK_imported)
-    target_compile_definitions(GLTFConvert PRIVATE USE_FBX)
+#    target_include_directories(GLTFConvert PRIVATE "${FBX_SDK_INCLUDE_DIR}")
+#    target_link_libraries(GLTFConvert PRIVATE FBXSDK_imported)
+#    target_compile_definitions(GLTFConvert PRIVATE USE_FBX)
 else()
     # fallback: only search for the plain libfbxsdk or fbxsdk (no md/mt variants)
     find_library(FBX_SDK_LIBRARY
@@ -291,6 +309,12 @@ else()
     else()
         message(STATUS "FBX SDK not found. To enable FBX support set FBX_SDK_ROOT to your SDK root or install the FBX SDK.")
     endif()
+endif()
+
+# If the fallback found a plain FBX SDK library, mark FBX as found and record the library
+if (FBX_SDK_INCLUDE_DIR AND FBX_SDK_LIBRARY)
+    set(FBX_FOUND ON)
+    set(FBX_LIB_TARGET "${FBX_SDK_LIBRARY}")
 endif()
 
 if (MSVC)
@@ -345,3 +369,49 @@ target_link_libraries(GLTFConvert PRIVATE
     fastgltf::fastgltf
     minipack_writer
 )
+
+# Build FBXConvert only if FBX SDK was found
+if (FBX_FOUND)
+    add_executable(FBXConvert
+        main_fbx.cpp
+        ${FBX_FILES}
+        ${FBX_IMPORT_FILES}
+        ${CONVERT_FILES}
+    )
+
+    target_compile_definitions(FBXConvert PRIVATE
+        GLM_FORCE_DEFAULT_ALIGNED_GENTYPES
+        GLM_FORCE_INTRINSICS
+    )
+
+    target_link_libraries(FBXConvert PRIVATE
+        PureModel
+        fastgltf::fastgltf
+        minipack_writer
+    )
+
+    if (FBX_SDK_INCLUDE_DIR)
+        target_include_directories(FBXConvert PRIVATE "${FBX_SDK_INCLUDE_DIR}")
+    endif()
+    if (FBX_LIB_TARGET)
+        target_link_libraries(FBXConvert PRIVATE ${FBX_LIB_TARGET})
+    endif()
+    target_compile_definitions(FBXConvert PRIVATE USE_FBX)
+
+    target_compile_options(FBXConvert PRIVATE
+        $<$<CXX_COMPILER_ID:MSVC>:/arch:AVX2 /fp:fast /openmp:llvm>
+        $<$<AND:$<CXX_COMPILER_ID:MSVC>,$<CONFIG:Debug>>:/Zi /Od /RTC1>
+        $<$<AND:$<CXX_COMPILER_ID:MSVC>,$<CONFIG:Release>>:/O2 /Oi /Ot>
+        $<$<OR:$<CXX_COMPILER_ID:GNU>,$<CXX_COMPILER_ID:Clang>>:-mavx2 -O3 -ffast-math -fopenmp>
+    )
+
+    if (MSVC)
+        if(USE_STATIC_CRT)
+            set_property(TARGET FBXConvert PROPERTY MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
+        else()
+            set_property(TARGET FBXConvert PROPERTY MSVC_RUNTIME_LIBRARY "MultiThreadedDLL$<$<CONFIG:Debug>:Debug>")
+        endif()
+    endif()
+else()
+    message(STATUS "FBX SDK not found. FBXConvert will not be built.")
+endif()
