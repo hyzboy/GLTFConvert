@@ -1,14 +1,25 @@
 #pragma once
-#include "pure/Material.h"
+#include "pure/PBRMaterial.h"
 #include "gltf/GLTFMaterial.h"
 #include <vector>
 #include <cstddef>
 
 namespace gltf
 {
-    struct GLTFMaterialImpl : public pure::Material
+    struct GLTFMaterialImpl : public pure::PBRMaterial
     {
-        GLTFMaterial gltfMaterial; // Embedded GLTFMaterial for GLTF-specific fields
+        // GLTF-specific extensions
+        std::optional<GLTFExtEmissiveStrength> extEmissiveStrength;
+        std::optional<GLTFExtUnlit> extUnlit;
+        std::optional<GLTFExtIOR> extIOR;
+        std::optional<GLTFExtTransmission> extTransmission;
+        std::optional<GLTFExtDiffuseTransmission> extDiffuseTransmission;
+        std::optional<GLTFExtSpecular> extSpecular;
+        std::optional<GLTFExtClearcoat> extClearcoat;
+        std::optional<GLTFExtSheen> extSheen;
+        std::optional<GLTFExtVolume> extVolume;
+        std::optional<GLTFExtAnisotropy> extAnisotropy;
+        std::optional<GLTFExtIridescence> extIridescence;
 
         // Indices into Model::textures / images / samplers that this material references
         std::vector<std::size_t> usedTextures;
@@ -17,16 +28,15 @@ namespace gltf
 
         GLTFMaterialImpl()
         {
-            type = "GLTF"; // Set default type for GLTF materials
+            type = "GLTF"; // Override to indicate GLTF-specific PBR
         }
 
         nlohmann::json toJson() const override
         {
             // Placeholder implementation; implement full serialization as needed
-            nlohmann::json j;
-            j["name"] = name;
+            nlohmann::json j = pure::PBRMaterial::toJson(); // Call base
             j["type"] = type;
-            // TODO: Serialize GLTFMaterial fields properly
+            // TODO: Add extensions serialization
             return j;
         }
     };

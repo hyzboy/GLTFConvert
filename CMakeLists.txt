@@ -87,6 +87,7 @@ set(PURE_GEOM_FILES
     pure/GeometryIndicesMeta.h
     pure/Geometry.h
     pure/Material.h
+    pure/PBRMaterial.h
     pure/Mesh.h
     pure/Node.h
     pure/SubMesh.h

@@ -20,11 +20,10 @@ namespace exporters
             if (mid < 0 || mid >= static_cast<int32_t>(model.materials.size()))
                 continue;
 
-            const gltf::GLTFMaterialImpl *mat = dynamic_cast<const gltf::GLTFMaterialImpl*>(model.materials[mid].get());
+            const pure::PBRMaterial *mat = dynamic_cast<const pure::PBRMaterial*>(model.materials[mid].get());
             if (!mat) continue;
-            const auto& gm = mat->gltfMaterial;
 
-            auto addRef = [&](const GLTFTextureRef &ref)
+            auto addRef = [&](const pure::TextureRef &ref)
             {
                 if (!ref.index) return;
                 std::size_t ti = *ref.index;
@@ -38,36 +37,12 @@ namespace exporters
                     sampSet.insert(*tiObj.sampler);
             };
 
-            addRef(gm.pbr.baseColorTexture);
-            addRef(gm.pbr.metallicRoughnessTexture);
-            addRef(gm.normalTexture);
-            addRef(gm.occlusionTexture);
-            addRef(gm.emissiveTexture);
-            if (gm.extTransmission)        addRef(gm.extTransmission->transmissionTexture);
-            if (gm.extDiffuseTransmission) addRef(gm.extDiffuseTransmission->diffuseTransmissionTexture);
-            if (gm.extSpecular)
-            {
-                addRef(gm.extSpecular->specularTexture);
-                addRef(gm.extSpecular->specularColorTexture);
-            }
-            if (gm.extClearcoat)
-            {
-                addRef(gm.extClearcoat->clearcoatTexture);
-                addRef(gm.extClearcoat->clearcoatRoughnessTexture);
-                addRef(gm.extClearcoat->clearcoatNormalTexture);
-            }
-            if (gm.extSheen)
-            {
-                addRef(gm.extSheen->sheenColorTexture);
-                addRef(gm.extSheen->sheenRoughnessTexture);
-            }
-            if (gm.extVolume)      addRef(gm.extVolume->thicknessTexture);
-            if (gm.extAnisotropy)  addRef(gm.extAnisotropy->texture);
-            if (gm.extIridescence)
-            {
-                addRef(gm.extIridescence->texture);
-                addRef(gm.extIridescence->thicknessTexture);
-            }
+            addRef(mat->pbr.baseColorTexture);
+            addRef(mat->pbr.metallicRoughnessTexture);
+            if (mat->normalTexture) addRef(*mat->normalTexture);
+            if (mat->occlusionTexture) addRef(*mat->occlusionTexture);
+            if (mat->emissiveTexture) addRef(*mat->emissiveTexture);
+            // No extensions in PBRMaterial
         }
 
         outTextures.assign(texSet.begin(), texSet.end());

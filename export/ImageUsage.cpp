@@ -49,7 +49,7 @@ namespace exporters
         if(model.images.empty()) return;
         std::vector<ScoreEntry> scores(model.images.size());
 
-        auto recordTextureRef=[&](const GLTFTextureRef &ref, ImageUsage usage, int w=1)
+        auto recordTextureRef=[&](const pure::TextureRef &ref, ImageUsage usage, int w=1)
         {
             if(!ref.index) return; // texture index
             std::size_t texIdx=*ref.index;
@@ -63,51 +63,14 @@ namespace exporters
 
         for(const auto &matPtr : model.materials)
         {
-            const gltf::GLTFMaterialImpl *mat = dynamic_cast<const gltf::GLTFMaterialImpl*>(matPtr.get());
+            const pure::PBRMaterial *mat = dynamic_cast<const pure::PBRMaterial*>(matPtr.get());
             if (!mat) continue;
-            const auto& gm = mat->gltfMaterial;
-            recordTextureRef(gm.pbr.baseColorTexture, ImageUsage::BaseColor, 10);
-            recordTextureRef(gm.pbr.metallicRoughnessTexture, ImageUsage::MetallicRoughness, 9);
-            recordTextureRef(gm.normalTexture, ImageUsage::Normal, 10);
-            recordTextureRef(gm.occlusionTexture, ImageUsage::Occlusion, 6);
-            recordTextureRef(gm.emissiveTexture, ImageUsage::Emissive, 6);
-            if(gm.extSpecular)
-            {
-                recordTextureRef(gm.extSpecular->specularTexture, ImageUsage::Specular, 5);
-                recordTextureRef(gm.extSpecular->specularColorTexture, ImageUsage::SpecularColor, 5);
-            }
-            if(gm.extClearcoat)
-            {
-                recordTextureRef(gm.extClearcoat->clearcoatTexture, ImageUsage::Clearcoat, 4);
-                recordTextureRef(gm.extClearcoat->clearcoatRoughnessTexture, ImageUsage::ClearcoatRoughness, 4);
-                recordTextureRef(gm.extClearcoat->clearcoatNormalTexture, ImageUsage::ClearcoatNormal, 8);
-            }
-            if(gm.extSheen)
-            {
-                recordTextureRef(gm.extSheen->sheenColorTexture, ImageUsage::SheenColor, 4);
-                recordTextureRef(gm.extSheen->sheenRoughnessTexture, ImageUsage::SheenRoughness, 4);
-            }
-            if(gm.extTransmission)
-            {
-                recordTextureRef(gm.extTransmission->transmissionTexture, ImageUsage::Transmission, 4);
-            }
-            if(gm.extDiffuseTransmission)
-            {
-                recordTextureRef(gm.extDiffuseTransmission->diffuseTransmissionTexture, ImageUsage::DiffuseTransmission, 4);
-            }
-            if(gm.extVolume)
-            {
-                recordTextureRef(gm.extVolume->thicknessTexture, ImageUsage::Thickness, 3);
-            }
-            if(gm.extAnisotropy)
-            {
-                recordTextureRef(gm.extAnisotropy->texture, ImageUsage::Anisotropy, 3);
-            }
-            if(gm.extIridescence)
-            {
-                recordTextureRef(gm.extIridescence->texture, ImageUsage::Iridescence, 3);
-                recordTextureRef(gm.extIridescence->thicknessTexture, ImageUsage::IridescenceThickness, 3);
-            }
+            recordTextureRef(mat->pbr.baseColorTexture, ImageUsage::BaseColor, 10);
+            recordTextureRef(mat->pbr.metallicRoughnessTexture, ImageUsage::MetallicRoughness, 9);
+            if (mat->normalTexture) recordTextureRef(*mat->normalTexture, ImageUsage::Normal, 10);
+            if (mat->occlusionTexture) recordTextureRef(*mat->occlusionTexture, ImageUsage::Occlusion, 6);
+            if (mat->emissiveTexture) recordTextureRef(*mat->emissiveTexture, ImageUsage::Emissive, 6);
+            // No extensions in PBRMaterial
         }
 
         for(std::size_t i=0;i<scores.size();++i)
