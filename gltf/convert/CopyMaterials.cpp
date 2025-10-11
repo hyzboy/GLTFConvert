@@ -19,7 +19,7 @@ namespace gltf
             if(*texIdx>=model.textures.size()) return;
             if(!texSet.insert(*texIdx).second) return; // already
             const auto &tex=model.textures[*texIdx];
-            if(tex.image&&*tex.image<model.images.size()) imgSet.insert(*tex.image);
+            if(tex.image < model.images.size()) imgSet.insert(tex.image);
             if(tex.sampler&&*tex.sampler<model.samplers.size()) sampSet.insert(*tex.sampler);
         }
         template<typename TSet>

@@ -1,4 +1,5 @@
 #include "gltf/GLTFModel.h"
+#include "gltf/GLTFTextureInfo.h"
 #include "pure/Model.h"
 #include "gltf/convert/UniqueGeometryMapping.h"
 #include "gltf/convert/ComputeMeshBounds.h"
@@ -10,6 +11,7 @@ namespace gltf
     void                    CopyNodes(                          std::vector<pure::Node> &         dstNodes,       const std::vector<GLTFNode> &       srcNodes);
     void                    CopySamplers(                       std::vector<pure::Sampler> &      dstSamplers,    const std::vector<GLTFSampler> &    srcSamplers);
     void                    CopyImages(                         std::vector<pure::Image> &        dstImages,      const std::vector<GLTFImage> &      srcImages);
+    void                    CopyTextures(                       std::vector<pure::Texture> &      dstTextures,    const std::vector<GLTFTexture> &    srcTextures);
     UniqueGeometryMapping   BuildUniqueGeometryMapping(const    std::vector<GLTFPrimitive> &prims);
     void                    CreateUniqueGeometryEntries(        std::vector<pure::Geometry> &     dstGeometry,    const std::vector<GLTFPrimitive> &  prims,      const gltf::UniqueGeometryMapping &map);
     void                    BuildPrimitives(                    std::vector<pure::Primitive> &    dst,            const std::vector<GLTFPrimitive> &  prims,      const gltf::UniqueGeometryMapping &map);
@@ -22,7 +24,7 @@ namespace gltf
 
         // we need images/textures/samplers before collecting references in materials
         gltf::CopyImages(dst.images, src.images);
-        dst.textures = src.textures;
+        gltf::CopyTextures(dst.textures, src.textures);
         gltf::CopySamplers(dst.samplers, src.samplers);
 
         gltf::CopyMaterials(dst.materials, src.materials, dst);
@@ -65,6 +67,18 @@ namespace gltf
             pi.data = i.data;
             pi.uri = i.uri;
             dstImages.push_back(std::move(pi));
+        }
+    }
+
+    void CopyTextures(std::vector<pure::Texture> &dstTextures, const std::vector<GLTFTexture> &srcTextures)
+    {
+        dstTextures.reserve(srcTextures.size());
+        for (const auto &t : srcTextures)
+        {
+            pure::Texture pt;
+            pt.sampler = t.sampler;
+            pt.image = t.image;
+            dstTextures.push_back(std::move(pt));
         }
     }
 } // namespace gltf

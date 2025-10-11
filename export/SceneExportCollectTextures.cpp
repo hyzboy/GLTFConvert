@@ -30,8 +30,8 @@ namespace exporters
                 if (!texSet.insert(ti).second) return; // already processed
 
                 const auto &tiObj = model.textures[ti];
-                if (tiObj.image && *tiObj.image < model.images.size())
-                    imgSet.insert(*tiObj.image);
+                if (tiObj.image < model.images.size())
+                    imgSet.insert(tiObj.image);
                 if (tiObj.sampler && *tiObj.sampler < model.samplers.size())
                     sampSet.insert(*tiObj.sampler);
             };

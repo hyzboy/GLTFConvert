@@ -90,7 +90,7 @@ namespace exporters
                 json jt;
                 if (t.image)
                 {
-                    auto itImg = imgRemap.find(*t.image);
+                    auto itImg = imgRemap.find(t.image);
                     if (itImg != imgRemap.end()) jt["image"] = itImg->second;
                 }
                 if (t.sampler)

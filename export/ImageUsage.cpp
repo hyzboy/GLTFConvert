@@ -55,7 +55,7 @@ namespace exporters
             if(texIdx>=model.textures.size()) return;
             const auto &tex=model.textures[texIdx];
             if(!tex.image) return;
-            std::size_t imgIdx=*tex.image;
+            std::size_t imgIdx = tex.image;
             if(imgIdx>=model.images.size()) return;
             AddScore(scores,imgIdx,usage,w);
         };

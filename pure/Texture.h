@@ -1,7 +1,12 @@
 #pragma once
-#include "gltf/GLTFTextureInfo.h"
+#include <optional>
+#include <cstddef>
 
 namespace pure
 {
-    using Texture=GLTFTextureInfo;
+    struct Texture
+    {
+        std::optional<std::size_t> sampler; // index into samplers
+        std::size_t image; // index into images
+    };
 }
