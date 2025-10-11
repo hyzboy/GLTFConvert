@@ -3,8 +3,8 @@
 #include <memory>
 
 #include "pure/Material.h"
+#include "pure/PBRMaterial.h"
 #include "gltf/GLTFMaterial.h"
-#include "gltf/GLTFMaterialImpl.h"
 #include "pure/Model.h"
 
 namespace pure
@@ -38,7 +38,7 @@ namespace pure
         dstMaterials.reserve(srcMaterials.size());
         for(const auto &m:srcMaterials)
         {
-            auto pm = std::make_unique<gltf::GLTFMaterialImpl>();
+            auto pm = std::make_unique<pure::PBRMaterial>();
             pm->name = m.name;
             // Copy PBR fields to neutral structures
             pm->pbr.baseColorFactor[0] = m.pbr.baseColorFactor[0];
@@ -71,18 +71,6 @@ namespace pure
             pm->alphaMode = static_cast<pure::AlphaMode>(m.alphaMode);
             pm->alphaCutoff = m.alphaCutoff;
             pm->doubleSided = m.doubleSided;
-            // Copy extensions
-            pm->extEmissiveStrength = m.extEmissiveStrength;
-            pm->extUnlit = m.extUnlit;
-            pm->extIOR = m.extIOR;
-            pm->extTransmission = m.extTransmission;
-            pm->extDiffuseTransmission = m.extDiffuseTransmission;
-            pm->extSpecular = m.extSpecular;
-            pm->extClearcoat = m.extClearcoat;
-            pm->extSheen = m.extSheen;
-            pm->extVolume = m.extVolume;
-            pm->extAnisotropy = m.extAnisotropy;
-            pm->extIridescence = m.extIridescence;
 
             std::unordered_set<std::size_t> texSet,imgSet,sampSet;
             AddRef(model,m.pbr.baseColorTexture,texSet,imgSet,sampSet);
@@ -120,7 +108,7 @@ namespace pure
             pm->usedImages.assign(imgSet.begin(),imgSet.end());
             pm->usedSamplers.assign(sampSet.begin(),sampSet.end());
 
-            dstMaterials.emplace_back(std::move(pm));
+            dstMaterials.emplace_back(std::unique_ptr<Material>(std::move(pm)));
         }
     }
 } // namespace pure

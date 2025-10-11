@@ -1,7 +1,6 @@
 #include "ImageUsage.h"
 #include "pure/Model.h"
-#include "pure/Material.h"
-#include "gltf/GLTFMaterialImpl.h"
+#include "pure/PBRMaterial.h"
 #include <algorithm>
 
 namespace exporters

@@ -40,6 +40,11 @@ namespace pure
         float alphaCutoff = 0.5f;
         bool doubleSided = false;
 
+        // Resource usage indices (for export)
+        std::vector<std::size_t> usedTextures;
+        std::vector<std::size_t> usedImages;
+        std::vector<std::size_t> usedSamplers;
+
         PBRMaterial()
         {
             type = "PBR";

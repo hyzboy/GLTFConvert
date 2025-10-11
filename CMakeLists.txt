@@ -52,7 +52,6 @@ set(GLTF_FILES
     gltf/GLTFGeometry.h
     gltf/GLTFPrimitive.h
     gltf/GLTFMaterial.h
-    gltf/GLTFMaterialImpl.h
     gltf/GLTFMesh.h
     gltf/GLTFNode.h
     gltf/GLTFScene.h

@@ -1,8 +1,7 @@
 #include "SceneExportCollectTextures.h"
 #include "SceneExportCollect.h"
 #include "pure/Model.h"
-#include "gltf/GLTFMaterial.h"
-#include "gltf/GLTFMaterialImpl.h"
+#include "pure/PBRMaterial.h"
 #include <unordered_set>
 
 namespace exporters
