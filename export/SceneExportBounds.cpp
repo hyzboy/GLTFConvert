@@ -3,7 +3,7 @@
 #include "pure/Model.h"
 #include "pure/Node.h"
 #include "pure/Mesh.h"
-#include "pure/SubMesh.h" // now defines Primitive
+#include "pure/Primitive.h" // now defines Primitive
 
 namespace exporters
 {

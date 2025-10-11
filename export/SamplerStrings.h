@@ -1,10 +1,11 @@
 #pragma once
 #include <string>
+#include "pure/Sampler.h"
 
 namespace exporters
 {
-    // Convert GL wrap mode enum values to readable strings.
-    std::string WrapModeToString(int v);
-    // Convert GL filter enum values to readable strings.
-    std::string FilterToString(int v);
+    // Convert wrap mode enum values to readable strings.
+    std::string WrapModeToString(pure::WrapMode v);
+    // Convert filter enum values to readable strings.
+    std::string FilterToString(pure::FilterMode v);
 }

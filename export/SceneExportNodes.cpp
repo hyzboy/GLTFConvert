@@ -3,7 +3,7 @@
 #include "pure/Model.h"
 #include "pure/Node.h"
 #include "pure/Mesh.h"
-#include "pure/SubMesh.h"
+#include "pure/Primitive.h"
 
 namespace exporters
 {

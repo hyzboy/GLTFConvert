@@ -70,23 +70,25 @@ namespace exporters
             }
             auto outPath = targetDir / fileName;
 
-            if (!img.data.empty())
+            if (img.data && !img.data->empty())
             {
+                // embedded image data
                 std::ofstream ofs(outPath, std::ios::binary);
                 if (!ofs)
                 {
                     std::cerr << "[Export] Failed to write image: " << outPath << "\n";
                     return false;
                 }
-                ofs.write(reinterpret_cast<const char *>(img.data.data()), static_cast<std::streamsize>(img.data.size()));
+                ofs.write(reinterpret_cast<const char *>(img.data->data()), static_cast<std::streamsize>(img.data->size()));
                 ofs.close();
                 std::cout << "[Export] Wrote embedded image: " << outPath << " (" << ImageUsageToString(usages[i]) << ")\n";
                 continue;
             }
-            if (!img.uri.empty())
+            else if (img.uri && !img.uri->empty())
             {
+                // external image URI - copy from source directory
                 std::filesystem::path srcDir = std::filesystem::path(model.gltf_source).parent_path();
-                std::filesystem::path srcPath = srcDir / img.uri;
+                std::filesystem::path srcPath = srcDir / *img.uri;
                 if(!CopyImageFileWithUsage(srcPath, outPath, usages[i]))
                     return false;
                 continue;

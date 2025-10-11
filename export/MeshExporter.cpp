@@ -9,7 +9,7 @@
 #include "export/BoundingVolumesJson.h"
 
 #include "pure/Model.h"
-#include "pure/SubMesh.h" // Primitive definition
+#include "pure/Primitive.h" // Primitive definition
 #include "pure/Material.h"
 #include "ExportFileNames.h"
 

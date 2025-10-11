@@ -102,7 +102,7 @@ set(PURE_GEOM_FILES
     pure/PBRMaterial.h
     pure/Mesh.h
     pure/Node.h
-    pure/SubMesh.h
+    pure/Primitive.h
     pure/Scene.h
     pure/Model.h
     pure/Image.h
@@ -167,16 +167,31 @@ set(EXPORT_FILES
 )
 SOURCE_GROUP("export" FILES ${EXPORT_FILES})
 
+set(PURE_MODEL_FILES
+    ${MATH_FILES}
+    ${COMMON_FILES}
+    ${PURE_GEOM_FILES}
+    ${EXPORT_FILES}
+)
+
+add_library(PureModel STATIC ${PURE_MODEL_FILES})
+
+target_compile_definitions(PureModel PRIVATE
+    GLM_FORCE_DEFAULT_ALIGNED_GENTYPES
+    GLM_FORCE_INTRINSICS
+)
+
+target_link_libraries(PureModel
+    glm::glm
+    nlohmann_json::nlohmann_json
+)
+
 add_executable(GLTFConvert
     main.cpp
     TexConv.cpp
-    ${MATH_FILES}
-    ${COMMON_FILES}
     ${GLTF_FILES}
     ${GLTF_IMPORT_FILES}
-    ${PURE_GEOM_FILES}
     ${CONVERT_FILES}
-    ${EXPORT_FILES}
 )
 
 target_compile_definitions(GLTFConvert PRIVATE
@@ -186,7 +201,7 @@ target_compile_definitions(GLTFConvert PRIVATE
 
 if (MINIPACK_WRITER)
     message(STATUS "Found mini_pack_writer.h: ${MINIPACK_WRITER}")
-    target_include_directories(GLTFConvert PRIVATE "${MINIPACK_WRITER}")
+    target_include_directories(PureModel PRIVATE "${MINIPACK_WRITER}")
 else()
     message(FATAL_ERROR "mini_pack_writer.h not found. Please ensure the MiniPack library is available.")
 endif()
@@ -195,12 +210,21 @@ if (MSVC)
     if(USE_STATIC_CRT)
         message(STATUS "Using static runtime on MSVC toolchain")
         set_property(TARGET GLTFConvert PROPERTY MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
+        set_property(TARGET PureModel PROPERTY MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
     else()
         set_property(TARGET GLTFConvert PROPERTY MSVC_RUNTIME_LIBRARY "MultiThreadedDLL$<$<CONFIG:Debug>:Debug>")
+        set_property(TARGET PureModel PROPERTY MSVC_RUNTIME_LIBRARY "MultiThreadedDLL$<$<CONFIG:Debug>:Debug>")
     endif()
 endif()
 
 target_compile_options(GLTFConvert PRIVATE
+    $<$<CXX_COMPILER_ID:MSVC>:/arch:AVX2 /fp:fast /openmp:llvm>
+    $<$<AND:$<CXX_COMPILER_ID:MSVC>,$<CONFIG:Debug>>:/Zi /Od /RTC1>
+    $<$<AND:$<CXX_COMPILER_ID:MSVC>,$<CONFIG:Release>>:/O2 /Oi /Ot>
+    $<$<OR:$<CXX_COMPILER_ID:GNU>,$<CXX_COMPILER_ID:Clang>>:-mavx2 -O3 -ffast-math -fopenmp>
+)
+
+target_compile_options(PureModel PRIVATE
     $<$<CXX_COMPILER_ID:MSVC>:/arch:AVX2 /fp:fast /openmp:llvm>
     $<$<AND:$<CXX_COMPILER_ID:MSVC>,$<CONFIG:Debug>>:/Zi /Od /RTC1>
     $<$<AND:$<CXX_COMPILER_ID:MSVC>,$<CONFIG:Release>>:/O2 /Oi /Ot>
@@ -230,8 +254,7 @@ if (Vulkan_FOUND)
 endif()
 
 target_link_libraries(GLTFConvert
-    glm::glm
+    PureModel
     fastgltf::fastgltf
-    nlohmann_json::nlohmann_json
     minipack_writer
 )

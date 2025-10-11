@@ -8,6 +8,8 @@ namespace gltf
     void                    CopyMaterials(                      std::vector<std::unique_ptr<pure::Material>> &     dstMaterials,   const std::vector<GLTFMaterial> &   srcMaterials, const pure::Model &model);
     void                    CopyScenes(                         std::vector<pure::Scene> &        dstScenes,      const std::vector<GLTFScene> &      srcScenes);
     void                    CopyNodes(                          std::vector<pure::Node> &         dstNodes,       const std::vector<GLTFNode> &       srcNodes);
+    void                    CopySamplers(                       std::vector<pure::Sampler> &      dstSamplers,    const std::vector<GLTFSampler> &    srcSamplers);
+    void                    CopyImages(                         std::vector<pure::Image> &        dstImages,      const std::vector<GLTFImage> &      srcImages);
     UniqueGeometryMapping   BuildUniqueGeometryMapping(const    std::vector<GLTFPrimitive> &prims);
     void                    CreateUniqueGeometryEntries(        std::vector<pure::Geometry> &     dstGeometry,    const std::vector<GLTFPrimitive> &  prims,      const gltf::UniqueGeometryMapping &map);
     void                    BuildPrimitives(                    std::vector<pure::Primitive> &    dst,            const std::vector<GLTFPrimitive> &  prims,      const gltf::UniqueGeometryMapping &map);
@@ -19,9 +21,9 @@ namespace gltf
         dst.gltf_source = src.source;
 
         // we need images/textures/samplers before collecting references in materials
-        dst.images   = src.images;
+        gltf::CopyImages(dst.images, src.images);
         dst.textures = src.textures;
-        dst.samplers = src.samplers;
+        gltf::CopySamplers(dst.samplers, src.samplers);
 
         gltf::CopyMaterials(dst.materials, src.materials, dst);
         gltf::CopyScenes(dst.scenes, src.scenes);
@@ -36,5 +38,33 @@ namespace gltf
         convert::ComputeMeshBounds(dst);
 
         return dst;
+    }
+
+    void CopySamplers(std::vector<pure::Sampler> &dstSamplers, const std::vector<GLTFSampler> &srcSamplers)
+    {
+        dstSamplers.reserve(srcSamplers.size());
+        for (const auto &s : srcSamplers)
+        {
+            pure::Sampler ps;
+            ps.wrapS = static_cast<pure::WrapMode>(s.wrapS);
+            ps.wrapT = static_cast<pure::WrapMode>(s.wrapT);
+            ps.magFilter = s.magFilter ? std::optional<pure::FilterMode>(static_cast<pure::FilterMode>(*s.magFilter)) : std::nullopt;
+            ps.minFilter = s.minFilter ? std::optional<pure::FilterMode>(static_cast<pure::FilterMode>(*s.minFilter)) : std::nullopt;
+            dstSamplers.push_back(std::move(ps));
+        }
+    }
+
+    void CopyImages(std::vector<pure::Image> &dstImages, const std::vector<GLTFImage> &srcImages)
+    {
+        dstImages.reserve(srcImages.size());
+        for (const auto &i : srcImages)
+        {
+            pure::Image pi;
+            pi.name = i.name;
+            pi.mimeType = i.mimeType;
+            pi.data = i.data;
+            pi.uri = i.uri;
+            dstImages.push_back(std::move(pi));
+        }
     }
 } // namespace gltf

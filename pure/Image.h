@@ -4,9 +4,14 @@
 #include <vector>
 #include <optional>
 #include <cstddef>
-#include "gltf/GLTFImage.h"
 
 namespace pure
 {
-    using Image=GLTFImage; // reuse glTF image structure
+    struct Image
+    {
+        std::string name;
+        std::string mimeType;
+        std::optional<std::vector<std::byte>> data; // embedded data
+        std::optional<std::string> uri; // external URI
+    };
 }

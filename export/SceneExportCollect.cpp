@@ -4,7 +4,7 @@
 #include "pure/Scene.h"
 #include "pure/Node.h"
 #include "pure/Mesh.h"
-#include "pure/SubMesh.h"
+#include "pure/Primitive.h"
 
 #include <unordered_set>
 #include <algorithm>

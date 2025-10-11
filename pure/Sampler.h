@@ -1,7 +1,30 @@
 #pragma once
-#include "gltf/GLTFSampler.h"
+#include <optional>
 
 namespace pure
 {
-    using Sampler=GLTFSampler;
+    enum class WrapMode
+    {
+        ClampToEdge,
+        MirroredRepeat,
+        Repeat
+    };
+
+    enum class FilterMode
+    {
+        Nearest,
+        Linear,
+        NearestMipmapNearest,
+        LinearMipmapNearest,
+        NearestMipmapLinear,
+        LinearMipmapLinear
+    };
+
+    struct Sampler
+    {
+        WrapMode wrapS = WrapMode::Repeat;
+        WrapMode wrapT = WrapMode::Repeat;
+        std::optional<FilterMode> magFilter;
+        std::optional<FilterMode> minFilter;
+    };
 }

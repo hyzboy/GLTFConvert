@@ -6,7 +6,7 @@
 #include "pure/Material.h"
 #include "pure/Scene.h"
 #include "pure/Geometry.h"
-#include "pure/SubMesh.h" // now defines Primitive
+#include "pure/Primitive.h" // now defines Primitive
 #include "pure/Image.h"
 #include "pure/Texture.h"
 #include "pure/Sampler.h"

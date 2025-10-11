@@ -2,7 +2,7 @@
 
 #include "gltf/GLTFPrimitive.h"
 #include "pure/Geometry.h"
-#include "pure/SubMesh.h"
+#include "pure/Primitive.h"
 #include "gltf/convert/UniqueGeometryMapping.h"
 
 namespace gltf

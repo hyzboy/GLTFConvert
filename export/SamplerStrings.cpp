@@ -1,29 +1,30 @@
 #include "SamplerStrings.h"
 #include <string>
+#include "pure/Sampler.h"
 
 namespace exporters
 {
-    std::string WrapModeToString(int v)
+    std::string WrapModeToString(pure::WrapMode v)
     {
         switch(v)
         {
-        case 33071: return "CLAMP_TO_EDGE";      // GL_CLAMP_TO_EDGE
-        case 33648: return "MIRRORED_REPEAT";   // GL_MIRRORED_REPEAT
-        case 10497: return "REPEAT";            // GL_REPEAT
-        default:    return std::to_string(v);
+        case pure::WrapMode::ClampToEdge: return "CLAMP_TO_EDGE";
+        case pure::WrapMode::MirroredRepeat: return "MIRRORED_REPEAT";
+        case pure::WrapMode::Repeat: return "REPEAT";
+        default: return "UNKNOWN";
         }
     }
-    std::string FilterToString(int v)
+    std::string FilterToString(pure::FilterMode v)
     {
         switch(v)
         {
-        case 9728: return "NEAREST";                 // GL_NEAREST
-        case 9729: return "LINEAR";                  // GL_LINEAR
-        case 9984: return "NEAREST_MIPMAP_NEAREST";  // GL_NEAREST_MIPMAP_NEAREST
-        case 9985: return "LINEAR_MIPMAP_NEAREST";   // GL_LINEAR_MIPMAP_NEAREST
-        case 9986: return "NEAREST_MIPMAP_LINEAR";   // GL_NEAREST_MIPMAP_LINEAR
-        case 9987: return "LINEAR_MIPMAP_LINEAR";    // GL_LINEAR_MIPMAP_LINEAR
-        default:   return std::to_string(v);
+        case pure::FilterMode::Nearest: return "NEAREST";
+        case pure::FilterMode::Linear: return "LINEAR";
+        case pure::FilterMode::NearestMipmapNearest: return "NEAREST_MIPMAP_NEAREST";
+        case pure::FilterMode::LinearMipmapNearest: return "LINEAR_MIPMAP_NEAREST";
+        case pure::FilterMode::NearestMipmapLinear: return "NEAREST_MIPMAP_LINEAR";
+        case pure::FilterMode::LinearMipmapLinear: return "LINEAR_MIPMAP_LINEAR";
+        default: return "UNKNOWN";
         }
     }
 }
