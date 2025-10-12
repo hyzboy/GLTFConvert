@@ -107,6 +107,13 @@ list(APPEND FBX_IMPORT_FILES
 )
 SOURCE_GROUP("fbx\\import" FILES fbx/import/FBX2Pure.h fbx/import/FBX2Pure.cpp)
 
+list(APPEND FBX_IMPORT_FILES
+    fbx/import/FBXExpand_ByControlPoint.cpp
+    fbx/import/FBXExpand_ByPolygonVertex.cpp
+    fbx/import/FBXExpand_ByPolygon.cpp
+)
+SOURCE_GROUP("fbx\\import" FILES fbx/import/FBXExpand_ByControlPoint.cpp fbx/import/FBXExpand_ByPolygonVertex.cpp fbx/import/FBXExpand_ByPolygon.cpp)
+
 set(CONVERT_FILES
     gltf/convert/UniqueGeometryMapping.h
     gltf/convert/CopyMaterials.cpp

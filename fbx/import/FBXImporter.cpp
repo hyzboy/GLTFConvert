@@ -15,8 +15,6 @@
 
 namespace fbx
 {
-    bool g_allow_u8_indices = false;
-    void SetAllowU8Indices(bool allow) { g_allow_u8_indices = allow; }
     void TraverseScene(FbxScene* scene, FBXModel& model);
     void TraverseNode(FbxNode* node, FBXModel& model);
 
@@ -72,7 +70,7 @@ namespace fbx
     {
         FbxMesh* mesh = node->GetMesh();
         if (mesh) {
-            ProcessMesh(mesh, model);
+            ProcessMesh(mesh, node, model);
         }
 
         for (int i = 0; i < node->GetChildCount(); ++i) {
