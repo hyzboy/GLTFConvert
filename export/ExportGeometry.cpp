@@ -19,6 +19,7 @@ namespace pure
         uint8_t  indexStride;    // 0 if no indices, otherwise 1,2,4
         uint32_t indexCount;     // Number of indices (0 if no indices)
         uint8_t  attributeCount; // Number of attributes
+        uint8_t  texCoordCount;  // Number of TEXCOORD sets (attributes with names starting with "TEXCOORD")
     };
 #pragma pack(pop)
 
@@ -61,6 +62,14 @@ namespace pure
             h.indexStride=index_stride;
             h.indexCount=static_cast<uint32_t>(geometry.indices.has_value()?geometry.indices->count:0);
             h.attributeCount=static_cast<uint8_t>(geometry.attributes.size());
+        // Count TEXCOORD sets (names starting with "TEXCOORD")
+        uint8_t texCount = 0;
+        for (const auto &attr : geometry.attributes)
+        {
+            if (attr.name.size() >= 8 && attr.name.rfind("TEXCOORD", 0) == 0)
+                ++texCount;
+        }
+        h.texCoordCount = texCount;
             return h;
         }
 
