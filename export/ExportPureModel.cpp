@@ -37,10 +37,17 @@ namespace exporters
         std::filesystem::path targetDir=baseDir/(baseName+".StaticMesh");
         std::filesystem::create_directories(targetDir,ec);
 
-        if(sm.scenes.empty()) return false; // nothing to export
-
         const std::size_t sceneIndex=0; // first scene only
-        auto collected=CollectSceneIndices(sm,sm.scenes[sceneIndex]);
+
+        // Collect indices for scene export when scenes are present. If there are
+        // no scenes, we still want to export materials / geometries / meshes / images
+        // so do not early-out here. Use an empty CollectedIndices when no scene is
+        // available so downstream callers behave reasonably.
+        CollectedIndices collected;
+        if (!sm.scenes.empty())
+        {
+            collected = CollectSceneIndices(sm, sm.scenes[sceneIndex]);
+        }
 
         // Gather used texture / image / sampler indices (still needed for image export filtering)
         std::vector<std::size_t> usedTextures; // unused now after removal of textures list export
@@ -66,9 +73,6 @@ namespace exporters
         ExportGeometries(&sm,targetDir);
         if(!ExportMeshes(sm,targetDir)) return false;
 
-        std::string sceneName=SanitizeName(sm.scenes[sceneIndex].name);
-        if(sceneName.empty()) sceneName="scene"+std::to_string(sceneIndex);
-
         if(exportImagesFlag)
         {
             ExportImages(sm,targetDir,&usedImages);
@@ -78,13 +82,19 @@ namespace exporters
             std::cout << "[Export] Image export disabled by command line flag.\n";
         }
 
-        auto data=BuildSceneExportData(sm,sceneIndex,baseName);
+        if(!sm.scenes.empty())
+        {
+            std::string sceneName=SanitizeName(sm.scenes[sceneIndex].name);
+            if(sceneName.empty()) sceneName="scene"+std::to_string(sceneIndex);
 
-        auto jsonPath=targetDir/MakeSceneJsonFileName(baseName,sceneName);
-        if(!WriteSceneJson(data,jsonPath)) return false;
+            auto data=BuildSceneExportData(sm,sceneIndex,baseName);
 
-        auto packPath=targetDir/MakeScenePackFileName(baseName,sceneName);
-        if(!WriteScenePack(data,packPath)) return false;
+            auto jsonPath=targetDir/MakeSceneJsonFileName(baseName,sceneName);
+            if(!WriteSceneJson(data,jsonPath)) return false;
+
+            auto packPath=targetDir/MakeScenePackFileName(baseName,sceneName);
+            if(!WriteScenePack(data,packPath)) return false;
+        }
 
         return true;
     }
