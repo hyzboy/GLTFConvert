@@ -1,6 +1,7 @@
 #include "fbx/import/FBXMaterialConverter.h"
 #include <fbxsdk.h>
 #include <string>
+#include <cstring>
 
 using namespace fbxsdk;
 
@@ -14,8 +15,14 @@ void ExtractMaterial(FbxSurfaceMaterial* src, pure::FBXMaterial &outRaw, std::op
     // Determine implementation type without referencing static ClassId symbols (use dynamic_cast)
     outRaw.impl = "Unknown";
     if (src) {
-        if (dynamic_cast<FbxSurfacePhong*>(src)) outRaw.impl = "Phong";
-        else if (dynamic_cast<FbxSurfaceLambert*>(src)) outRaw.impl = "Lambert";
+        // Avoid dynamic_cast across DLL boundaries which may crash if RTTI/settings differ.
+        // Use runtime class name check instead.
+        const char* cname = src->GetClassId().GetName();
+        if (cname) {
+            std::string cn(cname);
+            if (cn.find("FbxSurfacePhong") != std::string::npos || cn.find("SurfacePhong") != std::string::npos) outRaw.impl = "Phong";
+            else if (cn.find("FbxSurfaceLambert") != std::string::npos || cn.find("SurfaceLambert") != std::string::npos) outRaw.impl = "Lambert";
+        }
     }
 
     // Iterate properties and store raw values (colors, scalars, texture names)
@@ -47,7 +54,12 @@ void ExtractMaterial(FbxSurfaceMaterial* src, pure::FBXMaterial &outRaw, std::op
         {
             FbxObject* srcObj = prop.GetSrcObject(t);
             FbxFileTexture* tex = nullptr;
-            if (srcObj) tex = dynamic_cast<FbxFileTexture*>(srcObj);
+            if (srcObj) {
+                const char* scn = srcObj->GetClassId().GetName();
+                if (scn && (std::strstr(scn, "FbxFileTexture") || std::strstr(scn, "FileTexture"))) {
+                    tex = static_cast<FbxFileTexture*>(srcObj);
+                }
+            }
             if (tex)
             {
                 outRaw.textures.push_back({});
