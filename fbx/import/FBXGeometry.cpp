@@ -1,4 +1,5 @@
 #include "fbx/import/FBXGeometry.h"
+#include "fbx/import/FBXImporter.h"
 
 #include <vector>
 #include <glm/glm.hpp>
@@ -159,7 +160,17 @@ namespace fbx
             const size_t vertexCountSize = positions.size();
             pure::GeometryIndicesMeta indicesMeta;
             indicesMeta.count = indices.size();
-            if (vertexCountSize <= static_cast<size_t>(std::numeric_limits<uint16_t>::max()))
+            if (g_allow_u8_indices && vertexCountSize <= static_cast<size_t>(std::numeric_limits<uint8_t>::max()))
+            {
+                // convert to uint8_t
+                std::vector<uint8_t> idx8;
+                idx8.reserve(indices.size());
+                for (uint32_t v : indices) idx8.push_back(static_cast<uint8_t>(v));
+                geometry.indicesData = std::vector<std::byte>(idx8.size() * sizeof(uint8_t));
+                memcpy(geometry.indicesData->data(), idx8.data(), geometry.indicesData->size());
+                indicesMeta.indexType = IndexType::U8;
+            }
+            else if (vertexCountSize <= static_cast<size_t>(std::numeric_limits<uint16_t>::max()))
             {
                 // convert to uint16_t
                 std::vector<uint16_t> idx16;
