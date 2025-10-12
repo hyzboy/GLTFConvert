@@ -193,8 +193,18 @@ namespace fbx
         posAttr.name = "POSITION";
         posAttr.count = outPositions.size();
         posAttr.format = VK_FORMAT_R32G32B32_SFLOAT;
-        posAttr.data.resize(outPositions.size() * 3 * sizeof(float));
-        memcpy(posAttr.data.data(),outPositions.data(),outPositions.size() * 3 * sizeof(float));
+        // Pack tightly into float array to avoid potential glm::vec3 padding/stride issues
+        if(!outPositions.empty()) {
+            std::vector<float> posData;
+            posData.reserve(outPositions.size() * 3);
+            for(const auto &p : outPositions) {
+                posData.push_back(p.x);
+                posData.push_back(p.y);
+                posData.push_back(p.z);
+            }
+            posAttr.data.resize(posData.size() * sizeof(float));
+            memcpy(posAttr.data.data(),posData.data(),posAttr.data.size());
+        }
         geometry.attributes.push_back(posAttr);
 
         if(!outNormals.empty()) {
@@ -202,8 +212,15 @@ namespace fbx
             normAttr.name = "NORMAL";
             normAttr.count = outNormals.size();
             normAttr.format = VK_FORMAT_R32G32B32_SFLOAT;
-            normAttr.data.resize(outNormals.size() * 3 * sizeof(float));
-            memcpy(normAttr.data.data(),outNormals.data(),outNormals.size() * 3 * sizeof(float));
+            std::vector<float> normData;
+            normData.reserve(outNormals.size() * 3);
+            for(const auto &n : outNormals) {
+                normData.push_back(n.x);
+                normData.push_back(n.y);
+                normData.push_back(n.z);
+            }
+            normAttr.data.resize(normData.size() * sizeof(float));
+            memcpy(normAttr.data.data(),normData.data(),normAttr.data.size());
             geometry.attributes.push_back(normAttr);
         }
 
@@ -214,8 +231,12 @@ namespace fbx
             uvAttr.name = std::string("TEXCOORD_") + std::to_string(uvL);
             uvAttr.count = outUVs[uvL].size();
             uvAttr.format = VK_FORMAT_R32G32_SFLOAT;
-            uvAttr.data.resize(outUVs[uvL].size() * 2 * sizeof(float));
-            memcpy(uvAttr.data.data(),outUVs[uvL].data(),outUVs[uvL].size() * 2 * sizeof(float));
+            // Pack UVs tightly to avoid glm::vec2 stride/padding issues
+            std::vector<float> uvData;
+            uvData.reserve(outUVs[uvL].size() * 2);
+            for(const auto &uv : outUVs[uvL]) { uvData.push_back(uv.x); uvData.push_back(uv.y); }
+            uvAttr.data.resize(uvData.size() * sizeof(float));
+            memcpy(uvAttr.data.data(),uvData.data(),uvAttr.data.size());
             geometry.attributes.push_back(uvAttr);
         }
 
@@ -224,8 +245,11 @@ namespace fbx
             tanAttr.name = "TANGENT";
             tanAttr.count = outTangents.size();
             tanAttr.format = VK_FORMAT_R32G32B32A32_SFLOAT;
-            tanAttr.data.resize(outTangents.size() * 4 * sizeof(float));
-            memcpy(tanAttr.data.data(),outTangents.data(),outTangents.size() * 4 * sizeof(float));
+            std::vector<float> tanData;
+            tanData.reserve(outTangents.size() * 4);
+            for(const auto &t : outTangents) { tanData.push_back(t.x); tanData.push_back(t.y); tanData.push_back(t.z); tanData.push_back(t.w); }
+            tanAttr.data.resize(tanData.size() * sizeof(float));
+            memcpy(tanAttr.data.data(),tanData.data(),tanAttr.data.size());
             geometry.attributes.push_back(tanAttr);
         }
         if(!outBinormals.empty()) {
@@ -233,8 +257,11 @@ namespace fbx
             bitAttr.name = "BINORMAL";
             bitAttr.count = outBinormals.size();
             bitAttr.format = VK_FORMAT_R32G32B32_SFLOAT;
-            bitAttr.data.resize(outBinormals.size() * 3 * sizeof(float));
-            memcpy(bitAttr.data.data(),outBinormals.data(),outBinormals.size() * 3 * sizeof(float));
+            std::vector<float> bitData;
+            bitData.reserve(outBinormals.size() * 3);
+            for(const auto &b : outBinormals) { bitData.push_back(b.x); bitData.push_back(b.y); bitData.push_back(b.z); }
+            bitAttr.data.resize(bitData.size() * sizeof(float));
+            memcpy(bitAttr.data.data(),bitData.data(),bitAttr.data.size());
             geometry.attributes.push_back(bitAttr);
         }
 

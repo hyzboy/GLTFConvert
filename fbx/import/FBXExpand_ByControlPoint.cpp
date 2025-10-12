@@ -80,8 +80,13 @@ namespace fbx
         posAttr.name = "POSITION";
         posAttr.count = positions.size();
         posAttr.format = VK_FORMAT_R32G32B32_SFLOAT;
-        posAttr.data.resize(positions.size() * 3 * sizeof(float));
-        memcpy(posAttr.data.data(),positions.data(),positions.size() * 3 * sizeof(float));
+        if(!positions.empty()) {
+            std::vector<float> posData;
+            posData.reserve(positions.size() * 3);
+            for(const auto &p : positions) { posData.push_back(p.x); posData.push_back(p.y); posData.push_back(p.z); }
+            posAttr.data.resize(posData.size() * sizeof(float));
+            memcpy(posAttr.data.data(),posData.data(),posAttr.data.size());
+        }
         geometry.attributes.push_back(posAttr);
 
         if(!normals.empty()) {
@@ -89,8 +94,11 @@ namespace fbx
             normAttr.name = "NORMAL";
             normAttr.count = normals.size();
             normAttr.format = VK_FORMAT_R32G32B32_SFLOAT;
-            normAttr.data.resize(normals.size() * 3 * sizeof(float));
-            memcpy(normAttr.data.data(),normals.data(),normals.size() * 3 * sizeof(float));
+            std::vector<float> normData;
+            normData.reserve(normals.size() * 3);
+            for(const auto &n : normals) { normData.push_back(n.x); normData.push_back(n.y); normData.push_back(n.z); }
+            normAttr.data.resize(normData.size() * sizeof(float));
+            memcpy(normAttr.data.data(),normData.data(),normAttr.data.size());
             geometry.attributes.push_back(normAttr);
         }
 
@@ -102,8 +110,11 @@ namespace fbx
             uvAttr.name = std::string("TEXCOORD_") + std::to_string(static_cast<int>(i));
             uvAttr.count = uvs.size();
             uvAttr.format = VK_FORMAT_R32G32_SFLOAT;
-            uvAttr.data.resize(uvs.size() * 2 * sizeof(float));
-            memcpy(uvAttr.data.data(),uvs.data(),uvs.size() * 2 * sizeof(float));
+            std::vector<float> uvData;
+            uvData.reserve(uvs.size() * 2);
+            for(const auto &uv : uvs) { uvData.push_back(uv.x); uvData.push_back(uv.y); }
+            uvAttr.data.resize(uvData.size() * sizeof(float));
+            memcpy(uvAttr.data.data(),uvData.data(),uvAttr.data.size());
             geometry.attributes.push_back(uvAttr);
         }
 
