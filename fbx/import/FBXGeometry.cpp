@@ -5,6 +5,7 @@
 #include <glm/glm.hpp>
 #include <limits>
 #include <memory>
+#include <iostream>
 #include "pure/Model.h"
 #include "pure/Geometry.h"
 #include "pure/Primitive.h"
@@ -56,13 +57,17 @@ namespace fbx
         // Detect mapping modes to pick expansion strategy
         bool hasByPolygonVertex = false;
         bool hasByControlPoint = false;
+        bool hasByPolygon = false;
 
         // Normals
         FbxGeometryElementNormal* normalElement = mesh->GetElementNormal();
         if (normalElement)
         {
-            if (normalElement->GetMappingMode() == FbxLayerElement::eByPolygonVertex) hasByPolygonVertex = true;
-            if (normalElement->GetMappingMode() == FbxLayerElement::eByControlPoint) hasByControlPoint = true;
+            auto m = normalElement->GetMappingMode();
+            if (m == FbxLayerElement::eByPolygonVertex) hasByPolygonVertex = true;
+            else if (m == FbxLayerElement::eByControlPoint) hasByControlPoint = true;
+            else if (m == FbxLayerElement::eByPolygon) hasByPolygon = true;
+            else if (m == FbxLayerElement::eByEdge) { std::cerr << "Unsupported mapping mode eByEdge for normals on mesh " << (mesh->GetName()?mesh->GetName():"(unnamed)") << std::endl; return; }
         }
 
         // UVs
@@ -71,22 +76,31 @@ namespace fbx
         {
             FbxGeometryElementUV* uvElement = mesh->GetElementUV(uvIdx);
             if (!uvElement) continue;
-            if (uvElement->GetMappingMode() == FbxLayerElement::eByPolygonVertex) hasByPolygonVertex = true;
-            if (uvElement->GetMappingMode() == FbxLayerElement::eByControlPoint) hasByControlPoint = true;
+            auto m = uvElement->GetMappingMode();
+            if (m == FbxLayerElement::eByPolygonVertex) hasByPolygonVertex = true;
+            else if (m == FbxLayerElement::eByControlPoint) hasByControlPoint = true;
+            else if (m == FbxLayerElement::eByPolygon) hasByPolygon = true;
+            else if (m == FbxLayerElement::eByEdge) { std::cerr << "Unsupported mapping mode eByEdge for UV on mesh " << (mesh->GetName()?mesh->GetName():"(unnamed)") << std::endl; return; }
         }
 
         // Tangent / binormal
         FbxGeometryElementTangent* tanElement = mesh->GetElementTangent();
         if (tanElement)
         {
-            if (tanElement->GetMappingMode() == FbxLayerElement::eByPolygonVertex) hasByPolygonVertex = true;
-            if (tanElement->GetMappingMode() == FbxLayerElement::eByControlPoint) hasByControlPoint = true;
+            auto m = tanElement->GetMappingMode();
+            if (m == FbxLayerElement::eByPolygonVertex) hasByPolygonVertex = true;
+            else if (m == FbxLayerElement::eByControlPoint) hasByControlPoint = true;
+            else if (m == FbxLayerElement::eByPolygon) hasByPolygon = true;
+            else if (m == FbxLayerElement::eByEdge) { std::cerr << "Unsupported mapping mode eByEdge for tangent on mesh " << (mesh->GetName()?mesh->GetName():"(unnamed)") << std::endl; return; }
         }
         FbxGeometryElementBinormal* binElement = mesh->GetElementBinormal();
         if (binElement)
         {
-            if (binElement->GetMappingMode() == FbxLayerElement::eByPolygonVertex) hasByPolygonVertex = true;
-            if (binElement->GetMappingMode() == FbxLayerElement::eByControlPoint) hasByControlPoint = true;
+            auto m2 = binElement->GetMappingMode();
+            if (m2 == FbxLayerElement::eByPolygonVertex) hasByPolygonVertex = true;
+            else if (m2 == FbxLayerElement::eByControlPoint) hasByControlPoint = true;
+            else if (m2 == FbxLayerElement::eByPolygon) hasByPolygon = true;
+            else if (m2 == FbxLayerElement::eByEdge) { std::cerr << "Unsupported mapping mode eByEdge for binormal on mesh " << (mesh->GetName()?mesh->GetName():"(unnamed)") << std::endl; return; }
         }
 
         // Choose strategy: polygon-vertex has highest priority, then control point, otherwise per-polygon fallback
