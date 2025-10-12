@@ -21,7 +21,7 @@ namespace exporters
 
 static void PrintUsage()
 {
-    std::cout << "Usage: gltf_exporter [--no-images | --images-only] <input.gltf|.glb> [output_dir]\n";
+    std::cout << "Usage: gltf_exporter [--no-images | --images-only] [--allow-u8-indices] <input.gltf|.glb> [output_dir]\n";
 }
 
 int main(int argc,char *argv[])
@@ -41,6 +41,7 @@ int main(int argc,char *argv[])
 
     bool exportImagesFlag=true;
     bool imagesOnly=false;
+    bool allowU8=false;
 
     int argIndex=1;
     for(;argIndex<argc; ++argIndex)
@@ -48,6 +49,7 @@ int main(int argc,char *argv[])
         std::string a=argv[argIndex];
         if(a=="--no-images") { exportImagesFlag=false; continue; }
         if(a=="--images-only") { imagesOnly=true; continue; }
+        if(a=="--allow-u8-indices") { allowU8=true; continue; }
         // first non-flag assumed input path
         break;
     }
@@ -70,6 +72,9 @@ int main(int argc,char *argv[])
     }
 
     GLTFModel model;
+    // apply allow-u8 flag to importer
+    gltf::SetAllowU8Indices(allowU8);
+
     if(!gltf::ImportFastGLTF(inputPath,model))
     {
         return 1;

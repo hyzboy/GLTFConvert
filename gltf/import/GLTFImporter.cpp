@@ -12,6 +12,17 @@
 
 namespace gltf
 {
+    static bool g_allowU8Indices = false;
+
+    void SetAllowU8Indices(bool allow)
+    {
+        g_allowU8Indices = allow;
+    }
+
+    bool GetAllowU8Indices()
+    {
+        return g_allowU8Indices;
+    }
     // Forward declarations (headers removed)
     void ImportMaterials(const fastgltf::Asset &asset,std::vector<GLTFMaterial> &materials);
     void ImportPrimitives(const fastgltf::Asset &asset,std::vector<GLTFPrimitive> &primitives);
