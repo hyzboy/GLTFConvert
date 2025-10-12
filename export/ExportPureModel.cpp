@@ -27,13 +27,13 @@ namespace exporters
     bool ExportPureModel(pure::Model &sm,const std::filesystem::path &outDir,bool exportImagesFlag,bool imagesOnly)
     {
         std::filesystem::path baseDir=outDir.empty()
-            ?std::filesystem::path(sm.gltf_source).parent_path()
+            ?std::filesystem::path(sm.model_source).parent_path()
             :outDir;
 
         std::error_code ec;
         std::filesystem::create_directories(baseDir,ec);
 
-        const std::string baseName=stem_noext(sm.gltf_source);
+        const std::string baseName=stem_noext(sm.model_source);
         std::filesystem::path targetDir=baseDir/(baseName+".StaticMesh");
         std::filesystem::create_directories(targetDir,ec);
 

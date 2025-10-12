@@ -11,7 +11,7 @@ namespace fbx
     pure::Model ConvertFromFBX(const FBXModel &src)
     {
         pure::Model dst;
-        dst.gltf_source = src.gltf_source;
+        dst.model_source = src.model_source;
 
         // Copy images/textures/samplers as empty for now
         // Convert geometry: each FBX geometry entry becomes pure::Geometry

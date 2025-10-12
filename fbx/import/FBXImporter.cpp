@@ -45,7 +45,7 @@ namespace fbx
         TraverseScene(lScene, outModel);
 
         // Set source
-        outModel.gltf_source = inputPath.string();
+        outModel.model_source = inputPath.string();
 
         // Clean up
         lScene->Destroy();

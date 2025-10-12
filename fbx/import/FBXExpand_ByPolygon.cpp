@@ -14,15 +14,14 @@
 #include "common/VkFormat.h"
 
 #include <fbxsdk.h>
+#include <iostream>
 using namespace fbxsdk;
 
 namespace fbx
 {
     void Expand_ByPolygon(FbxMesh* mesh, FBXModel& model, const std::vector<int> &materialMap)
     {
-        // Triangulate the mesh
-        FbxGeometryConverter converter(mesh->GetFbxManager());
-        converter.Triangulate(mesh, true);
+        // Mesh is expected to be triangulated by the caller (ProcessMesh). Do not triangulate here.
 
         int vertexCount = mesh->GetControlPointsCount();
         FbxVector4* controlPoints = mesh->GetControlPoints();

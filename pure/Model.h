@@ -17,7 +17,7 @@ namespace pure
 {
     struct Model
     {
-        std::string gltf_source;
+        std::string model_source;
         std::vector<std::unique_ptr<Material>> materials;
         std::vector<Scene> scenes;
         std::vector<Node> nodes;        // nodes
@@ -30,8 +30,8 @@ namespace pure
 
         std::string GetBaseName() const
         {
-            if (gltf_source.empty()) return std::string("scene");
-            return std::filesystem::path(gltf_source).stem().string();
+            if (model_source.empty()) return std::string("scene");
+            return std::filesystem::path(model_source).stem().string();
         }
     };
 }

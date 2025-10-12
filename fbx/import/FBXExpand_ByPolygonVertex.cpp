@@ -23,9 +23,7 @@ namespace fbx
     // Expand where attributes are mapped by polygon-vertex (per-face-vertex). We create unique vertices for each polygon-vertex combination and deduplicate by full attribute key.
     void Expand_ByPolygonVertex(FbxMesh* mesh, FBXModel& model, const std::vector<int> &materialMap)
     {
-        // Triangulate
-        FbxGeometryConverter converter(mesh->GetFbxManager());
-        converter.Triangulate(mesh, true);
+        // Mesh is expected to be triangulated by the caller (ProcessMesh). Do not triangulate here.
 
         int vertexCount = mesh->GetControlPointsCount();
         FbxVector4* controlPoints = mesh->GetControlPoints();

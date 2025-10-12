@@ -26,9 +26,29 @@ namespace fbx
 {
     void ProcessMesh(fbxsdk::FbxMesh* mesh, fbxsdk::FbxNode* node, FBXModel& model)
     {
-        // Ensure mesh is triangulated first
+        if (!mesh) {
+            std::cerr << "Error: Null mesh pointer" << std::endl;
+            return;
+        }
+
+        // Triangulate safely: Triangulation with replace=true may replace the original
+        // FbxMesh object and leave the incoming pointer dangling. Triangulate using
+        // the mesh API and re-acquire the mesh from its owning node if replaced.
+        fbxsdk::FbxNode* ownerNode = mesh->GetNode();
         fbxsdk::FbxGeometryConverter converter(mesh->GetFbxManager());
-        converter.Triangulate(mesh, true);
+        bool triOk = converter.Triangulate(mesh, true);
+        if (ownerNode) {
+            fbxsdk::FbxMesh* newMesh = ownerNode->GetMesh();
+            if (newMesh) mesh = newMesh;
+        }
+        if (!triOk) {
+            std::cerr << "Error: Triangulation failed for mesh " << (mesh && mesh->GetName()?mesh->GetName():"(unnamed)") << std::endl;
+            return;
+        }
+        if (!mesh) {
+            std::cerr << "Error: Mesh lost after triangulation" << std::endl;
+            return;
+        }
 
         std::vector<int> materialMap; // index by node material index -> model.materials index
         BuildMaterialMap(node, model, materialMap);

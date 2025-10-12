@@ -21,7 +21,7 @@ namespace gltf
     pure::Model ConvertFromGLTF(const GLTFModel &src)
     {
         pure::Model dst;
-        dst.gltf_source = src.source;
+        dst.model_source = src.source;
 
         // we need images/textures/samplers before collecting references in materials
         gltf::CopyImages(dst.images, src.images);

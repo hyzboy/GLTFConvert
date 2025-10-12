@@ -87,7 +87,7 @@ namespace exporters
             else if (img.uri && !img.uri->empty())
             {
                 // external image URI - copy from source directory
-                std::filesystem::path srcDir = std::filesystem::path(model.gltf_source).parent_path();
+                std::filesystem::path srcDir = std::filesystem::path(model.model_source).parent_path();
                 std::filesystem::path srcPath = srcDir / *img.uri;
                 if(!CopyImageFileWithUsage(srcPath, outPath, usages[i]))
                     return false;
