@@ -16,5 +16,5 @@ namespace exporters
     //   "name": "MeshName",
     //   "primitives": [ { "primitiveIndex": 3, "geometry": "Base.5.geometry", "material": "Base.MatName.material" }, ... ]
     // }
-    bool ExportMeshes(const pure::Model &model, const std::filesystem::path &dir);
+    bool ExportMeshes(pure::Model &model, const std::filesystem::path &dir);
 }
