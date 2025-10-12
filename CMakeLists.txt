@@ -120,6 +120,11 @@ list(APPEND FBX_IMPORT_FILES
 )
 SOURCE_GROUP("fbx\\import" FILES fbx/import/FBXMaterialConverter.cpp fbx/import/FBXMaterialConverter.h)
 
+list(APPEND FBX_IMPORT_FILES
+    fbx/import/FBXMaterialMap.cpp
+)
+SOURCE_GROUP("fbx\\import" FILES fbx/import/FBXMaterialMap.cpp fbx/import/FBXMaterialMap.h)
+
 set(CONVERT_FILES
     gltf/convert/UniqueGeometryMapping.h
     gltf/convert/CopyMaterials.cpp
