@@ -320,7 +320,6 @@ else()
         message(STATUS "Found FBX SDK: include=${FBX_SDK_INCLUDE_DIR} lib=${FBX_SDK_LIBRARY}")
         target_include_directories(GLTFConvert PRIVATE "${FBX_SDK_INCLUDE_DIR}")
         target_link_libraries(GLTFConvert PRIVATE "${FBX_SDK_LIBRARY}")
-        target_compile_definitions(GLTFConvert PRIVATE USE_FBX)
     else()
         message(STATUS "FBX SDK not found. To enable FBX support set FBX_SDK_ROOT to your SDK root or install the FBX SDK.")
     endif()
@@ -392,7 +391,6 @@ if (FBX_FOUND)
         TexConv.cpp
         ${FBX_FILES}
         ${FBX_IMPORT_FILES}
-        ${CONVERT_FILES}
     )
 
     target_compile_definitions(FBXConvert PRIVATE
@@ -402,7 +400,6 @@ if (FBX_FOUND)
 
     target_link_libraries(FBXConvert PRIVATE
         PureModel
-        fastgltf::fastgltf
         minipack_writer
     )
 
@@ -412,8 +409,7 @@ if (FBX_FOUND)
     if (FBX_LIB_TARGET)
         target_link_libraries(FBXConvert PRIVATE ${FBX_LIB_TARGET})
     endif()
-    target_compile_definitions(FBXConvert PRIVATE USE_FBX)
-
+    
     target_compile_options(FBXConvert PRIVATE
         $<$<CXX_COMPILER_ID:MSVC>:/arch:AVX2 /fp:fast /openmp:llvm>
         $<$<AND:$<CXX_COMPILER_ID:MSVC>,$<CONFIG:Debug>>:/Zi /Od /RTC1>

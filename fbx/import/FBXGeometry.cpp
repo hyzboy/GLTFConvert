@@ -1,9 +1,8 @@
-#ifdef USE_FBX
-
 #include "fbx/import/FBXGeometry.h"
 
 #include <vector>
 #include <glm/glm.hpp>
+#include <limits>
 #include "pure/Model.h"
 #include "pure/Geometry.h"
 #include "pure/Primitive.h"
@@ -49,15 +48,45 @@ namespace fbx
                 normals.push_back({static_cast<float>(n[0]), static_cast<float>(n[1]), static_cast<float>(n[2])});
             }
         }
-
-        // UVs
-        std::vector<glm::vec2> uvs;
-        FbxGeometryElementUV* uvElement = mesh->GetElementUV(0);
-        if (uvElement) {
+        // UVs - support multiple UV sets (TEXCOORD_0, TEXCOORD_1, ...)
+        std::vector<std::vector<glm::vec2>> allUVs;
+        const int uvElementCount = mesh->GetElementUVCount();
+        for (int uvIdx = 0; uvIdx < uvElementCount; ++uvIdx)
+        {
+            FbxGeometryElementUV* uvElement = mesh->GetElementUV(uvIdx);
+            if (!uvElement) continue;
+            std::vector<glm::vec2> uvs;
             int uvCount = uvElement->GetDirectArray().GetCount();
             for (int i = 0; i < uvCount; ++i) {
                 FbxVector2 uv = uvElement->GetDirectArray().GetAt(i);
                 uvs.push_back({static_cast<float>(uv[0]), static_cast<float>(uv[1])});
+            }
+            allUVs.push_back(std::move(uvs));
+        }
+
+        // Tangents and binormals (if available)
+        std::vector<glm::vec4> tangents; // store as vec4 (GLTF-style: vec4, w can be sign for bitangent)
+        FbxGeometryElementTangent* tanElement = mesh->GetElementTangent();
+        if (tanElement)
+        {
+            int tcount = tanElement->GetDirectArray().GetCount();
+            for (int i = 0; i < tcount; ++i)
+            {
+                FbxVector4 t = tanElement->GetDirectArray().GetAt(i);
+                // FBX tangent may be 3 or 4 components; fill w with 1.0 if not present
+                tangents.push_back({static_cast<float>(t[0]), static_cast<float>(t[1]), static_cast<float>(t[2]), static_cast<float>(t[3])});
+            }
+        }
+
+        std::vector<glm::vec3> binormals;
+        FbxGeometryElementBinormal* binElement = mesh->GetElementBinormal();
+        if (binElement)
+        {
+            int bcount = binElement->GetDirectArray().GetCount();
+            for (int i = 0; i < bcount; ++i)
+            {
+                FbxVector4 b = binElement->GetDirectArray().GetAt(i);
+                binormals.push_back({static_cast<float>(b[0]), static_cast<float>(b[1]), static_cast<float>(b[2])});
             }
         }
 
@@ -71,8 +100,9 @@ namespace fbx
         posAttr.name = "POSITION";
         posAttr.count = positions.size();
         posAttr.format = VK_FORMAT_R32G32B32_SFLOAT;
-        posAttr.data.resize(positions.size() * sizeof(glm::vec3));
-        memcpy(posAttr.data.data(), positions.data(), posAttr.data.size());
+        // glm::vec3 may have padding; calculate byte size using float count
+        posAttr.data.resize(positions.size() * 3 * sizeof(float));
+        memcpy(posAttr.data.data(), positions.data(), positions.size() * 3 * sizeof(float));
         geometry.attributes.push_back(posAttr);
 
         // Normals if available
@@ -81,29 +111,73 @@ namespace fbx
             normAttr.name = "NORMAL";
             normAttr.count = normals.size();
             normAttr.format = VK_FORMAT_R32G32B32_SFLOAT;
-            normAttr.data.resize(normals.size() * sizeof(glm::vec3));
-            memcpy(normAttr.data.data(), normals.data(), normAttr.data.size());
+            normAttr.data.resize(normals.size() * 3 * sizeof(float));
+            memcpy(normAttr.data.data(), normals.data(), normals.size() * 3 * sizeof(float));
             geometry.attributes.push_back(normAttr);
         }
 
-        // UVs if available
-        if (!uvs.empty()) {
+        // UV attributes
+        for (size_t i = 0; i < allUVs.size(); ++i)
+        {
+            const auto &uvs = allUVs[i];
+            if (uvs.empty()) continue;
             GeometryAttribute uvAttr;
-            uvAttr.name = "TEXCOORD_0";
+            uvAttr.name = std::string("TEXCOORD_") + std::to_string(static_cast<int>(i));
             uvAttr.count = uvs.size();
             uvAttr.format = VK_FORMAT_R32G32_SFLOAT;
-            uvAttr.data.resize(uvs.size() * sizeof(glm::vec2));
-            memcpy(uvAttr.data.data(), uvs.data(), uvAttr.data.size());
+            uvAttr.data.resize(uvs.size() * 2 * sizeof(float));
+            memcpy(uvAttr.data.data(), uvs.data(), uvs.size() * 2 * sizeof(float));
             geometry.attributes.push_back(uvAttr);
         }
 
-        // Indices
-        geometry.indicesData = std::vector<std::byte>(indices.size() * sizeof(uint32_t));
-        memcpy(geometry.indicesData->data(), indices.data(), geometry.indicesData->size());
-        pure::GeometryIndicesMeta indicesMeta;
-        indicesMeta.count = indices.size();
-        indicesMeta.indexType = IndexType::U32;
-        geometry.indices = indicesMeta;
+        // Tangents
+        if (!tangents.empty())
+        {
+            GeometryAttribute tanAttr;
+            tanAttr.name = "TANGENT"; // glTF-style
+            tanAttr.count = tangents.size();
+            tanAttr.format = VK_FORMAT_R32G32B32A32_SFLOAT;
+            tanAttr.data.resize(tangents.size() * 4 * sizeof(float));
+            memcpy(tanAttr.data.data(), tangents.data(), tangents.size() * 4 * sizeof(float));
+            geometry.attributes.push_back(tanAttr);
+        }
+
+        // Binormals / bitangents
+        if (!binormals.empty())
+        {
+            GeometryAttribute bitAttr;
+            bitAttr.name = "BINORMAL"; // keep name clear; some systems use BITANGENT
+            bitAttr.count = binormals.size();
+            bitAttr.format = VK_FORMAT_R32G32B32_SFLOAT;
+            bitAttr.data.resize(binormals.size() * 3 * sizeof(float));
+            memcpy(bitAttr.data.data(), binormals.data(), binormals.size() * 3 * sizeof(float));
+            geometry.attributes.push_back(bitAttr);
+        }
+
+        // Indices: choose U16 if possible, otherwise U32
+        {
+            const size_t vertexCountSize = positions.size();
+            pure::GeometryIndicesMeta indicesMeta;
+            indicesMeta.count = indices.size();
+            if (vertexCountSize <= static_cast<size_t>(std::numeric_limits<uint16_t>::max()))
+            {
+                // convert to uint16_t
+                std::vector<uint16_t> idx16;
+                idx16.reserve(indices.size());
+                for (uint32_t v : indices) idx16.push_back(static_cast<uint16_t>(v));
+                geometry.indicesData = std::vector<std::byte>(idx16.size() * sizeof(uint16_t));
+                memcpy(geometry.indicesData->data(), idx16.data(), geometry.indicesData->size());
+                indicesMeta.indexType = IndexType::U16;
+            }
+            else
+            {
+                // keep as uint32_t
+                geometry.indicesData = std::vector<std::byte>(indices.size() * sizeof(uint32_t));
+                memcpy(geometry.indicesData->data(), indices.data(), geometry.indicesData->size());
+                indicesMeta.indexType = IndexType::U32;
+            }
+            geometry.indices = indicesMeta;
+        }
 
         // Bounding volume
         if (!positions.empty()) {
@@ -127,14 +201,3 @@ namespace fbx
         model.primitives.push_back(primitive);
     }
 }
-
-#else
-
-#include "fbx/import/FBXGeometry.h"
-
-namespace fbx
-{
-    void ProcessMesh(FbxMesh* /*mesh*/, FBXModel& /*model*/) {}
-}
-
-#endif

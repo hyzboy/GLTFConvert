@@ -9,9 +9,9 @@
 // TexConv detection
 namespace texconv { bool Initialize(std::filesystem::path *outPath=nullptr); }
 
-namespace gltf
+namespace fbx
 {
-    pure::Model ConvertFromGLTF(const FBXModel &src);  // since typedef
+    pure::Model ConvertFromFBX(const FBXModel &src);
 }
 
 namespace exporters
@@ -75,7 +75,7 @@ int main(int argc,char *argv[])
         return 1;
     }
     
-    pure::Model sm=gltf::ConvertFromGLTF(model);
+    pure::Model sm=fbx::ConvertFromFBX(model);
 
     if(!exporters::ExportPureModel(sm,outDir,exportImagesFlag,imagesOnly))
     {

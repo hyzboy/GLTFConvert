@@ -1,7 +1,5 @@
 #include "fbx/import/FBXImporter.h"
 
-#ifdef USE_FBX
-
 #include <fbxsdk.h>
 #include <iostream>
 #include <vector>
@@ -82,16 +80,3 @@ namespace fbx
 
     // ProcessMesh implementation moved to fbx/import/FBXGeometry.cpp
 }
-
-#else
-
-namespace fbx
-{
-    bool ImportFBX(const std::filesystem::path &inputPath, FBXModel &outModel)
-    {
-        std::cerr << "FBX support not enabled!\n";
-        return false;
-    }
-}
-
-#endif
