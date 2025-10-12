@@ -1,26 +1,9 @@
 #include "fbx/import/FBXGeometry.h"
+#include "fbx/import/FBXMaterialMap.h"
 #include <fbxsdk.h>
-#include "fbx/import/FBXImporter.h"
 
 #include <vector>
-#include <glm/glm.hpp>
-#include <limits>
-#include <memory>
 #include <iostream>
-#include "pure/Model.h"
-#include "pure/Geometry.h"
-#include "pure/Primitive.h"
-#include "pure/PBRMaterial.h"
-#include "pure/FBXMaterial.h"
-#include "pure/LambertMaterial.h"
-#include "pure/PhongMaterial.h"
-#include "pure/SpecGlossMaterial.h"
-#include "fbx/import/FBXMaterialConverter.h"
-#include "fbx/import/FBXMaterialMap.h"
-#include "common/GeometryAttribute.h"
-#include "common/PrimitiveType.h"
-#include "common/IndexType.h"
-#include "common/VkFormat.h"
 
 namespace fbx
 {
