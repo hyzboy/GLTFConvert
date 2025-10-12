@@ -433,8 +433,9 @@ if (FBX_FOUND)
     if (FBX_LIB_TARGET)
         target_link_libraries(FBXConvert PRIVATE ${FBX_LIB_TARGET})
     endif()
-    # Prevent FBX SDK headers from injecting 'using namespace' which can conflict with our 'fbx' namespace
-    target_compile_definitions(FBXConvert PRIVATE FBXSDK_NAMESPACE_USING=0)
+    # Ensure FBX SDK namespace configuration and prevent headers from injecting global using
+    # Define FBXSDK_DEFINE_NAMESPACE=1 to match the SDK build (exported symbols are in fbxsdk::)
+    target_compile_definitions(FBXConvert PRIVATE FBXSDK_NAMESPACE_USING=1 FBXSDK_DEFINE_NAMESPACE=1)
     
     target_compile_options(FBXConvert PRIVATE
         $<$<CXX_COMPILER_ID:MSVC>:/arch:AVX2 /fp:fast /openmp:llvm>

@@ -11,33 +11,43 @@ static std::string ToString(const FbxString &s) { return std::string(s.Buffer())
 void ExtractMaterial(FbxSurfaceMaterial* src, pure::FBXMaterial &outRaw, std::optional<pure::PBRMaterial> *outPBR)
 {
     outRaw.name = src ? ToString(src->GetName()) : std::string();
-    outRaw.impl = src ? src->ClassId.Is(FbxSurfacePhong::ClassId) ? "Phong" : (src->ClassId.Is(FbxSurfaceLambert::ClassId) ? "Lambert" : "Unknown") : "";
+    // Determine implementation type without referencing static ClassId symbols (use dynamic_cast)
+    outRaw.impl = "Unknown";
+    if (src) {
+        if (dynamic_cast<FbxSurfacePhong*>(src)) outRaw.impl = "Phong";
+        else if (dynamic_cast<FbxSurfaceLambert*>(src)) outRaw.impl = "Lambert";
+    }
 
     // Iterate properties and store raw values (colors, scalars, texture names)
     FbxProperty prop = src->GetFirstProperty();
     while (prop.IsValid())
     {
         const char* propName = prop.GetName();
-        if (prop.GetPropertyDataType().Is(FbxColor3DT))
+        // Use EFbxType to avoid direct references to FbxDataType globals
+        EFbxType dtype = prop.GetPropertyDataType().GetType();
+        if (dtype == eFbxDouble3)
         {
             FbxDouble3 v = prop.Get<FbxDouble3>();
             outRaw.raw[propName] = { v[0], v[1], v[2] };
         }
-        else if (prop.GetPropertyDataType().Is(FbxDoubleDT) || prop.GetPropertyDataType().Is(FbxFloatDT))
+        else if (dtype == eFbxDouble || dtype == eFbxFloat)
         {
             double d = prop.Get<double>();
             outRaw.raw[propName] = d;
         }
-        else if (prop.GetPropertyDataType().Is(FbxStringDT))
+        else if (dtype == eFbxString)
         {
             outRaw.raw[propName] = ToString(prop.Get<FbxString>());
         }
 
         // textures
-        int lConnectedSrcCount = prop.GetSrcObjectCount<FbxFileTexture>();
+        // Iterate source objects and pick up file textures without using templated ClassId-based helpers
+        int lConnectedSrcCount = prop.GetSrcObjectCount();
         for (int t = 0; t < lConnectedSrcCount; ++t)
         {
-            FbxFileTexture* tex = prop.GetSrcObject<FbxFileTexture>(t);
+            FbxObject* srcObj = prop.GetSrcObject(t);
+            FbxFileTexture* tex = nullptr;
+            if (srcObj) tex = dynamic_cast<FbxFileTexture*>(srcObj);
             if (tex)
             {
                 outRaw.textures.push_back({});
