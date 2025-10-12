@@ -78,6 +78,8 @@ set(GLTF_IMPORT_FILES
     gltf/import/GLTFImporter.cpp
     gltf/import/GLTFImporter.h
     gltf/import/GLTF2Pure.cpp
+    gltf/import/SamplerMapping.cpp
+    gltf/import/SamplerMapping.h
 )
 SOURCE_GROUP("gltf\\import" FILES ${GLTF_IMPORT_FILES})
 
@@ -99,6 +101,12 @@ list(APPEND FBX_IMPORT_FILES
 )
 SOURCE_GROUP("fbx\\import" FILES fbx/import/FBXGeometry.h fbx/import/FBXGeometry.cpp)
 
+list(APPEND FBX_IMPORT_FILES
+    fbx/import/FBX2Pure.h
+    fbx/import/FBX2Pure.cpp
+)
+SOURCE_GROUP("fbx\\import" FILES fbx/import/FBX2Pure.h fbx/import/FBX2Pure.cpp)
+
 set(CONVERT_FILES
     gltf/convert/UniqueGeometryMapping.h
     gltf/convert/CopyMaterials.cpp
@@ -107,7 +115,7 @@ set(CONVERT_FILES
     gltf/convert/GeometryMapping.cpp
     gltf/convert/CreateGeometry.cpp
     gltf/convert/BuildPrimitives.cpp
-    gltf/convert/AttachNodeSubMeshes.cpp
+    gltf/convert/BuildMeshes.cpp
     gltf/convert/ComputeMeshBounds.cpp
 )
 SOURCE_GROUP("gltf\\convert" FILES ${CONVERT_FILES})

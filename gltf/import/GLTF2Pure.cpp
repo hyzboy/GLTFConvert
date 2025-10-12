@@ -3,6 +3,7 @@
 #include "pure/Model.h"
 #include "gltf/convert/UniqueGeometryMapping.h"
 #include "gltf/convert/ComputeMeshBounds.h"
+#include "gltf/import/SamplerMapping.h"
 
 namespace gltf
 {
@@ -48,10 +49,10 @@ namespace gltf
         for (const auto &s : srcSamplers)
         {
             pure::Sampler ps;
-            ps.wrapS = static_cast<pure::WrapMode>(s.wrapS);
-            ps.wrapT = static_cast<pure::WrapMode>(s.wrapT);
-            ps.magFilter = s.magFilter ? std::optional<pure::FilterMode>(static_cast<pure::FilterMode>(*s.magFilter)) : std::nullopt;
-            ps.minFilter = s.minFilter ? std::optional<pure::FilterMode>(static_cast<pure::FilterMode>(*s.minFilter)) : std::nullopt;
+            ps.wrapS = MapWrapModeFromGLTF(s.wrapS);
+            ps.wrapT = MapWrapModeFromGLTF(s.wrapT);
+            ps.magFilter = MapFilterModeFromGLTF(s.magFilter);
+            ps.minFilter = MapFilterModeFromGLTF(s.minFilter);
             dstSamplers.push_back(std::move(ps));
         }
     }
