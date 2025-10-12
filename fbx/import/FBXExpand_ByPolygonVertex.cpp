@@ -43,15 +43,17 @@ namespace fbx
 
         std::map<VertexKey,int> vertexMap;
         std::vector<glm::vec3> outPositions;
-        std::vector<glm::vec3> outNormals;
-        std::vector<std::vector<glm::vec2>> outUVs; // dynamic per uv set
-        std::vector<glm::vec4> outTangents;
-        std::vector<glm::vec3> outBinormals;
+        // Store attribute data as tightly-packed float arrays to avoid extra
+        // conversions and potential glm padding issues.
+        std::vector<float> outNormalsData;                  // 3 floats per vertex
+        std::vector<std::vector<float>> outUVsData;         // per UV layer: 2 floats per vertex
+        std::vector<float> outTangentsData;                 // 4 floats per vertex
+        std::vector<float> outBinormalsData;               // 3 floats per vertex
         std::vector<uint32_t> outIndices;
 
         // Prepare UV layer count
         int uvLayerCount = mesh->GetElementUVCount();
-        outUVs.resize(uvLayerCount);
+        outUVsData.resize(uvLayerCount);
 
         // iterate polygons and polygon-vertices
         for(int p = 0; p < polygonCount; ++p)
@@ -128,17 +130,19 @@ namespace fbx
                     FbxVector4 cp = mesh->GetControlPointAt(cpIndex);
                     outPositions.push_back({ static_cast<float>(cp[0]),static_cast<float>(cp[1]),static_cast<float>(cp[2]) });
                     // push normals/uvs/tangents if present by resolving direct arrays
+                    // normal (pack directly into float array)
                     if(key.attrIndices.size() > 0 && key.attrIndices[0] >= 0)
                     {
-                        // normal
                         FbxGeometryElementNormal *nElem = mesh->GetElementNormal();
                         if(nElem) {
                             FbxVector4 nv = nElem->GetDirectArray().GetAt(key.attrIndices[0]);
-                            outNormals.push_back({ static_cast<float>(nv[0]),static_cast<float>(nv[1]),static_cast<float>(nv[2]) });
+                            outNormalsData.push_back(static_cast<float>(nv[0]));
+                            outNormalsData.push_back(static_cast<float>(nv[1]));
+                            outNormalsData.push_back(static_cast<float>(nv[2]));
                         }
-                        else outNormals.push_back({ 0,0,0 });
+                        else { outNormalsData.push_back(0.0f); outNormalsData.push_back(0.0f); outNormalsData.push_back(0.0f); }
                     }
-                    else outNormals.push_back({ 0,0,0 });
+                    else { outNormalsData.push_back(0.0f); outNormalsData.push_back(0.0f); outNormalsData.push_back(0.0f); }
 
                     // UVs
                     for(int uvL = 0; uvL < uvLayerCount; ++uvL)
@@ -148,11 +152,13 @@ namespace fbx
                         {
                             FbxGeometryElementUV *uElem = mesh->GetElementUV(uvL);
                             FbxVector2 uv = uElem->GetDirectArray().GetAt(uvIdx);
-                            outUVs[uvL].push_back({ static_cast<float>(uv[0]),static_cast<float>(uv[1]) });
+                            outUVsData[uvL].push_back(static_cast<float>(uv[0]));
+                            outUVsData[uvL].push_back(static_cast<float>(uv[1]));
                         }
                         else
                         {
-                            outUVs[uvL].push_back({ 0,0 });
+                            outUVsData[uvL].push_back(0.0f);
+                            outUVsData[uvL].push_back(0.0f);
                         }
                     }
 
@@ -162,18 +168,23 @@ namespace fbx
                     {
                         FbxGeometryElementTangent *tElem = mesh->GetElementTangent();
                         FbxVector4 tv = tElem->GetDirectArray().GetAt(tanIdx);
-                        outTangents.push_back({ static_cast<float>(tv[0]),static_cast<float>(tv[1]),static_cast<float>(tv[2]),static_cast<float>(tv[3]) });
+                        outTangentsData.push_back(static_cast<float>(tv[0]));
+                        outTangentsData.push_back(static_cast<float>(tv[1]));
+                        outTangentsData.push_back(static_cast<float>(tv[2]));
+                        outTangentsData.push_back(static_cast<float>(tv[3]));
                     }
-                    else outTangents.push_back({ 0,0,0,0 });
+                    else { outTangentsData.push_back(0.0f); outTangentsData.push_back(0.0f); outTangentsData.push_back(0.0f); outTangentsData.push_back(0.0f); }
 
                     int binIdx = key.attrIndices[2 + uvLayerCount];
                     if(binIdx >= 0)
                     {
                         FbxGeometryElementBinormal *bElem = mesh->GetElementBinormal();
                         FbxVector4 bv = bElem->GetDirectArray().GetAt(binIdx);
-                        outBinormals.push_back({ static_cast<float>(bv[0]),static_cast<float>(bv[1]),static_cast<float>(bv[2]) });
+                        outBinormalsData.push_back(static_cast<float>(bv[0]));
+                        outBinormalsData.push_back(static_cast<float>(bv[1]));
+                        outBinormalsData.push_back(static_cast<float>(bv[2]));
                     }
-                    else outBinormals.push_back({ 0,0,0 });
+                    else { outBinormalsData.push_back(0.0f); outBinormalsData.push_back(0.0f); outBinormalsData.push_back(0.0f); }
                 }
                 else
                 {
@@ -207,61 +218,44 @@ namespace fbx
         }
         geometry.attributes.push_back(posAttr);
 
-        if(!outNormals.empty()) {
+        if(!outNormalsData.empty()) {
             GeometryAttribute normAttr;
             normAttr.name = "NORMAL";
-            normAttr.count = outNormals.size();
+            normAttr.count = static_cast<int>(outPositions.size());
             normAttr.format = VK_FORMAT_R32G32B32_SFLOAT;
-            std::vector<float> normData;
-            normData.reserve(outNormals.size() * 3);
-            for(const auto &n : outNormals) {
-                normData.push_back(n.x);
-                normData.push_back(n.y);
-                normData.push_back(n.z);
-            }
-            normAttr.data.resize(normData.size() * sizeof(float));
-            memcpy(normAttr.data.data(),normData.data(),normAttr.data.size());
+            normAttr.data.resize(outNormalsData.size() * sizeof(float));
+            memcpy(normAttr.data.data(), outNormalsData.data(), normAttr.data.size());
             geometry.attributes.push_back(normAttr);
         }
 
         for(int uvL = 0; uvL < uvLayerCount; ++uvL)
         {
-            if(outUVs[uvL].empty()) continue;
+            if(outUVsData[uvL].empty()) continue;
             GeometryAttribute uvAttr;
             uvAttr.name = std::string("TEXCOORD_") + std::to_string(uvL);
-            uvAttr.count = outUVs[uvL].size();
+            uvAttr.count = static_cast<int>(outPositions.size());
             uvAttr.format = VK_FORMAT_R32G32_SFLOAT;
-            // Pack UVs tightly to avoid glm::vec2 stride/padding issues
-            std::vector<float> uvData;
-            uvData.reserve(outUVs[uvL].size() * 2);
-            for(const auto &uv : outUVs[uvL]) { uvData.push_back(uv.x); uvData.push_back(uv.y); }
-            uvAttr.data.resize(uvData.size() * sizeof(float));
-            memcpy(uvAttr.data.data(),uvData.data(),uvAttr.data.size());
+            uvAttr.data.resize(outUVsData[uvL].size() * sizeof(float));
+            memcpy(uvAttr.data.data(), outUVsData[uvL].data(), uvAttr.data.size());
             geometry.attributes.push_back(uvAttr);
         }
 
-        if(!outTangents.empty()) {
+        if(!outTangentsData.empty()) {
             GeometryAttribute tanAttr;
             tanAttr.name = "TANGENT";
-            tanAttr.count = outTangents.size();
+            tanAttr.count = static_cast<int>(outPositions.size());
             tanAttr.format = VK_FORMAT_R32G32B32A32_SFLOAT;
-            std::vector<float> tanData;
-            tanData.reserve(outTangents.size() * 4);
-            for(const auto &t : outTangents) { tanData.push_back(t.x); tanData.push_back(t.y); tanData.push_back(t.z); tanData.push_back(t.w); }
-            tanAttr.data.resize(tanData.size() * sizeof(float));
-            memcpy(tanAttr.data.data(),tanData.data(),tanAttr.data.size());
+            tanAttr.data.resize(outTangentsData.size() * sizeof(float));
+            memcpy(tanAttr.data.data(), outTangentsData.data(), tanAttr.data.size());
             geometry.attributes.push_back(tanAttr);
         }
-        if(!outBinormals.empty()) {
+        if(!outBinormalsData.empty()) {
             GeometryAttribute bitAttr;
             bitAttr.name = "BINORMAL";
-            bitAttr.count = outBinormals.size();
+            bitAttr.count = static_cast<int>(outPositions.size());
             bitAttr.format = VK_FORMAT_R32G32B32_SFLOAT;
-            std::vector<float> bitData;
-            bitData.reserve(outBinormals.size() * 3);
-            for(const auto &b : outBinormals) { bitData.push_back(b.x); bitData.push_back(b.y); bitData.push_back(b.z); }
-            bitAttr.data.resize(bitData.size() * sizeof(float));
-            memcpy(bitAttr.data.data(),bitData.data(),bitAttr.data.size());
+            bitAttr.data.resize(outBinormalsData.size() * sizeof(float));
+            memcpy(bitAttr.data.data(), outBinormalsData.data(), bitAttr.data.size());
             geometry.attributes.push_back(bitAttr);
         }
 
