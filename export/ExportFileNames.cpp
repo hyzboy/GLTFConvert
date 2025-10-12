@@ -5,19 +5,28 @@ namespace exporters
     // ------------------------------------------------------------
     // File name builders
     // ------------------------------------------------------------
-    std::string MakeGeometryFileName(const std::string &baseName, int32_t geometryIndex)
+    std::string MakeGeometryFileName(const std::string &baseName, int32_t geometryIndex, int32_t totalGeometryCount /* = -1 */)
     {
+        if (totalGeometryCount == 1)
+            return baseName + ".geometry";
         return baseName + "." + std::to_string(geometryIndex) + ".geometry";
     }
 
-    std::string MakeMaterialFileName(const std::string &baseName, const std::string &matName, int32_t materialIndex)
-    {   
+    std::string MakeMaterialFileName(const std::string &baseName, const std::string &matName, int32_t materialIndex, int32_t totalMaterialCount /* = -1 */)
+    {
+        if (totalMaterialCount == 1)
+        {
+            if (!matName.empty())
+                return baseName + "." + SanitizeName(matName) + ".material";
+            return baseName + ".material";
+        }
+
         std::string front = baseName + "." + std::to_string(materialIndex) + ".";
 
         if (!matName.empty())
-            return front+SanitizeName(matName) + ".material";
+            return front + SanitizeName(matName) + ".material";
 
-        return front+".material";
+        return front + ".material";
     }
 
     std::string MakeImageFileName(const std::string &baseName, const std::string &imageName, int32_t imageIndex, const std::string &ext)
@@ -42,8 +51,15 @@ namespace exporters
         return baseName + "." + sceneName + ".scene";
     }
 
-    std::string MakeMeshFileName(const std::string &baseName, const std::string &meshName, int32_t meshIndex)
+    std::string MakeMeshFileName(const std::string &baseName, const std::string &meshName, int32_t meshIndex, int32_t totalMeshCount /* = -1 */)
     {
+        if (totalMeshCount == 1)
+        {
+            if (!meshName.empty())
+                return baseName + "." + SanitizeName(meshName) + ".mesh";
+            return baseName + ".mesh";
+        }
+
         std::string front = baseName + "." + std::to_string(meshIndex) + ".";
         if (!meshName.empty())
             return front + SanitizeName(meshName) + ".mesh";

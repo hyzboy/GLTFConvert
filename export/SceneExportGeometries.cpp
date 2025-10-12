@@ -12,7 +12,7 @@ namespace exporters
         {
             SceneGeometryExport ge;
             ge.originalIndex = originalGeo;
-            ge.file          = MakeGeometryFileName(geometryBaseName, originalGeo);
+            ge.file          = MakeGeometryFileName(geometryBaseName, originalGeo, static_cast<int32_t>(ci.geometries.size()));
             outData.geometries.push_back(std::move(ge));
         }
     }

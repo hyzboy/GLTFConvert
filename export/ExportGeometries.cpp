@@ -18,7 +18,7 @@ namespace exporters
         {
             pure::Geometry &g = model->geometry[u];
 
-            std::filesystem::path binName = MakeGeometryFileName(baseName, static_cast<int32_t>(u));
+            std::filesystem::path binName = MakeGeometryFileName(baseName, static_cast<int32_t>(u), static_cast<int32_t>(model->geometry.size()));
             std::filesystem::path binPath = targetDir / binName;
 
             if(!pure::SaveGeometry(g, binPath.string()))

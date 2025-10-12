@@ -77,7 +77,7 @@ namespace exporters
 
                 if(prim.geometry >= 0 && prim.geometry < static_cast<int32_t>(model.geometry.size()))
                 {
-                    jp["geometry"] = MakeGeometryFileName(baseName,prim.geometry);
+                    jp["geometry"] = MakeGeometryFileName(baseName, prim.geometry, static_cast<int32_t>(model.geometry.size()));
                 }
                 if(prim.material.has_value())
                 {
@@ -85,7 +85,7 @@ namespace exporters
                     if(matIdx >= 0 && matIdx < static_cast<int32_t>(model.materials.size()))
                     {
                         const auto &mat = model.materials[matIdx];
-                        jp["material"] = MakeMaterialFileName(baseName,mat->name,matIdx);
+                        jp["material"] = MakeMaterialFileName(baseName, mat->name, matIdx, static_cast<int32_t>(model.materials.size()));
                     }
                 }
                 prims.push_back(std::move(jp));
@@ -100,7 +100,7 @@ namespace exporters
                 j["bounds"] = BoundingVolumesToJson(*maybeBV);
             }
 
-            auto filePath = dir / MakeMeshFileName(baseName,m.name,static_cast<int32_t>(mi));
+        auto filePath = dir / MakeMeshFileName(baseName, m.name, static_cast<int32_t>(mi), static_cast<int32_t>(model.meshes.size()));
             std::ofstream ofs(filePath,std::ios::binary);
             if(!ofs)
             {
