@@ -13,6 +13,9 @@
 #include "common/IndexType.h"
 #include "common/VkFormat.h"
 
+#include <fbxsdk.h>
+using namespace fbxsdk;
+
 namespace fbx
 {
     void Expand_ByPolygon(FbxMesh* mesh, FBXModel& model, const std::vector<int> &materialMap)

@@ -15,22 +15,22 @@
 
 namespace fbx
 {
-    void TraverseScene(FbxScene* scene, FBXModel& model);
-    void TraverseNode(FbxNode* node, FBXModel& model);
+    void TraverseScene(fbxsdk::FbxScene* scene, FBXModel& model);
+    void TraverseNode(fbxsdk::FbxNode* node, FBXModel& model);
 
     bool ImportFBX(const std::filesystem::path &inputPath, FBXModel &outModel)
     {
         // Initialize FBX SDK
-        FbxManager* lSdkManager = FbxManager::Create();
+        fbxsdk::FbxManager* lSdkManager = fbxsdk::FbxManager::Create();
         if (!lSdkManager) {
             std::cerr << "Error: Unable to create FBX Manager!\n";
             return false;
         }
 
-        FbxIOSettings* ios = FbxIOSettings::Create(lSdkManager, IOSROOT);
+        fbxsdk::FbxIOSettings* ios = fbxsdk::FbxIOSettings::Create(lSdkManager, IOSROOT);
         lSdkManager->SetIOSettings(ios);
 
-        FbxImporter* lImporter = FbxImporter::Create(lSdkManager, "");
+        fbxsdk::FbxImporter* lImporter = fbxsdk::FbxImporter::Create(lSdkManager, "");
 
         if (!lImporter->Initialize(inputPath.string().c_str(), -1, lSdkManager->GetIOSettings())) {
             std::cerr << "Error: Unable to initialize FBX importer!\n";
@@ -38,7 +38,7 @@ namespace fbx
             return false;
         }
 
-        FbxScene* lScene = FbxScene::Create(lSdkManager, "myScene");
+        fbxsdk::FbxScene* lScene = fbxsdk::FbxScene::Create(lSdkManager, "myScene");
         lImporter->Import(lScene);
 
         // Traverse the scene and fill outModel
@@ -56,9 +56,9 @@ namespace fbx
         return true;
     }
 
-    void TraverseScene(FbxScene* scene, FBXModel& model)
+    void TraverseScene(fbxsdk::FbxScene* scene, FBXModel& model)
     {
-        FbxNode* root = scene->GetRootNode();
+        fbxsdk::FbxNode* root = scene->GetRootNode();
         if (root) {
             for (int i = 0; i < root->GetChildCount(); ++i) {
                 TraverseNode(root->GetChild(i), model);
@@ -66,9 +66,9 @@ namespace fbx
         }
     }
 
-    void TraverseNode(FbxNode* node, FBXModel& model)
+    void TraverseNode(fbxsdk::FbxNode* node, FBXModel& model)
     {
-        FbxMesh* mesh = node->GetMesh();
+        fbxsdk::FbxMesh* mesh = node->GetMesh();
         if (mesh) {
             ProcessMesh(mesh, node, model);
         }

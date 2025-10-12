@@ -15,6 +15,9 @@
 #include "common/IndexType.h"
 #include "common/VkFormat.h"
 
+#include <fbxsdk.h>
+using namespace fbxsdk;
+
 namespace fbx
 {
     // Expand where attributes are mapped by polygon-vertex (per-face-vertex). We create unique vertices for each polygon-vertex combination and deduplicate by full attribute key.

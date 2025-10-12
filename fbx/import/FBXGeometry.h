@@ -1,11 +1,15 @@
 #pragma once
 
-#include <fbxsdk.h>
+// Forward-declare FBX SDK types in the fbxsdk namespace to avoid including heavy SDK headers in headers.
+// Implementation files should include <fbxsdk.h> to get full definitions.
+namespace fbxsdk { class FbxMesh; class FbxNode; }
+
+#include <vector>
 #include "fbx/FBXModel.h"
 
 namespace fbx {
-    void ProcessMesh(FbxMesh* mesh, FbxNode* node, FBXModel& model);
-    void Expand_ByControlPoint(FbxMesh* mesh, FBXModel& model, const std::vector<int> &materialMap);
-    void Expand_ByPolygonVertex(FbxMesh* mesh, FBXModel& model, const std::vector<int> &materialMap);
-    void Expand_ByPolygon(FbxMesh* mesh, FBXModel& model, const std::vector<int> &materialMap);
+    void ProcessMesh(fbxsdk::FbxMesh* mesh, fbxsdk::FbxNode* node, FBXModel& model);
+    void Expand_ByControlPoint(fbxsdk::FbxMesh* mesh, FBXModel& model, const std::vector<int> &materialMap);
+    void Expand_ByPolygonVertex(fbxsdk::FbxMesh* mesh, FBXModel& model, const std::vector<int> &materialMap);
+    void Expand_ByPolygon(fbxsdk::FbxMesh* mesh, FBXModel& model, const std::vector<int> &materialMap);
 }

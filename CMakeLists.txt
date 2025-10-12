@@ -114,6 +114,12 @@ list(APPEND FBX_IMPORT_FILES
 )
 SOURCE_GROUP("fbx\\import" FILES fbx/import/FBXExpand_ByControlPoint.cpp fbx/import/FBXExpand_ByPolygonVertex.cpp fbx/import/FBXExpand_ByPolygon.cpp)
 
+# FBX material converter
+list(APPEND FBX_IMPORT_FILES
+    fbx/import/FBXMaterialConverter.cpp
+)
+SOURCE_GROUP("fbx\\import" FILES fbx/import/FBXMaterialConverter.cpp fbx/import/FBXMaterialConverter.h)
+
 set(CONVERT_FILES
     gltf/convert/UniqueGeometryMapping.h
     gltf/convert/CopyMaterials.cpp
@@ -143,6 +149,15 @@ set(PURE_GEOM_FILES
     pure/Sampler.h
 )
 SOURCE_GROUP("pure" FILES ${PURE_GEOM_FILES})
+
+# Additional pure material/FBX material headers
+list(APPEND PURE_GEOM_FILES
+    pure/FBXMaterial.h
+    pure/LambertMaterial.h
+    pure/PhongMaterial.h
+    pure/SpecGlossMaterial.h
+)
+SOURCE_GROUP("pure" FILES pure/FBXMaterial.h pure/LambertMaterial.h pure/PhongMaterial.h pure/SpecGlossMaterial.h)
 
 set(SCENE_EXPORT_INTERNAL_FILES
     export/SceneExportNames.h
@@ -231,6 +246,8 @@ target_compile_definitions(GLTFConvert PRIVATE
     GLM_FORCE_DEFAULT_ALIGNED_GENTYPES
     GLM_FORCE_INTRINSICS
 )
+# Prevent FBX SDK headers from injecting 'using namespace' globally when included in these targets
+# (FBX SDK namespace macros not forced here)
 
 if (MINIPACK_WRITER)
     message(STATUS "Found mini_pack_writer.h: ${MINIPACK_WRITER}")
@@ -416,6 +433,8 @@ if (FBX_FOUND)
     if (FBX_LIB_TARGET)
         target_link_libraries(FBXConvert PRIVATE ${FBX_LIB_TARGET})
     endif()
+    # Prevent FBX SDK headers from injecting 'using namespace' which can conflict with our 'fbx' namespace
+    target_compile_definitions(FBXConvert PRIVATE FBXSDK_NAMESPACE_USING=0)
     
     target_compile_options(FBXConvert PRIVATE
         $<$<CXX_COMPILER_ID:MSVC>:/arch:AVX2 /fp:fast /openmp:llvm>
