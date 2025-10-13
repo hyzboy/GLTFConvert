@@ -26,6 +26,8 @@ namespace pure
         std::optional<GeometryIndicesMeta>      indices;                                            // metadata for indices
         
         std::optional<std::vector<glm::vec3>>   positions;                                          // Optional decoded POSITION data (local space, stored as float precision)
+
+        std::optional<int32_t>                  material;                                           // index into Model::materials
     };
 
     bool SaveGeometry(Geometry &geometry,const std::string &filename);

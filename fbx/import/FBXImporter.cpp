@@ -12,11 +12,12 @@
 #include "common/IndexType.h"
 #include "common/VkFormat.h"
 #include "fbx/import/FBXGeometry.h"
+#include "fbx/import/FBXMaterialMap.h"
 
 namespace fbx
 {
     void TraverseScene(fbxsdk::FbxScene* scene, FBXModel& model);
-    void TraverseNode(fbxsdk::FbxNode* node, FBXModel& model);
+    int32_t TraverseNode(fbxsdk::FbxNode* node, FBXModel& model);
 
     bool ImportFBX(const std::filesystem::path &inputPath, FBXModel &outModel)
     {
@@ -60,23 +61,54 @@ namespace fbx
     {
         fbxsdk::FbxNode* root = scene->GetRootNode();
         if (root) {
+            std::vector<int32_t> rootChildren;
             for (int i = 0; i < root->GetChildCount(); ++i) {
-                TraverseNode(root->GetChild(i), model);
+                int nodeIndex = TraverseNode(root->GetChild(i), model);
+                rootChildren.push_back(nodeIndex);
             }
+            // Create default scene
+            pure::Scene scene;
+            scene.name = "default";
+            scene.nodes = rootChildren;
+            model.scenes.push_back(scene);
         }
     }
 
-    void TraverseNode(fbxsdk::FbxNode* node, FBXModel& model)
+    int32_t TraverseNode(fbxsdk::FbxNode* node, FBXModel& model)
     {
+        pure::Node n;
+        n.name = node->GetName() ? node->GetName() : std::string();
+        // TODO: set transform
+
+        // materials
+        std::vector<int> materialMap;
+        BuildMaterialMap(node, model, materialMap);
+        std::vector<int32_t> nodeMaterials;
+        for (int mapped : materialMap) {
+            if (mapped >= 0) nodeMaterials.push_back(mapped);
+        }
+        if (!nodeMaterials.empty()) n.materials = nodeMaterials;
+
+        // children
+        for (int i = 0; i < node->GetChildCount(); ++i) {
+            int childIndex = TraverseNode(node->GetChild(i), model);
+            n.children.push_back(childIndex);
+        }
+
+        // add node
+        int32_t nodeIndex = static_cast<int32_t>(model.nodes.size());
+        model.nodes.push_back(n);
+
+        // process mesh after node added
         fbxsdk::FbxMesh* mesh = node->GetMesh();
         if (mesh) {
-            ProcessMesh(mesh, node, model);
+            size_t meshIndex = model.meshes.size();
+            ProcessMesh(mesh, node, model, materialMap);
+            if (model.meshes.size() > meshIndex) {
+                model.nodes[nodeIndex].mesh = static_cast<int32_t>(meshIndex);
+            }
         }
 
-        for (int i = 0; i < node->GetChildCount(); ++i) {
-            TraverseNode(node->GetChild(i), model);
-        }
+        return nodeIndex;
     }
-
-    // ProcessMesh implementation moved to fbx/import/FBXGeometry.cpp
 }

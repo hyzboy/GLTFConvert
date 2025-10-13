@@ -2,6 +2,7 @@
 #include "pure/Material.h"
 #include "pure/FBXMaterial.h"
 #include <optional>
+#include <unordered_map>
 
 namespace pure
 {
@@ -15,7 +16,11 @@ namespace pure
 
         PhongMaterial() { type = "Phong"; }
 
-        nlohmann::json toJson() const override
+        nlohmann::json toJson(const ::pure::Model & /*model*/,
+                               const std::unordered_map<std::size_t,int32_t> & /*texRemap*/,
+                               const std::unordered_map<std::size_t,int32_t> & /*imgRemap*/,
+                               const std::unordered_map<std::size_t,int32_t> & /*sampRemap*/,
+                               const std::string & /*baseName*/) const override
         {
             nlohmann::json j;
             j["name"] = name;

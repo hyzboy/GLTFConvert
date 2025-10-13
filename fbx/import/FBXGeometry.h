@@ -8,7 +8,7 @@ namespace fbxsdk { class FbxMesh; class FbxNode; }
 #include "fbx/FBXModel.h"
 
 namespace fbx {
-    void ProcessMesh(fbxsdk::FbxMesh* mesh, fbxsdk::FbxNode* node, FBXModel& model);
+    void ProcessMesh(fbxsdk::FbxMesh* mesh, fbxsdk::FbxNode* node, FBXModel& model, const std::vector<int>& materialMap);
     void Expand_ByControlPoint(fbxsdk::FbxMesh* mesh, FBXModel& model, const std::vector<int> &materialMap);
     void Expand_ByPolygonVertex(fbxsdk::FbxMesh* mesh, FBXModel& model, const std::vector<int> &materialMap);
     void Expand_ByPolygon(fbxsdk::FbxMesh* mesh, FBXModel& model, const std::vector<int> &materialMap);

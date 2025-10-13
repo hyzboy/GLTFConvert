@@ -32,82 +32,12 @@ void BuildMaterialMap(fbxsdk::FbxNode* node, ::FBXModel& model, std::vector<int>
             if (found == -1)
             {
                 pure::FBXMaterial raw;
-                std::optional<pure::PBRMaterial> pbrEstimate;
-                ExtractMaterial(m, raw, &pbrEstimate);
-
+                auto concrete = ExtractMaterial(m, raw);
                 int matIndex = -1;
-                if (pbrEstimate)
-                {
-                    auto pm = std::make_unique<pure::PBRMaterial>(*pbrEstimate);
-                    pm->name = raw.name;
-                    model.materials.push_back(std::move(pm));
+                if (concrete) {
+                    model.materials.push_back(std::move(concrete));
                     matIndex = static_cast<int>(model.materials.size()) - 1;
-                }
-                else if (raw.impl == "Phong")
-                {
-                    auto ph = std::make_unique<pure::PhongMaterial>();
-                    ph->name = raw.name;
-                    if (raw.raw.contains("Diffuse") && raw.raw["Diffuse"].is_array()) {
-                        auto a = raw.raw["Diffuse"];
-                        if (a.size() >= 3) {
-                            ph->diffuse[0] = static_cast<float>(a[0].get<double>());
-                            ph->diffuse[1] = static_cast<float>(a[1].get<double>());
-                            ph->diffuse[2] = static_cast<float>(a[2].get<double>());
-                        }
-                    }
-                    if (raw.raw.contains("Specular") && raw.raw["Specular"].is_array()) {
-                        auto a = raw.raw["Specular"];
-                        if (a.size() >= 3) {
-                            ph->specular[0] = static_cast<float>(a[0].get<double>());
-                            ph->specular[1] = static_cast<float>(a[1].get<double>());
-                            ph->specular[2] = static_cast<float>(a[2].get<double>());
-                        }
-                    }
-                    if (raw.raw.contains("Shininess") ) ph->shininess = static_cast<float>(raw.raw["Shininess"].get<double>());
-                    model.materials.push_back(std::move(ph));
-                    matIndex = static_cast<int>(model.materials.size()) - 1;
-                }
-                else if (raw.impl == "Lambert")
-                {
-                    auto lm = std::make_unique<pure::LambertMaterial>();
-                    lm->name = raw.name;
-                    if (raw.raw.contains("Diffuse") && raw.raw["Diffuse"].is_array()) {
-                        auto a = raw.raw["Diffuse"];
-                        if (a.size() >= 3) {
-                            lm->diffuse[0] = static_cast<float>(a[0].get<double>());
-                            lm->diffuse[1] = static_cast<float>(a[1].get<double>());
-                            lm->diffuse[2] = static_cast<float>(a[2].get<double>());
-                        }
-                    }
-                    model.materials.push_back(std::move(lm));
-                    matIndex = static_cast<int>(model.materials.size()) - 1;
-                }
-                else if (raw.raw.contains("Glossiness") || raw.raw.contains("glossiness") || raw.raw.contains("GlossinessFactor"))
-                {
-                    auto sg = std::make_unique<pure::SpecGlossMaterial>();
-                    sg->name = raw.name;
-                    if (raw.raw.contains("Diffuse") && raw.raw["Diffuse"].is_array()) {
-                        auto a = raw.raw["Diffuse"];
-                        if (a.size() >= 3) {
-                            sg->diffuse[0] = static_cast<float>(a[0].get<double>());
-                            sg->diffuse[1] = static_cast<float>(a[1].get<double>());
-                            sg->diffuse[2] = static_cast<float>(a[2].get<double>());
-                        }
-                    }
-                    if (raw.raw.contains("Specular") && raw.raw["Specular"].is_array()) {
-                        auto a = raw.raw["Specular"];
-                        if (a.size() >= 3) {
-                            sg->specular[0] = static_cast<float>(a[0].get<double>());
-                            sg->specular[1] = static_cast<float>(a[1].get<double>());
-                            sg->specular[2] = static_cast<float>(a[2].get<double>());
-                        }
-                    }
-                    if (raw.raw.contains("Glossiness")) sg->glossiness = static_cast<float>(raw.raw["Glossiness"].get<double>());
-                    model.materials.push_back(std::move(sg));
-                    matIndex = static_cast<int>(model.materials.size()) - 1;
-                }
-                else
-                {
+                } else {
                     auto fb = std::make_unique<pure::FBXMaterial>();
                     fb->name = raw.name;
                     fb->impl = raw.impl;

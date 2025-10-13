@@ -1,7 +1,8 @@
 #pragma once
-#include "pure/Material.h"
+#include "Material.h"
 #include <optional>
 #include <cstddef>
+#include <unordered_map>
 
 namespace pure
 {
@@ -50,18 +51,10 @@ namespace pure
             type = "PBR";
         }
 
-        nlohmann::json toJson() const override
-        {
-            nlohmann::json j;
-            j["name"] = name;
-            j["type"] = type;
-            // Serialize PBR fields
-            j["pbrMetallicRoughness"]["baseColorFactor"] = { pbr.baseColorFactor[0], pbr.baseColorFactor[1], pbr.baseColorFactor[2], pbr.baseColorFactor[3] };
-            if (pbr.metallicFactor != 1.0f) j["pbrMetallicRoughness"]["metallicFactor"] = pbr.metallicFactor;
-            if (pbr.roughnessFactor != 1.0f) j["pbrMetallicRoughness"]["roughnessFactor"] = pbr.roughnessFactor;
-            // Add texture refs if present
-            // Note: Implement full serialization as needed
-            return j;
-        }
+        nlohmann::json toJson(const Model &model,
+                               const std::unordered_map<std::size_t,int32_t> &texRemap,
+                               const std::unordered_map<std::size_t,int32_t> &imgRemap,
+                               const std::unordered_map<std::size_t,int32_t> &sampRemap,
+                               const std::string &baseName) const override;
     };
 }

@@ -3,6 +3,12 @@
 #include <glm/glm.hpp>
 #include <algorithm>
 
+#include "pure/PBRMaterial.h"
+#include "pure/PhongMaterial.h"
+#include "pure/LambertMaterial.h"
+#include "pure/SpecGlossMaterial.h"
+#include "pure/FBXMaterial.h"
+
 namespace fbx
 {
     using namespace pure;
@@ -13,7 +19,33 @@ namespace fbx
         pure::Model dst;
         dst.model_source = src.model_source;
 
-        // Copy images/textures/samplers as empty for now
+        // Copy materials
+        dst.materials.reserve(src.materials.size());
+        for (const auto &mat : src.materials) {
+            if (!mat) continue;
+            if (auto pbr = dynamic_cast<const pure::PBRMaterial*>(mat.get())) {
+                dst.materials.push_back(std::make_unique<pure::PBRMaterial>(*pbr));
+            } else if (auto phong = dynamic_cast<const pure::PhongMaterial*>(mat.get())) {
+                dst.materials.push_back(std::make_unique<pure::PhongMaterial>(*phong));
+            } else if (auto lambert = dynamic_cast<const pure::LambertMaterial*>(mat.get())) {
+                dst.materials.push_back(std::make_unique<pure::LambertMaterial>(*lambert));
+            } else if (auto specgloss = dynamic_cast<const pure::SpecGlossMaterial*>(mat.get())) {
+                dst.materials.push_back(std::make_unique<pure::SpecGlossMaterial>(*specgloss));
+            } else if (auto fbxmat = dynamic_cast<const pure::FBXMaterial*>(mat.get())) {
+                dst.materials.push_back(std::make_unique<pure::FBXMaterial>(*fbxmat));
+            }
+            // else skip unknown types
+        }
+
+        // Copy images, textures, samplers (as empty for now, but copy if present)
+        dst.images = src.images;
+        dst.textures = src.textures;
+        dst.samplers = src.samplers;
+
+        // Copy scenes and nodes
+        dst.scenes = src.scenes;
+        dst.nodes = src.nodes;
+
         // Convert geometry: each FBX geometry entry becomes pure::Geometry
         dst.geometry.reserve(src.geometry.size());
         for (const auto &g : src.geometry)

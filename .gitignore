@@ -10,3 +10,5 @@
 /*.cmake
 /*.build
 /CMakeCache.txt
+/FBXConvert.dir
+/PureModel.dir

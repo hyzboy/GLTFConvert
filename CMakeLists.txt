@@ -144,6 +144,7 @@ set(PURE_GEOM_FILES
     pure/Geometry.h
     pure/Material.h
     pure/PBRMaterial.h
+    pure/PBRMaterial.cpp
     pure/Mesh.h
     pure/Node.h
     pure/Primitive.h

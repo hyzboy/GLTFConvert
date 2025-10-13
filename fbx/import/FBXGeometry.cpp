@@ -7,7 +7,7 @@
 
 namespace fbx
 {
-    void ProcessMesh(fbxsdk::FbxMesh *mesh,fbxsdk::FbxNode *node,FBXModel &model)
+    void ProcessMesh(fbxsdk::FbxMesh *mesh,fbxsdk::FbxNode *node,FBXModel &model, const std::vector<int> &materialMap)
     {
         if(!mesh) {
             std::cerr << "Error: Null mesh pointer" << std::endl;
@@ -33,8 +33,7 @@ namespace fbx
             return;
         }
 
-        std::vector<int> materialMap; // index by node material index -> model.materials index
-        BuildMaterialMap(node,model,materialMap);
+        // materialMap is passed in, no need to build again
 
         // Detect mapping modes to pick expansion strategy
         bool hasByPolygonVertex = false;
