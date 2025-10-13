@@ -240,7 +240,7 @@ target_link_libraries(PureModel
 )
 
 add_executable(GLTFConvert
-    main.cpp
+    gltf/main_gltf.cpp
     TexConv.cpp
     ${GLTF_FILES}
     ${GLTF_IMPORT_FILES}
@@ -416,7 +416,7 @@ target_link_libraries(GLTFConvert PRIVATE
 # Build FBXConvert only if FBX SDK was found
 if (FBX_FOUND)
     add_executable(FBXConvert
-        main_fbx.cpp
+        fbx/main_fbx.cpp
         TexConv.cpp
         ${FBX_FILES}
         ${FBX_IMPORT_FILES}
