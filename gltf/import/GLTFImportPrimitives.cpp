@@ -11,17 +11,6 @@
 #include "common/FastGLTFConversions.h"
 #include "gltf/import/GLTFImporter.h"
 
-// GL type macros (avoid direct numeric literals)
-#ifndef GL_UNSIGNED_BYTE
-#define GL_UNSIGNED_BYTE 0x1401
-#endif
-#ifndef GL_UNSIGNED_SHORT
-#define GL_UNSIGNED_SHORT 0x1403
-#endif
-#ifndef GL_UNSIGNED_INT
-#define GL_UNSIGNED_INT 0x1405
-#endif
-
 namespace gltf
 {
     namespace
@@ -102,18 +91,18 @@ namespace gltf
                         auto read_u16_from_bytes = [&](const std::byte *ptr)->uint16_t { uint16_t v; std::memcpy(&v, ptr, sizeof(uint16_t)); return v; };
                         auto read_u8_from_bytes  = [&](const std::byte *ptr)->uint8_t  { uint8_t v;  std::memcpy(&v, ptr, sizeof(uint8_t));  return v; };
 
-                        const int compInt = static_cast<int>(acc.componentType);
-                        if(compInt==GL_UNSIGNED_INT)
+                        const auto compType = acc.componentType;
+                        if(compType == fastgltf::ComponentType::UnsignedInt)
                         {
                             const uint32_t *src = reinterpret_cast<const uint32_t*>(buf.data());
                             for(size_t i=0;i<count;++i) maxIndex = std::max<uint64_t>(maxIndex, src[i]);
                         }
-                        else if(compInt==GL_UNSIGNED_SHORT)
+                        else if(compType == fastgltf::ComponentType::UnsignedShort)
                         {
                             const uint16_t *src = reinterpret_cast<const uint16_t*>(buf.data());
                             for(size_t i=0;i<count;++i) maxIndex = std::max<uint64_t>(maxIndex, src[i]);
                         }
-                        else if(compInt==GL_UNSIGNED_BYTE)
+                        else if(compType == fastgltf::ComponentType::UnsignedByte)
                         {
                             const uint8_t *src = reinterpret_cast<const uint8_t*>(buf.data());
                             for(size_t i=0;i<count;++i) maxIndex = std::max<uint64_t>(maxIndex, src[i]);
@@ -134,9 +123,9 @@ namespace gltf
                             for(size_t i=0;i<count;++i)
                             {
                                 uint32_t v = 0;
-                                if(compInt==GL_UNSIGNED_INT) v = read_u32_from_bytes(buf.data() + i*sizeof(uint32_t));
-                                else if(compInt==GL_UNSIGNED_SHORT) v = read_u16_from_bytes(buf.data() + i*sizeof(uint16_t));
-                                else if(compInt==GL_UNSIGNED_BYTE) v = read_u8_from_bytes(buf.data() + i*sizeof(uint8_t));
+                                if(compType == fastgltf::ComponentType::UnsignedInt) v = read_u32_from_bytes(buf.data() + i*sizeof(uint32_t));
+                                else if(compType == fastgltf::ComponentType::UnsignedShort) v = read_u16_from_bytes(buf.data() + i*sizeof(uint16_t));
+                                else if(compType == fastgltf::ComponentType::UnsignedByte) v = read_u8_from_bytes(buf.data() + i*sizeof(uint8_t));
                                 else v = read_u32_from_bytes(buf.data() + i*sizeof(uint32_t));
                                 outU8[i] = static_cast<uint8_t>(v);
                             }
@@ -153,9 +142,9 @@ namespace gltf
                             for(size_t i=0;i<count;++i)
                             {
                                 uint32_t v = 0;
-                                if(compInt==GL_UNSIGNED_INT) v = read_u32_from_bytes(buf.data() + i*sizeof(uint32_t));
-                                else if(compInt==GL_UNSIGNED_SHORT) v = read_u16_from_bytes(buf.data() + i*sizeof(uint16_t));
-                                else if(compInt==GL_UNSIGNED_BYTE) v = read_u8_from_bytes(buf.data() + i*sizeof(uint8_t));
+                                if(compType == fastgltf::ComponentType::UnsignedInt) v = read_u32_from_bytes(buf.data() + i*sizeof(uint32_t));
+                                else if(compType == fastgltf::ComponentType::UnsignedShort) v = read_u16_from_bytes(buf.data() + i*sizeof(uint16_t));
+                                else if(compType == fastgltf::ComponentType::UnsignedByte) v = read_u8_from_bytes(buf.data() + i*sizeof(uint8_t));
                                 else v = read_u32_from_bytes(buf.data() + i*sizeof(uint32_t));
                                 outU16[i] = static_cast<uint16_t>(v);
                             }
