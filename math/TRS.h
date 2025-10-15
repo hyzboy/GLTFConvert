@@ -15,23 +15,23 @@ public:
     void init()
     {
         translation = glm::vec3(0.0f);
-        rotation    = glm::quat(1.0f,0.0f,0.0f,0.0f);
-        scale       = glm::vec3(1.0f);
+        rotation = glm::quat(1.0f,0.0f,0.0f,0.0f);
+        scale = glm::vec3(1.0f);
     }
 
     // 判断是否为空（单位变换）
     bool empty() const
     {
         return translation == glm::vec3(0.0f)
-            && rotation    == glm::quat(1.0f,0.0f,0.0f,0.0f)
-            && scale       == glm::vec3(1.0f);
+            && rotation == glm::quat(1.0f,0.0f,0.0f,0.0f)
+            && scale == glm::vec3(1.0f);
     }
 
     bool operator == (const TRS &rhs) const
     {
         return translation == rhs.translation
-            && rotation    == rhs.rotation
-            && scale       == rhs.scale;
+            && rotation == rhs.rotation
+            && scale == rhs.scale;
     }
 
     bool operator != (const TRS &rhs) const { return !(*this == rhs); }
@@ -40,9 +40,9 @@ public:
     glm::mat4 toMat4() const
     {
         glm::mat4 mtx(1.0f);
-        mtx = glm::translate(mtx, translation);
+        mtx = glm::translate(mtx,translation);
         mtx *= glm::mat4_cast(rotation);
-        mtx = glm::scale(mtx, scale);
+        mtx = glm::scale(mtx,scale);
         return mtx;
     }
 };
