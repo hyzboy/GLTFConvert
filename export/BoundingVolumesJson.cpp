@@ -1,4 +1,4 @@
-#include "BoundingVolumesJson.h"
+﻿#include "BoundingVolumesJson.h"
 
 nlohmann::json exporters::BoundingVolumesToJson(const BoundingVolumes &bv)
 {

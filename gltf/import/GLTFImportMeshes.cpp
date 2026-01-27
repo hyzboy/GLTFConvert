@@ -1,4 +1,4 @@
-#include <fastgltf/core.hpp>
+﻿#include <fastgltf/core.hpp>
 #include <vector>
 #include "gltf/GLTFMesh.h"
 

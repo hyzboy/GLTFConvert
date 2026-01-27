@@ -42,7 +42,7 @@ public:
     int Comp(const VertexAttribType &vat)const
     {
         int off=(int)basetype-(int)vat.basetype;
-    
+
         if(off)return(off);
 
         off=vec_size-vat.vec_size;

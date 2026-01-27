@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #include <glm/glm.hpp>
 #include <cmath>
@@ -34,7 +34,7 @@ struct OBB
                                    float coarseStepDeg=15.0f,
                                    float fineStepDeg=3.0f,
                                    float ultraStepDeg=0.5f);
-    
+
     // vec4 versions (w component is ignored, only xyz used)
     static OBB fromPointsMinVolume(const glm::vec4 *points,size_t count,
                                    float coarseStepDeg=15.0f,

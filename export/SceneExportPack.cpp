@@ -1,4 +1,4 @@
-#include "SceneExportPack.h"
+﻿#include "SceneExportPack.h"
 #include "SceneExportData.h"
 #include "SceneExportNames.h"
 #include "math/BoundingVolumes.h"
@@ -38,7 +38,7 @@ namespace exporters
         if (!data.nameTable.empty())
         {
             write_string_list(&builder, "NameTable", data.nameTable, err);
-            
+
             if (!err.empty()) { std::cerr << "[Export] pack name table fail: " << err << "\n"; return false; }
         }
 

@@ -1,4 +1,4 @@
-#include "SceneExportMaterials.h"
+﻿#include "SceneExportMaterials.h"
 
 #include "pure/Model.h"
 #include <filesystem>

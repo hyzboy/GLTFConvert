@@ -437,7 +437,7 @@ enum class TextureCompressType
 enum class VulkanBaseType
 {
     NONE=0,
-    
+
     UINT,
     SINT,
     UNORM,

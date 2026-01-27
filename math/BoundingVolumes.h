@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #include "math/OBB.h"
 #include "math/BoundingSphere.h"

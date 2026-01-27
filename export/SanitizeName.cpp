@@ -1,4 +1,4 @@
-#include "SanitizeName.h"
+﻿#include "SanitizeName.h"
 #include <cctype>
 
 namespace exporters

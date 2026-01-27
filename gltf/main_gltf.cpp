@@ -1,4 +1,4 @@
-#include <iostream>
+﻿#include <iostream>
 #include <filesystem>
 #include <string>
 
@@ -79,7 +79,7 @@ int main(int argc,char *argv[])
     {
         return 1;
     }
-    
+
     pure::Model sm=gltf::ConvertFromGLTF(model);
 
     if(!exporters::ExportPureModel(sm,outDir,exportImagesFlag,imagesOnly))

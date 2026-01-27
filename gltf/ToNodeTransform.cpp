@@ -1,4 +1,4 @@
-#include "gltf/ToNodeTransform.h"
+﻿#include "gltf/ToNodeTransform.h"
 
 static glm::mat4 FastToGlmMat4(const fastgltf::math::fmat4x4 &mat)
 {

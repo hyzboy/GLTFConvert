@@ -1,4 +1,4 @@
-#include "gltf/import/SamplerMapping.h"
+﻿#include "gltf/import/SamplerMapping.h"
 
 namespace gltf
 {

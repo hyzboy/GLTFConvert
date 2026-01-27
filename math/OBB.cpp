@@ -121,10 +121,10 @@ namespace
     OBB fromPointsMinVolumeImpl(const VecType *points,size_t count,float coarseStepDeg,float fineStepDeg,float ultraStepDeg)
     {
         auto t0=std::chrono::high_resolution_clock::now();
-        OBB best; if(points==nullptr||count==0) return best; 
-        if(count==1) { 
-            best.center=glm::vec3(points[0].x,points[0].y,points[0].z); 
-            return best; 
+        OBB best; if(points==nullptr||count==0) return best;
+        if(count==1) {
+            best.center=glm::vec3(points[0].x,points[0].y,points[0].z);
+            return best;
         }
 
         // SoA 预处理，便于 AVX2 连续加载（glm::vec3/vec4 在当前编译设置下为 16 字节对齐，存在填充，不利直接批量 load）

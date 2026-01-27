@@ -1,4 +1,4 @@
-#include "SamplerStrings.h"
+﻿#include "SamplerStrings.h"
 #include <string>
 #include "pure/Sampler.h"
 

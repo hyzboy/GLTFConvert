@@ -1,4 +1,4 @@
-#include <vector>
+﻿#include <vector>
 
 #include "gltf/GLTFPrimitive.h"
 #include "pure/Geometry.h"
@@ -32,12 +32,12 @@ namespace gltf
                         {
                             const size_t count=ga.data.size()/(sizeof(float)*3);
                             pg.positions=std::vector<glm::vec3>(count);
-                            
+
                             // Cannot use memcpy directly because glm::vec3 may have 16-byte alignment (AVX2)
                             // while source data is tightly packed (12 bytes per vec3)
                             const float *sp = reinterpret_cast<const float*>(ga.data.data());
                             glm::vec3 *tp = pg.positions->data();
-                            
+
                             for(size_t i = 0; i < count; i++)
                             {
                                 tp[i].x = sp[i * 3 + 0];

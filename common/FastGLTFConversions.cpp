@@ -1,4 +1,4 @@
-#include "FastGLTFConversions.h"
+﻿#include "FastGLTFConversions.h"
 
 PrimitiveType FastGLTFModeToPrimitiveType(fastgltf::PrimitiveType t)
 {

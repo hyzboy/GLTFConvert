@@ -1,4 +1,4 @@
-#include "gltf/GLTFModel.h"
+﻿#include "gltf/GLTFModel.h"
 #include "gltf/GLTFTexture.h"
 #include "pure/Model.h"
 #include "gltf/convert/UniqueGeometryMapping.h"

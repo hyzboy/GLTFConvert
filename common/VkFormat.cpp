@@ -1,4 +1,4 @@
-#include"VkFormat.h"
+﻿#include"VkFormat.h"
 #include<string>
 
 //enum class ColorDataTypeEnum:uint8
@@ -66,7 +66,7 @@
 #define PVRTC_FORMAT_DEFINE(level,bpp)      COMPRESS_FORMAT_DEFINE(PF_PVRTC##level##_##bpp##UN,"PVRTC" #level "_" #bpp "UN",PVRTC,UNORM),    \
                                                 COMPRESS_FORMAT_DEFINE(PF_PVRTC##level##_##bpp##s,"PVRTC" #level "_" #bpp "s",PVRTC,SRGB)
 
-#define ASTC_SFLOAT_FORMAT_DEFINE(mat)      COMPRESS_FORMAT_DEFINE(PF_ASTC_##mat##UN,"ASTC" #mat "F",ASTC,SFLOAT)  
+#define ASTC_SFLOAT_FORMAT_DEFINE(mat)      COMPRESS_FORMAT_DEFINE(PF_ASTC_##mat##UN,"ASTC" #mat "F",ASTC,SFLOAT)
 
 constexpr VulkanFormat vulkan_color_format_list[] =
 {

@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #include <string>
 #include <vector>
@@ -24,7 +24,7 @@ namespace pure
 
         std::optional<std::vector<std::byte>>   indicesData;                                        // raw index buffer if present
         std::optional<GeometryIndicesMeta>      indices;                                            // metadata for indices
-        
+
         std::optional<std::vector<glm::vec3>>   positions;                                          // Optional decoded POSITION data (local space, stored as float precision)
 
         std::optional<int32_t>                  material;                                           // index into Model::materials

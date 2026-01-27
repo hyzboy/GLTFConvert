@@ -1,4 +1,4 @@
-#include "math/BoundingSphere.h"
+﻿#include "math/BoundingSphere.h"
 
 // Helper: sphere from AABB (center = mid, radius = half diagonal)
 BoundingSphere SphereFromAABB(const AABB &a)
@@ -20,23 +20,23 @@ namespace
     {
         BoundingSphere s; s.reset();
         if(pts.empty()) return s;
-        
+
         glm::vec3 c(0.0f);
-        for(const auto &p:pts) 
+        for(const auto &p:pts)
         {
             c.x += p.x;
             c.y += p.y;
             c.z += p.z;
         }
         c /= static_cast<float>(pts.size());
-        
+
         float r=0.0f;
         for(const auto &p:pts)
         {
             glm::vec3 p3(p.x, p.y, p.z);
             r = std::max(r, glm::length(p3 - c));
         }
-        
+
         s.center = c;
         s.radius = r;
         return s;

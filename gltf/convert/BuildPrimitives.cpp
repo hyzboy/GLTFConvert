@@ -1,4 +1,4 @@
-#include <vector>
+﻿#include <vector>
 
 #include "gltf/GLTFPrimitive.h"
 #include "pure/Geometry.h"

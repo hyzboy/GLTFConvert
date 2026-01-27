@@ -1,4 +1,4 @@
-#include "math/NodeTransform.h"
+﻿#include "math/NodeTransform.h"
 #include <cmath>
 
 namespace

@@ -1,4 +1,4 @@
-#include "ImageUsage.h"
+﻿#include "ImageUsage.h"
 #include "pure/Model.h"
 #include "pure/PBRMaterial.h"
 #include <algorithm>

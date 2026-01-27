@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #include "math/AABB.h"
 #include <ostream>

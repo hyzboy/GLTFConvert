@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #include <cstdint>
 #include <glm/glm.hpp>
@@ -25,10 +25,10 @@ struct NodeTransform
     explicit NodeTransform(const TRS &t) noexcept;
 
     // Rule of 5
-    NodeTransform(const NodeTransform &rhs) noexcept;             
-    NodeTransform &operator=(const NodeTransform &rhs) noexcept;  
-    NodeTransform(NodeTransform &&rhs) noexcept;                  
-    NodeTransform &operator=(NodeTransform &&rhs) noexcept;       
+    NodeTransform(const NodeTransform &rhs) noexcept;
+    NodeTransform &operator=(const NodeTransform &rhs) noexcept;
+    NodeTransform(NodeTransform &&rhs) noexcept;
+    NodeTransform &operator=(NodeTransform &&rhs) noexcept;
 
     // State queries
     bool isNone()   const noexcept { return type == Type::None; }

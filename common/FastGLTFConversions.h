@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #include <fastgltf/core.hpp>
 #include "common/PrimitiveType.h"

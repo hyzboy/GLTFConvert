@@ -1,4 +1,4 @@
-#include "ImageMime.h"
+﻿#include "ImageMime.h"
 
 namespace exporters
 {

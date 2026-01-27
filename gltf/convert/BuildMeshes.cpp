@@ -1,4 +1,4 @@
-#include <vector>
+﻿#include <vector>
 
 #include "gltf/GLTFMesh.h"
 #include "pure/Mesh.h"
