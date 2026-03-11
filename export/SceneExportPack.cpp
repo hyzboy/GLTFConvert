@@ -10,6 +10,7 @@
 
 namespace exporters
 {
+    // -------------------------------------------------------------------------
     // Local helper mirroring ExportGeometry.cpp style
     static bool write_pack(MiniPackBuilder &builder, const std::filesystem::path &filePath, std::string &err)
     {
@@ -90,47 +91,58 @@ namespace exporters
             { std::cerr << "[Export] pack bounds table fail: " << err << "\n"; return false; }
         }
 
-        // Primitive list (geometryFile length stored for now; filenames not inlined to keep format simple)
+        // RootList: uint32 count + int32[count] of scene-local root node indices
+        if (!data.rootNodes.empty())
+        {
+            std::vector<int32_t> rootStream;
+            rootStream.reserve(1 + data.rootNodes.size());
+            rootStream.push_back(static_cast<int32_t>(data.rootNodes.size()));
+            for (int32_t r : data.rootNodes) rootStream.push_back(r);
+            if (!builder.add_entry_from_buffer("RootList", rootStream.data(), static_cast<std::uint32_t>(rootStream.size() * sizeof(int32_t)), err))
+            { std::cerr << "[Export] pack root list fail: " << err << "\n"; return false; }
+        }
+
+        // Primitive list: variable-length byte stream with inline geometry filenames
+        // Per entry: int32 originalIndex, int32 geometryIndex, int32 materialIndex, uint32 fileLen, char[fileLen]
         if (!data.primitives.empty())
         {
-            std::vector<int32_t> primStream;
-            primStream.reserve(data.primitives.size() * 5);
+            ByteStreamBuffer b;
             for (const auto &p : data.primitives)
             {
-                primStream.push_back(p.originalIndex);
-                primStream.push_back(p.geometryIndex);
-                primStream.push_back(p.materialIndex.has_value() ? *p.materialIndex : -1);
-                primStream.push_back(static_cast<int32_t>(p.geometryFile.size()));
+                b.push_i32(p.originalIndex);
+                b.push_i32(p.geometryIndex);
+                b.push_i32(p.materialIndex.has_value() ? *p.materialIndex : -1);
+                b.push_str(p.geometryFile);
             }
-            if (!builder.add_entry_from_buffer("PrimitiveList", primStream.data(), static_cast<std::uint32_t>(primStream.size() * sizeof(int32_t)), err))
+            if (!builder.add_entry_from_buffer("PrimitiveList", b.buf, err))
             { std::cerr << "[Export] pack primitive list fail: " << err << "\n"; return false; }
         }
 
-        // Material list
+        // Material list: variable-length byte stream with inline filenames
+        // Per entry: int32 originalIndex, uint32 fileLen, char[fileLen]
         if (!data.materials.empty())
         {
-            std::vector<int32_t> matStream;
-            matStream.reserve(data.materials.size() * 2);
+            ByteStreamBuffer b;
             for (const auto &m : data.materials)
             {
-                matStream.push_back(m.originalIndex);
-                matStream.push_back(static_cast<int32_t>(m.file.size()));
+                b.push_i32(m.originalIndex);
+                b.push_str(m.file);
             }
-            if (!builder.add_entry_from_buffer("MaterialList", matStream.data(), static_cast<std::uint32_t>(matStream.size() * sizeof(int32_t)), err))
+            if (!builder.add_entry_from_buffer("MaterialList", b.buf, err))
             { std::cerr << "[Export] pack material list fail: " << err << "\n"; return false; }
         }
 
-        // Geometry list
+        // Geometry list: variable-length byte stream with inline filenames
+        // Per entry: int32 originalIndex, uint32 fileLen, char[fileLen]
         if (!data.geometries.empty())
         {
-            std::vector<int32_t> geoStream;
-            geoStream.reserve(data.geometries.size() * 2);
+            ByteStreamBuffer b;
             for (const auto &g : data.geometries)
             {
-                geoStream.push_back(g.originalIndex);
-                geoStream.push_back(static_cast<int32_t>(g.file.size()));
+                b.push_i32(g.originalIndex);
+                b.push_str(g.file);
             }
-            if (!builder.add_entry_from_buffer("GeometryList", geoStream.data(), static_cast<std::uint32_t>(geoStream.size() * sizeof(int32_t)), err))
+            if (!builder.add_entry_from_buffer("GeometryList", b.buf, err))
             { std::cerr << "[Export] pack geometry list fail: " << err << "\n"; return false; }
         }
 

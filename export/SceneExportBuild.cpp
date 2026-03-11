@@ -44,6 +44,14 @@ namespace exporters
         // 6. Nodes
         BuildNodes(model, collected, remap, worldMatrices, nameToIndex, data);
 
+        // 6b. Root nodes (scene.nodes remapped to scene-local indices)
+        for (int32_t original : scene.nodes)
+        {
+            auto it = remap.nodeRemap.find(original);
+            if (it != remap.nodeRemap.end())
+                data.rootNodes.push_back(it->second);
+        }
+
         // 7. Bounds
         ComputeBounds(model, worldMatrices, data);
 

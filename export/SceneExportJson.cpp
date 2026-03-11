@@ -65,6 +65,8 @@ namespace exporters
         }
         if (data.sceneBoundsIndex >= 0) j["sceneBoundsIndex"] = data.sceneBoundsIndex;
 
+        if (!data.nodes.empty()) j["rootNodes"] = data.rootNodes;
+
         j["nodes"] = nlohmann::json::array();
         for (const auto &n : data.nodes)
         {

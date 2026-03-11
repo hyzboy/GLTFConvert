@@ -56,6 +56,7 @@ namespace exporters
         std::vector<BoundingVolumes> boundsTable;
         int32_t sceneBoundsIndex { -1 };
 
+        std::vector<int32_t>              rootNodes;   // scene-local indices of root nodes
         std::vector<SceneNodeExport>      nodes;
         std::vector<ScenePrimitiveExport> primitives;  // formerly subMeshes
         std::vector<SceneMaterialExport>  materials;
