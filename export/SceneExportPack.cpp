@@ -10,6 +10,7 @@
 #include <cstring>
 #include <algorithm>
 #include <unordered_map>
+#include <fstream>
 
 namespace exporters
 {
@@ -31,6 +32,8 @@ namespace exporters
             MaterialTable  = 10,
             GeometryTable  = 11,
             StringPool     = 12,
+            GeometryViewTable = 13,
+            GeometryBlob      = 14,
         };
 
 #pragma pack(push, 1)
@@ -98,6 +101,25 @@ namespace exporters
             uint32_t file_offset;
             uint32_t file_length;
         };
+
+        struct PackedGeometryViewV2
+        {
+            int32_t  original_index;
+            uint32_t blob_offset;
+            uint32_t blob_size;
+            uint32_t blob_align;
+        };
+
+        // Flat TRS for binary I/O — 40 bytes, independent of GLM alignment defines.
+        // glm::vec3 is 16 bytes under GLM_FORCE_DEFAULT_ALIGNED_GENTYPES; using float[]
+        // ensures the on-disk layout always matches the loader's PackedTRS struct.
+        struct PackedTRSFlat
+        {
+            float translation[3];  // 12 bytes
+            float rotation[4];     // 16 bytes  (x, y, z, w)
+            float scale[3];        // 12 bytes
+        };
+        static_assert(sizeof(PackedTRSFlat) == 40, "PackedTRSFlat must be 40 bytes");
 #pragma pack(pop)
 
         static std::vector<uint8_t> BuildNameTableBytes(const std::vector<std::string> &name_table)
@@ -122,8 +144,36 @@ namespace exporters
             return out;
         }
 
-        static bool WriteScenePackV2Entries(MiniPackBuilder &builder, const SceneExportData &data, std::string &err)
+        static std::vector<PackedTRSFlat> MakePackedTRS(const std::vector<TRS> &table)
         {
+            std::vector<PackedTRSFlat> out;
+            out.reserve(table.size());
+            for (const auto &t : table)
+            {
+                PackedTRSFlat f{};
+                f.translation[0] = t.translation.x;
+                f.translation[1] = t.translation.y;
+                f.translation[2] = t.translation.z;
+                f.rotation[0]    = t.rotation.x;    // glm::quat memory order: x,y,z,w
+                f.rotation[1]    = t.rotation.y;
+                f.rotation[2]    = t.rotation.z;
+                f.rotation[3]    = t.rotation.w;
+                f.scale[0]       = t.scale.x;
+                f.scale[1]       = t.scale.y;
+                f.scale[2]       = t.scale.z;
+                out.push_back(f);
+            }
+            return out;
+        }
+
+        static bool WriteScenePackV2Entries(MiniPackBuilder &builder, const SceneExportData &data, const std::filesystem::path &pack_dir, std::string &err)
+        {
+            std::cout << "[V2 Export] WriteScenePackV2Entries:"
+                      << " nodes=" << data.nodes.size()
+                      << " prims=" << data.primitives.size()
+                      << " geos=" << data.geometries.size()
+                      << " mats=" << data.materials.size() << "\n";
+
             std::vector<PackedNodeV2> nodes;
             std::vector<int32_t> node_prim_index;
             std::vector<int32_t> node_child_index;
@@ -183,6 +233,14 @@ namespace exporters
                 primitives.push_back(pp);
             }
 
+            std::cout << "[V2 Export] PackedPrimitiveV2 count=" << primitives.size() << "\n";
+            for (std::size_t _pi = 0, _plim = std::min<std::size_t>(primitives.size(), 8); _pi < _plim; ++_pi)
+                std::cout << "[V2 Export]  prim[" << _pi << "] orig=" << primitives[_pi].original_index
+                          << " geo=" << primitives[_pi].geometry_index
+                          << " mat=" << primitives[_pi].material_index
+                          << " foff=" << primitives[_pi].geometry_file_offset
+                          << " flen=" << primitives[_pi].geometry_file_length << "\n";
+
             std::vector<PackedMaterialV2> materials;
             materials.reserve(data.materials.size());
             for (const auto &m : data.materials)
@@ -207,6 +265,57 @@ namespace exporters
                 geometries.push_back(pg);
             }
 
+            ByteStreamBuffer geometry_blob;
+            std::vector<PackedGeometryViewV2> geometry_views;
+            geometry_views.reserve(data.geometries.size());
+
+            for (const auto &g : data.geometries)
+            {
+                const std::filesystem::path geo_path = pack_dir / g.file;
+                std::ifstream ifs(geo_path, std::ios::binary | std::ios::ate);
+                if (!ifs)
+                {
+                    err = std::string("Cannot open geometry file for ScenePayloadV2: ") + geo_path.string();
+                    return false;
+                }
+
+                const std::streamsize sz = ifs.tellg();
+                if (sz < 0)
+                {
+                    err = std::string("Cannot query geometry file size for ScenePayloadV2: ") + geo_path.string();
+                    return false;
+                }
+
+                ifs.seekg(0, std::ios::beg);
+
+                std::vector<uint8_t> geo_bytes(static_cast<size_t>(sz));
+                if (sz > 0 && !ifs.read(reinterpret_cast<char *>(geo_bytes.data()), sz))
+                {
+                    err = std::string("Cannot read geometry file for ScenePayloadV2: ") + geo_path.string();
+                    return false;
+                }
+
+                const uint32_t blob_off = geometry_blob.append(
+                    geo_bytes.empty() ? nullptr : geo_bytes.data(),
+                    static_cast<uint32_t>(geo_bytes.size()),
+                    64);
+
+                PackedGeometryViewV2 gv{};
+                gv.original_index = g.originalIndex;
+                gv.blob_offset = blob_off;
+                gv.blob_size = static_cast<uint32_t>(geo_bytes.size());
+                gv.blob_align = 64;
+                geometry_views.push_back(gv);
+            }
+
+            std::cout << "[V2 Export] GeometryViewTable count=" << geometry_views.size()
+                      << " blob_total=" << geometry_blob.buf.size() << "\n";
+            for (std::size_t _gi = 0, _glim = std::min<std::size_t>(geometry_views.size(), 8); _gi < _glim; ++_gi)
+                std::cout << "[V2 Export]  geoview[" << _gi << "] orig=" << geometry_views[_gi].original_index
+                          << " off=" << geometry_views[_gi].blob_offset
+                          << " sz=" << geometry_views[_gi].blob_size
+                          << " file=" << data.geometries[_gi].file << "\n";
+
             std::vector<PackedBounds> packed_bounds;
             packed_bounds.resize(data.boundsTable.size());
             for (size_t i = 0; i < data.boundsTable.size(); ++i)
@@ -220,30 +329,38 @@ namespace exporters
                 const void *data;
                 uint32_t size;
                 uint32_t stride;
+                uint32_t align;
             };
 
             std::vector<TableBlob> blobs;
             blobs.reserve(12);
 
-            auto push_blob = [&](SceneV2TableType t, const void *ptr, uint32_t size, uint32_t stride)
+            auto push_blob = [&](SceneV2TableType t, const void *ptr, uint32_t size, uint32_t stride, uint32_t align)
             {
                 if (size == 0)
                     return;
-                blobs.push_back({ t, ptr, size, stride });
+                blobs.push_back({ t, ptr, size, stride, align });
             };
 
-            push_blob(SceneV2TableType::NameTable, name_table_bytes.data(), static_cast<uint32_t>(name_table_bytes.size()), 0);
-            push_blob(SceneV2TableType::NodeTable, nodes.data(), static_cast<uint32_t>(nodes.size() * sizeof(PackedNodeV2)), sizeof(PackedNodeV2));
-            push_blob(SceneV2TableType::NodePrimIndex, node_prim_index.data(), static_cast<uint32_t>(node_prim_index.size() * sizeof(int32_t)), sizeof(int32_t));
-            push_blob(SceneV2TableType::NodeChildIndex, node_child_index.data(), static_cast<uint32_t>(node_child_index.size() * sizeof(int32_t)), sizeof(int32_t));
-            push_blob(SceneV2TableType::RootIndex, root_index.data(), static_cast<uint32_t>(root_index.size() * sizeof(int32_t)), sizeof(int32_t));
-            push_blob(SceneV2TableType::TRSTable, data.trsTable.data(), static_cast<uint32_t>(data.trsTable.size() * sizeof(TRS)), sizeof(TRS));
-            push_blob(SceneV2TableType::MatrixTable, data.matrixTable.data(), static_cast<uint32_t>(data.matrixTable.size() * sizeof(glm::mat4)), sizeof(glm::mat4));
-            push_blob(SceneV2TableType::BoundsTable, packed_bounds.data(), static_cast<uint32_t>(packed_bounds.size() * sizeof(PackedBounds)), sizeof(PackedBounds));
-            push_blob(SceneV2TableType::PrimitiveTable, primitives.data(), static_cast<uint32_t>(primitives.size() * sizeof(PackedPrimitiveV2)), sizeof(PackedPrimitiveV2));
-            push_blob(SceneV2TableType::MaterialTable, materials.data(), static_cast<uint32_t>(materials.size() * sizeof(PackedMaterialV2)), sizeof(PackedMaterialV2));
-            push_blob(SceneV2TableType::GeometryTable, geometries.data(), static_cast<uint32_t>(geometries.size() * sizeof(PackedGeometryV2)), sizeof(PackedGeometryV2));
-            push_blob(SceneV2TableType::StringPool, string_pool.data(), static_cast<uint32_t>(string_pool.size()), 1);
+            push_blob(SceneV2TableType::NameTable, name_table_bytes.data(), static_cast<uint32_t>(name_table_bytes.size()), 0, 16);
+            push_blob(SceneV2TableType::NodeTable, nodes.data(), static_cast<uint32_t>(nodes.size() * sizeof(PackedNodeV2)), sizeof(PackedNodeV2), 16);
+            push_blob(SceneV2TableType::NodePrimIndex, node_prim_index.data(), static_cast<uint32_t>(node_prim_index.size() * sizeof(int32_t)), sizeof(int32_t), 16);
+            push_blob(SceneV2TableType::NodeChildIndex, node_child_index.data(), static_cast<uint32_t>(node_child_index.size() * sizeof(int32_t)), sizeof(int32_t), 16);
+            push_blob(SceneV2TableType::RootIndex, root_index.data(), static_cast<uint32_t>(root_index.size() * sizeof(int32_t)), sizeof(int32_t), 16);
+            const auto packed_trs_v2 = MakePackedTRS(data.trsTable);
+            push_blob(SceneV2TableType::TRSTable, packed_trs_v2.data(), static_cast<uint32_t>(packed_trs_v2.size() * sizeof(PackedTRSFlat)), sizeof(PackedTRSFlat), 16);
+            push_blob(SceneV2TableType::MatrixTable, data.matrixTable.data(), static_cast<uint32_t>(data.matrixTable.size() * sizeof(glm::mat4)), sizeof(glm::mat4), 16);
+            push_blob(SceneV2TableType::BoundsTable, packed_bounds.data(), static_cast<uint32_t>(packed_bounds.size() * sizeof(PackedBounds)), sizeof(PackedBounds), 16);
+            push_blob(SceneV2TableType::PrimitiveTable, primitives.data(), static_cast<uint32_t>(primitives.size() * sizeof(PackedPrimitiveV2)), sizeof(PackedPrimitiveV2), 16);
+            push_blob(SceneV2TableType::MaterialTable, materials.data(), static_cast<uint32_t>(materials.size() * sizeof(PackedMaterialV2)), sizeof(PackedMaterialV2), 16);
+            push_blob(SceneV2TableType::GeometryTable, geometries.data(), static_cast<uint32_t>(geometries.size() * sizeof(PackedGeometryV2)), sizeof(PackedGeometryV2), 16);
+            push_blob(SceneV2TableType::StringPool, string_pool.data(), static_cast<uint32_t>(string_pool.size()), 1, 16);
+            push_blob(SceneV2TableType::GeometryViewTable, geometry_views.data(), static_cast<uint32_t>(geometry_views.size() * sizeof(PackedGeometryViewV2)), sizeof(PackedGeometryViewV2), 16);
+            push_blob(SceneV2TableType::GeometryBlob, geometry_blob.buf.data(), static_cast<uint32_t>(geometry_blob.buf.size()), 1, 64);
+
+            std::cout << "[V2 Export] Blobs: " << blobs.size() << " tables\n";
+            for (const auto &_b : blobs)
+                std::cout << "[V2 Export]  type=" << static_cast<uint32_t>(_b.type) << " size=" << _b.size << "\n";
 
             ByteStreamBuffer pb;
             const uint32_t dir_offset = pb.append(nullptr, static_cast<uint32_t>(blobs.size() * sizeof(SceneV2TableDesc)), 4);
@@ -252,7 +369,7 @@ namespace exporters
             descs.reserve(blobs.size());
             for (const auto &b : blobs)
             {
-                const uint32_t off = pb.append(b.data, b.size, 4);
+                const uint32_t off = pb.append(b.data, b.size, b.align);
                 SceneV2TableDesc d{};
                 d.type = static_cast<uint32_t>(b.type);
                 d.offset = off;
@@ -277,6 +394,11 @@ namespace exporters
             header.dir_offset = dir_offset;
             header.dir_count = static_cast<uint32_t>(descs.size());
             header.payload_size = static_cast<uint32_t>(pb.buf.size());
+
+            std::cout << "[V2 Export] Header: payload_size=" << header.payload_size
+                      << " dir_count=" << header.dir_count
+                      << " primitive_count=" << header.primitive_count
+                      << " geometry_count=" << header.geometry_count << "\n";
 
             if (!builder.add_entry_from_buffer("SceneHeaderV2", &header, static_cast<uint32_t>(sizeof(ScenePackV2Header)), err))
                 return false;
@@ -348,7 +470,8 @@ namespace exporters
         // TRS table
         if (!data.trsTable.empty())
         {
-            if (!builder.add_entry_from_buffer("TRSTable", data.trsTable.data(), static_cast<std::uint32_t>(data.trsTable.size() * sizeof(TRS)), err))
+            const auto packed_trs_v1 = MakePackedTRS(data.trsTable);
+            if (!builder.add_entry_from_buffer("TRSTable", packed_trs_v1.data(), static_cast<std::uint32_t>(packed_trs_v1.size() * sizeof(PackedTRSFlat)), err))
             { std::cerr << "[Export] pack TRS table fail: " << err << "\n"; return false; }
         }
 
@@ -425,7 +548,7 @@ namespace exporters
         }
 
         // V2 block-based layout for low-I/O loading path.
-        if (!WriteScenePackV2Entries(builder, data, err))
+        if (!WriteScenePackV2Entries(builder, data, filePath.parent_path(), err))
         { std::cerr << "[Export] pack v2 write fail: " << err << "\n"; return false; }
 
         if (!write_pack(builder, filePath, err))

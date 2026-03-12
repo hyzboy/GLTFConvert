@@ -60,6 +60,32 @@ namespace exporters
         BuildMaterials(model, collected, nameToIndex, data);
         BuildGeometries(collected, geometryBaseName, data);
 
+        // 9. Link primitive -> scene-local geometryIndex and materialIndex.
+        //    BuildPrimitivesExport can't do this itself (no model access), so we patch here.
+        {
+            std::unordered_map<int32_t, int32_t> geoOrigToLocal;
+            geoOrigToLocal.reserve(data.geometries.size());
+            for (int32_t _j = 0; _j < static_cast<int32_t>(data.geometries.size()); ++_j)
+                geoOrigToLocal[data.geometries[_j].originalIndex] = _j;
+
+            for (auto &pe : data.primitives)
+            {
+                if (pe.originalIndex >= 0 && pe.originalIndex < static_cast<int32_t>(model.primitives.size()))
+                {
+                    const auto &mp = model.primitives[pe.originalIndex];
+                    const auto geoIt = geoOrigToLocal.find(mp.geometry);
+                    if (geoIt != geoOrigToLocal.end())
+                        pe.geometryIndex = geoIt->second;
+                    if (mp.material.has_value())
+                    {
+                        const auto matIt = remap.materialRemap.find(*mp.material);
+                        if (matIt != remap.materialRemap.end())
+                            pe.materialIndex = matIt->second;
+                    }
+                }
+            }
+        }
+
         return data;
     }
 }

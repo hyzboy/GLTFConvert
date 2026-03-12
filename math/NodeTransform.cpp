@@ -148,7 +148,10 @@ glm::mat4 NodeTransform::rawMat4() const
 
 glm::mat4 NodeTransform::toZUpMat4() const
 {
-    return YUpToZUpRotationMat4() * rawMat4();
+    // M_zup = Rx90 * M_yup * Rx90^-1  (similarity / conjugation)
+    const glm::mat4 R    = YUpToZUpRotationMat4();
+    const glm::mat4 Rinv = glm::transpose(R);   // inverse of pure rotation
+    return R * rawMat4() * Rinv;
 }
 
 void NodeTransform::convertInPlaceYUpToZUp()
@@ -156,15 +159,24 @@ void NodeTransform::convertInPlaceYUpToZUp()
     if (type == Type::None)
         return;
 
-    const glm::quat q = YUpToZUpRotationQuat();
+    const glm::quat q    = YUpToZUpRotationQuat();   // Rx(+90°)
+    const glm::mat4 qMat = glm::mat4_cast(q);
 
     if (type == Type::Matrix)
     {
-        m = glm::mat4_cast(q) * m;
+        // M_zup = Rx90 * M_yup * Rx90^-1
+        // Because vertex data is also rotated by Rx90, the similarity transform
+        // preserves the correct relationship between mesh-local and world space.
+        const glm::mat4 qInv = glm::transpose(qMat);   // inverse of pure rotation
+        m = qMat * m * qInv;
     }
     else if (type == Type::TRS)
     {
-        trs.translation = glm::vec3(glm::mat4_cast(q) * glm::vec4(trs.translation, 1.0f));
-        trs.rotation = q * trs.rotation;
+        // Translation: convert position from Y-up to Z-up world space
+        trs.translation = glm::vec3(qMat * glm::vec4(trs.translation, 1.0f));
+        // Rotation: conjugate by Rx90 so that the rotated mesh data stays consistent
+        //   R_zup = Rx90 * R_yup * Rx90^-1
+        const glm::quat qInv = glm::inverse(q);
+        trs.rotation = q * trs.rotation * qInv;
     }
 }
