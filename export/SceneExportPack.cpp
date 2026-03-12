@@ -7,9 +7,287 @@
 #include <iostream>
 #include <vector>
 #include <cstdint>
+#include <cstring>
+#include <algorithm>
+#include <unordered_map>
 
 namespace exporters
 {
+    namespace
+    {
+        constexpr uint32_t kScenePackV2Magic = 0x324E4353u; // 'SCN2'
+
+        enum class SceneV2TableType : uint32_t
+        {
+            NameTable      = 1,
+            NodeTable      = 2,
+            NodePrimIndex  = 3,
+            NodeChildIndex = 4,
+            RootIndex      = 5,
+            TRSTable       = 6,
+            MatrixTable    = 7,
+            BoundsTable    = 8,
+            PrimitiveTable = 9,
+            MaterialTable  = 10,
+            GeometryTable  = 11,
+            StringPool     = 12,
+        };
+
+#pragma pack(push, 1)
+        struct ScenePackV2Header
+        {
+            uint32_t magic;
+            uint16_t version_major;
+            uint16_t version_minor;
+            uint32_t flags;
+            int32_t  scene_name_index;
+
+            uint32_t node_count;
+            uint32_t root_count;
+            uint32_t primitive_count;
+            uint32_t material_count;
+            uint32_t geometry_count;
+
+            uint32_t dir_offset;
+            uint32_t dir_count;
+            uint32_t payload_size;
+            uint32_t reserved;
+        };
+
+        struct SceneV2TableDesc
+        {
+            uint32_t type;
+            uint32_t offset;
+            uint32_t size;
+            uint32_t stride;
+        };
+
+        struct PackedNodeV2
+        {
+            int32_t original_index;
+            int32_t name_index;
+            int32_t local_matrix_index;
+            int32_t world_matrix_index;
+            int32_t trs_index;
+            int32_t bounds_index;
+            int32_t first_primitive;
+            int32_t primitive_count;
+            int32_t first_child;
+            int32_t child_count;
+        };
+
+        struct PackedPrimitiveV2
+        {
+            int32_t  original_index;
+            int32_t  geometry_index;
+            int32_t  material_index;
+            uint32_t geometry_file_offset;
+            uint32_t geometry_file_length;
+        };
+
+        struct PackedMaterialV2
+        {
+            int32_t  original_index;
+            uint32_t file_offset;
+            uint32_t file_length;
+        };
+
+        struct PackedGeometryV2
+        {
+            int32_t  original_index;
+            uint32_t file_offset;
+            uint32_t file_length;
+        };
+#pragma pack(pop)
+
+        static std::vector<uint8_t> BuildNameTableBytes(const std::vector<std::string> &name_table)
+        {
+            std::vector<uint8_t> out;
+
+            const uint32_t count = static_cast<uint32_t>(name_table.size());
+            out.resize(sizeof(uint32_t));
+            std::memcpy(out.data(), &count, sizeof(uint32_t));
+
+            out.reserve(sizeof(uint32_t) + count + count * 8);
+            for (const auto &s : name_table)
+                out.push_back(static_cast<uint8_t>(std::min<size_t>(255, s.size())));
+
+            for (const auto &s : name_table)
+            {
+                const uint8_t len = static_cast<uint8_t>(std::min<size_t>(255, s.size()));
+                out.insert(out.end(), s.data(), s.data() + len);
+                out.push_back(0);
+            }
+
+            return out;
+        }
+
+        static bool WriteScenePackV2Entries(MiniPackBuilder &builder, const SceneExportData &data, std::string &err)
+        {
+            std::vector<PackedNodeV2> nodes;
+            std::vector<int32_t> node_prim_index;
+            std::vector<int32_t> node_child_index;
+            std::vector<int32_t> root_index = data.rootNodes;
+
+            nodes.reserve(data.nodes.size());
+
+            for (const auto &n : data.nodes)
+            {
+                PackedNodeV2 pn{};
+                pn.original_index = n.originalIndex;
+                pn.name_index = n.nameIndex;
+                pn.local_matrix_index = n.localMatrixIndex;
+                pn.world_matrix_index = n.worldMatrixIndex;
+                pn.trs_index = n.trsIndex;
+                pn.bounds_index = n.boundsIndex;
+
+                pn.first_primitive = static_cast<int32_t>(node_prim_index.size());
+                pn.primitive_count = static_cast<int32_t>(n.primitives.size());
+                node_prim_index.insert(node_prim_index.end(), n.primitives.begin(), n.primitives.end());
+
+                pn.first_child = static_cast<int32_t>(node_child_index.size());
+                pn.child_count = static_cast<int32_t>(n.children.size());
+                node_child_index.insert(node_child_index.end(), n.children.begin(), n.children.end());
+
+                nodes.push_back(pn);
+            }
+
+            std::vector<uint8_t> string_pool;
+            string_pool.reserve(2048);
+            std::unordered_map<std::string, std::pair<uint32_t, uint32_t>> string_cache;
+
+            auto add_string = [&](const std::string &s) -> std::pair<uint32_t, uint32_t>
+            {
+                const auto it = string_cache.find(s);
+                if (it != string_cache.end())
+                    return it->second;
+
+                const uint32_t off = static_cast<uint32_t>(string_pool.size());
+                const uint32_t len = static_cast<uint32_t>(s.size());
+                string_pool.insert(string_pool.end(), s.begin(), s.end());
+                string_cache.emplace(s, std::make_pair(off, len));
+                return { off, len };
+            };
+
+            std::vector<PackedPrimitiveV2> primitives;
+            primitives.reserve(data.primitives.size());
+            for (const auto &p : data.primitives)
+            {
+                const auto [off, len] = add_string(p.geometryFile);
+                PackedPrimitiveV2 pp{};
+                pp.original_index = p.originalIndex;
+                pp.geometry_index = p.geometryIndex;
+                pp.material_index = p.materialIndex.has_value() ? *p.materialIndex : -1;
+                pp.geometry_file_offset = off;
+                pp.geometry_file_length = len;
+                primitives.push_back(pp);
+            }
+
+            std::vector<PackedMaterialV2> materials;
+            materials.reserve(data.materials.size());
+            for (const auto &m : data.materials)
+            {
+                const auto [off, len] = add_string(m.file);
+                PackedMaterialV2 pm{};
+                pm.original_index = m.originalIndex;
+                pm.file_offset = off;
+                pm.file_length = len;
+                materials.push_back(pm);
+            }
+
+            std::vector<PackedGeometryV2> geometries;
+            geometries.reserve(data.geometries.size());
+            for (const auto &g : data.geometries)
+            {
+                const auto [off, len] = add_string(g.file);
+                PackedGeometryV2 pg{};
+                pg.original_index = g.originalIndex;
+                pg.file_offset = off;
+                pg.file_length = len;
+                geometries.push_back(pg);
+            }
+
+            std::vector<PackedBounds> packed_bounds;
+            packed_bounds.resize(data.boundsTable.size());
+            for (size_t i = 0; i < data.boundsTable.size(); ++i)
+                data.boundsTable[i].Pack(&packed_bounds[i]);
+
+            const std::vector<uint8_t> name_table_bytes = BuildNameTableBytes(data.nameTable);
+
+            struct TableBlob
+            {
+                SceneV2TableType type;
+                const void *data;
+                uint32_t size;
+                uint32_t stride;
+            };
+
+            std::vector<TableBlob> blobs;
+            blobs.reserve(12);
+
+            auto push_blob = [&](SceneV2TableType t, const void *ptr, uint32_t size, uint32_t stride)
+            {
+                if (size == 0)
+                    return;
+                blobs.push_back({ t, ptr, size, stride });
+            };
+
+            push_blob(SceneV2TableType::NameTable, name_table_bytes.data(), static_cast<uint32_t>(name_table_bytes.size()), 0);
+            push_blob(SceneV2TableType::NodeTable, nodes.data(), static_cast<uint32_t>(nodes.size() * sizeof(PackedNodeV2)), sizeof(PackedNodeV2));
+            push_blob(SceneV2TableType::NodePrimIndex, node_prim_index.data(), static_cast<uint32_t>(node_prim_index.size() * sizeof(int32_t)), sizeof(int32_t));
+            push_blob(SceneV2TableType::NodeChildIndex, node_child_index.data(), static_cast<uint32_t>(node_child_index.size() * sizeof(int32_t)), sizeof(int32_t));
+            push_blob(SceneV2TableType::RootIndex, root_index.data(), static_cast<uint32_t>(root_index.size() * sizeof(int32_t)), sizeof(int32_t));
+            push_blob(SceneV2TableType::TRSTable, data.trsTable.data(), static_cast<uint32_t>(data.trsTable.size() * sizeof(TRS)), sizeof(TRS));
+            push_blob(SceneV2TableType::MatrixTable, data.matrixTable.data(), static_cast<uint32_t>(data.matrixTable.size() * sizeof(glm::mat4)), sizeof(glm::mat4));
+            push_blob(SceneV2TableType::BoundsTable, packed_bounds.data(), static_cast<uint32_t>(packed_bounds.size() * sizeof(PackedBounds)), sizeof(PackedBounds));
+            push_blob(SceneV2TableType::PrimitiveTable, primitives.data(), static_cast<uint32_t>(primitives.size() * sizeof(PackedPrimitiveV2)), sizeof(PackedPrimitiveV2));
+            push_blob(SceneV2TableType::MaterialTable, materials.data(), static_cast<uint32_t>(materials.size() * sizeof(PackedMaterialV2)), sizeof(PackedMaterialV2));
+            push_blob(SceneV2TableType::GeometryTable, geometries.data(), static_cast<uint32_t>(geometries.size() * sizeof(PackedGeometryV2)), sizeof(PackedGeometryV2));
+            push_blob(SceneV2TableType::StringPool, string_pool.data(), static_cast<uint32_t>(string_pool.size()), 1);
+
+            ByteStreamBuffer pb;
+            const uint32_t dir_offset = pb.append(nullptr, static_cast<uint32_t>(blobs.size() * sizeof(SceneV2TableDesc)), 4);
+
+            std::vector<SceneV2TableDesc> descs;
+            descs.reserve(blobs.size());
+            for (const auto &b : blobs)
+            {
+                const uint32_t off = pb.append(b.data, b.size, 4);
+                SceneV2TableDesc d{};
+                d.type = static_cast<uint32_t>(b.type);
+                d.offset = off;
+                d.size = b.size;
+                d.stride = b.stride;
+                descs.push_back(d);
+            }
+
+            std::memcpy(pb.buf.data() + dir_offset, descs.data(), descs.size() * sizeof(SceneV2TableDesc));
+
+            ScenePackV2Header header{};
+            header.magic = kScenePackV2Magic;
+            header.version_major = 2;
+            header.version_minor = 0;
+            header.flags = 1; // little-endian
+            header.scene_name_index = data.sceneNameIndex;
+            header.node_count = static_cast<uint32_t>(data.nodes.size());
+            header.root_count = static_cast<uint32_t>(data.rootNodes.size());
+            header.primitive_count = static_cast<uint32_t>(data.primitives.size());
+            header.material_count = static_cast<uint32_t>(data.materials.size());
+            header.geometry_count = static_cast<uint32_t>(data.geometries.size());
+            header.dir_offset = dir_offset;
+            header.dir_count = static_cast<uint32_t>(descs.size());
+            header.payload_size = static_cast<uint32_t>(pb.buf.size());
+
+            if (!builder.add_entry_from_buffer("SceneHeaderV2", &header, static_cast<uint32_t>(sizeof(ScenePackV2Header)), err))
+                return false;
+
+            if (!builder.add_entry_from_buffer("ScenePayloadV2", pb.buf.data(), static_cast<uint32_t>(pb.buf.size()), err))
+                return false;
+
+            return true;
+        }
+    }
+
     // -------------------------------------------------------------------------
     // Local helper mirroring ExportGeometry.cpp style
     static bool write_pack(MiniPackBuilder &builder, const std::filesystem::path &filePath, std::string &err)
@@ -145,6 +423,10 @@ namespace exporters
             if (!builder.add_entry_from_buffer("GeometryList", b.buf, err))
             { std::cerr << "[Export] pack geometry list fail: " << err << "\n"; return false; }
         }
+
+        // V2 block-based layout for low-I/O loading path.
+        if (!WriteScenePackV2Entries(builder, data, err))
+        { std::cerr << "[Export] pack v2 write fail: " << err << "\n"; return false; }
 
         if (!write_pack(builder, filePath, err))
         { std::cerr << "[Export] pack write fail: " << err << "\n"; return false; }

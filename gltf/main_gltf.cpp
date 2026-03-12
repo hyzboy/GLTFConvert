@@ -21,7 +21,7 @@ namespace exporters
 
 static void PrintUsage()
 {
-    std::cout << "Usage: gltf_exporter [--no-images | --images-only] [--allow-u8-indices] <input.gltf|.glb> [output_dir]\n";
+    std::cout << "Usage: GLTFConvert [--no-images | --images-only] [--allow-u8-indices] <input.gltf|.glb> [output_dir]\n";
 }
 
 int main(int argc,char *argv[])
@@ -31,7 +31,7 @@ int main(int argc,char *argv[])
     if(texconv::Initialize(&texconvPath))
         std::cout << "[Init] TexConv available: " << texconvPath.string() << "\n";
     else
-        std::cout << "[Init] TexConv not found (continuing without conversion)\n";
+        std::cout << "[Init] TexConv not found (continuing without textures conversion)\n";
 
     if(argc<2)
     {

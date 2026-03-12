@@ -335,22 +335,121 @@ struct PBRMaterial : Material {
 }
 ```
 
-### `.scene` 二进制格式
+### `.scene` 二进制格式（I/O 最小化重设计）
 
-与 `.json` 内容等价的 MiniPack 二进制格式，包含以下 Entry：
+当前格式可用，但运行时仍需要根据文件名再读取多个 `.geometry` 文件，磁盘 I/O 次数偏多。  
+建议新增 **ScenePackV2**（保留 V1 兼容读取），目标是：
 
-| Entry 名称 | 内容 |
-|---|---|
-| `SceneHeader` | `int32` sceneNameIndex |
-| `NameTable` | `write_string_list` 格式：`uint32 count` + `uint8 lengths[count]` + 每个字符串 `char[len] + '\0'` |
-| `NodeList` | 每节点 packed `int32` 流：originalIndex, nameIndex, localMatIndex, worldMatIndex, trsIndex, boundsIndex, primCount, prims[], childCount, children[] |
-| `TRSTable` | `TRS[N]`，每项 40 字节：`vec3 translation + quat rotation(xyzw) + vec3 scale` |
-| `MatrixTable` | `glm::mat4[N]`，每项 64 字节 |
-| `BoundsTable` | `PackedBounds[N]`，每项 100 字节（AABB + OBB + Sphere） |
-| `RootList` | `int32 count` + `int32[count]` 场景根节点下标 |
-| `PrimitiveList` | 字节流，每条：`int32 originalIndex` + `int32 geometryIndex` + `int32 materialIndex` + `uint32 fileLen` + `char[fileLen]` |
-| `MaterialList` | 字节流，每条：`int32 originalIndex` + `uint32 fileLen` + `char[fileLen]` |
-| `GeometryList` | 字节流，每条：`int32 originalIndex` + `uint32 fileLen` + `char[fileLen]` |
+- `MiniPackReader` 路径：**最多两次读取**（一次 Header，一次连续 Payload）
+- `MiniPackMemory` 路径：**一次 mmap** 后全部基于指针解包
+- CPU 侧尽量不做二次打包，不创建临时 `vector<byte>`
+- 让几何/索引数据在文件内连续布局，便于直接上传显存
+
+#### V2 逻辑布局
+
+```text
+ScenePackV2
+├── Header          (固定大小)
+├── TableDirectory  (每个逻辑表的 offset/size)
+├── FixedTables     (Node/TRS/Matrix/Bounds/Primitive/GeometryView...)
+├── StringPool      (所有字符串集中池化)
+└── GeometryBlob    (所有顶点/索引原始字节，按对齐连续拼接)
+```
+
+#### V2 Header（示意）
+
+```cpp
+struct ScenePackV2Header
+{
+  uint32_t magic;            // 'SCN2'
+  uint16_t versionMajor;     // 2
+  uint16_t versionMinor;     // 0
+  uint32_t flags;            // bit0: little-endian, bit1: hasExternalGeometry
+  uint32_t sceneNameStrOff;  // in StringPool
+
+  uint32_t nodeCount;
+  uint32_t rootCount;
+  uint32_t primitiveCount;
+  uint32_t materialCount;
+  uint32_t geometryCount;
+
+  uint32_t dirOffset;        // TableDirectory 文件偏移
+  uint32_t dirCount;
+  uint64_t payloadOffset;    // 连续大块起始偏移
+  uint64_t payloadSize;
+  uint32_t crc32;            // 可选完整性校验
+  uint32_t reserved;
+};
+```
+
+#### TableDirectory（统一索引）
+
+每个表都用 `(type, offset, size, stride)` 描述，读取端不需要 `FindFile` 多次查找。
+
+```cpp
+struct TableDesc
+{
+  uint32_t type;      // NodeTable / MatrixTable / GeometryBlob ...
+  uint32_t flags;
+  uint64_t offset;    // 相对文件起始
+  uint64_t size;
+  uint32_t stride;    // 定长表的元素大小，变长表填 0
+  uint32_t reserved;
+};
+```
+
+#### 关键数据表设计
+
+- `NodeTable`：固定结构数组，不再使用变长 int 流
+- `NodeChildIndex`：所有 children 扁平拼接，节点仅保存 `firstChild + childCount`
+- `NodePrimIndex`：所有 primitive 索引扁平拼接，节点仅保存 `firstPrim + primCount`
+- `PrimitiveTable`：固定结构，引用 `GeometryViewTable` 和材质索引
+- `MaterialTable`：固定结构 + 字符串偏移
+- `GeometryViewTable`：描述顶点/索引在 `GeometryBlob` 中的偏移与长度
+- `StringPool`：统一字符串池，所有名称/URI 都只存 `(offset,length)`
+- `GeometryBlob`：所有几何字节连续存放，按 16/64 字节对齐
+
+#### GeometryView（示意）
+
+```cpp
+struct GeometryView
+{
+  uint64_t vertexOffset;     // in GeometryBlob
+  uint32_t vertexBytes;
+  uint64_t indexOffset;      // in GeometryBlob, 无索引则 UINT64_MAX
+  uint32_t indexBytes;
+  uint32_t indexType;        // U16/U32
+  uint32_t vertexLayoutId;   // 指向顶点布局描述
+  uint32_t boundsIndex;      // 指向 BoundsTable
+  uint32_t reserved;
+};
+```
+
+#### 与 MiniPack 的对接方式
+
+为减少改动，可继续放在 MiniPack 容器中，但 Entry 精简为两块：
+
+- `SceneHeaderV2`：固定头 + 目录（小块）
+- `ScenePayloadV2`：所有表和 GeometryBlob 的连续大块
+
+这样：
+
+- `MiniPackReader`：读取 `SceneHeaderV2` 一次，再按 `payloadOffset/payloadSize` 一次读取 `ScenePayloadV2`
+- `MiniPackMemory`：直接 `Map` 两个 entry，或实现 `MapPayload` 一次拿到整块
+
+#### 运行时加载路径（目标）
+
+1. 读取/映射 Header，校验 magic/version，拿到目录
+2. 读取/映射单一 Payload 连续块
+3. 所有表用指针视图（span）直接访问，不做二次拷贝
+4. 按 `GeometryViewTable` 对 `GeometryBlob` 建 staging 上传任务
+5. `vkCmdCopyBuffer` 分批提交到 GPU，CPU 端仅保留元数据
+
+#### 兼容策略
+
+- 读取端优先识别 `SCN2`，失败则回退到现有 V1 Entry 解析
+- 导出端短期支持双写：`--scene-v1` / `--scene-v2` 或同时导出
+- 验证通过后默认切到 V2
 
 ---
 
