@@ -359,7 +359,7 @@ ScenePackV2
 #### V2 Header（示意）
 
 ```cpp
-struct ScenePackV2Header
+struct ScenePackHeader
 {
   uint32_t magic;            // 'SCN2'
   uint16_t versionMajor;     // 2

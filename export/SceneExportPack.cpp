@@ -18,7 +18,7 @@ namespace exporters
     {
         constexpr uint32_t kScenePackV2Magic = 0x324E4353u; // 'SCN2'
 
-        enum class SceneV2TableType : uint32_t
+        enum class SceneTableType : uint32_t
         {
             NameTable      = 1,
             NodeTable      = 2,
@@ -37,7 +37,7 @@ namespace exporters
         };
 
 #pragma pack(push, 1)
-        struct ScenePackV2Header
+        struct ScenePackHeader
         {
             uint32_t magic;
             uint16_t version_major;
@@ -57,7 +57,7 @@ namespace exporters
             uint32_t reserved;
         };
 
-        struct SceneV2TableDesc
+        struct SceneTableDesc
         {
             uint32_t type;
             uint32_t offset;
@@ -65,7 +65,7 @@ namespace exporters
             uint32_t stride;
         };
 
-        struct PackedNodeV2
+        struct PackedNode
         {
             int32_t original_index;
             int32_t name_index;
@@ -79,7 +79,7 @@ namespace exporters
             int32_t child_count;
         };
 
-        struct PackedPrimitiveV2
+        struct PackedPrimitive
         {
             int32_t  original_index;
             int32_t  geometry_index;
@@ -88,21 +88,21 @@ namespace exporters
             uint32_t geometry_file_length;
         };
 
-        struct PackedMaterialV2
+        struct PackedMaterial
         {
             int32_t  original_index;
             uint32_t file_offset;
             uint32_t file_length;
         };
 
-        struct PackedGeometryV2
+        struct PackedGeometry
         {
             int32_t  original_index;
             uint32_t file_offset;
             uint32_t file_length;
         };
 
-        struct PackedGeometryViewV2
+        struct PackedGeometryView
         {
             int32_t  original_index;
             uint32_t blob_offset;
@@ -166,15 +166,15 @@ namespace exporters
             return out;
         }
 
-        static bool WriteScenePackV2Entries(MiniPackBuilder &builder, const SceneExportData &data, const std::filesystem::path &pack_dir, std::string &err)
+        static bool WriteScenePackEntries(MiniPackBuilder &builder, const SceneExportData &data, const std::filesystem::path &pack_dir, std::string &err)
         {
-            std::cout << "[V2 Export] WriteScenePackV2Entries:"
+            std::cout << "[V2 Export] WriteScenePackEntries:"
                       << " nodes=" << data.nodes.size()
                       << " prims=" << data.primitives.size()
                       << " geos=" << data.geometries.size()
                       << " mats=" << data.materials.size() << "\n";
 
-            std::vector<PackedNodeV2> nodes;
+            std::vector<PackedNode> nodes;
             std::vector<int32_t> node_prim_index;
             std::vector<int32_t> node_child_index;
             std::vector<int32_t> root_index = data.rootNodes;
@@ -183,7 +183,7 @@ namespace exporters
 
             for (const auto &n : data.nodes)
             {
-                PackedNodeV2 pn{};
+                PackedNode pn{};
                 pn.original_index = n.originalIndex;
                 pn.name_index = n.nameIndex;
                 pn.local_matrix_index = n.localMatrixIndex;
@@ -219,12 +219,12 @@ namespace exporters
                 return { off, len };
             };
 
-            std::vector<PackedPrimitiveV2> primitives;
+            std::vector<PackedPrimitive> primitives;
             primitives.reserve(data.primitives.size());
             for (const auto &p : data.primitives)
             {
                 const auto [off, len] = add_string(p.geometryFile);
-                PackedPrimitiveV2 pp{};
+                PackedPrimitive pp{};
                 pp.original_index = p.originalIndex;
                 pp.geometry_index = p.geometryIndex;
                 pp.material_index = p.materialIndex.has_value() ? *p.materialIndex : -1;
@@ -233,7 +233,7 @@ namespace exporters
                 primitives.push_back(pp);
             }
 
-            std::cout << "[V2 Export] PackedPrimitiveV2 count=" << primitives.size() << "\n";
+            std::cout << "[V2 Export] PackedPrimitive count=" << primitives.size() << "\n";
             for (std::size_t _pi = 0, _plim = std::min<std::size_t>(primitives.size(), 8); _pi < _plim; ++_pi)
                 std::cout << "[V2 Export]  prim[" << _pi << "] orig=" << primitives[_pi].original_index
                           << " geo=" << primitives[_pi].geometry_index
@@ -241,24 +241,24 @@ namespace exporters
                           << " foff=" << primitives[_pi].geometry_file_offset
                           << " flen=" << primitives[_pi].geometry_file_length << "\n";
 
-            std::vector<PackedMaterialV2> materials;
+            std::vector<PackedMaterial> materials;
             materials.reserve(data.materials.size());
             for (const auto &m : data.materials)
             {
                 const auto [off, len] = add_string(m.file);
-                PackedMaterialV2 pm{};
+                PackedMaterial pm{};
                 pm.original_index = m.originalIndex;
                 pm.file_offset = off;
                 pm.file_length = len;
                 materials.push_back(pm);
             }
 
-            std::vector<PackedGeometryV2> geometries;
+            std::vector<PackedGeometry> geometries;
             geometries.reserve(data.geometries.size());
             for (const auto &g : data.geometries)
             {
                 const auto [off, len] = add_string(g.file);
-                PackedGeometryV2 pg{};
+                PackedGeometry pg{};
                 pg.original_index = g.originalIndex;
                 pg.file_offset = off;
                 pg.file_length = len;
@@ -266,7 +266,7 @@ namespace exporters
             }
 
             ByteStreamBuffer geometry_blob;
-            std::vector<PackedGeometryViewV2> geometry_views;
+            std::vector<PackedGeometryView> geometry_views;
             geometry_views.reserve(data.geometries.size());
 
             for (const auto &g : data.geometries)
@@ -300,7 +300,7 @@ namespace exporters
                     static_cast<uint32_t>(geo_bytes.size()),
                     64);
 
-                PackedGeometryViewV2 gv{};
+                PackedGeometryView gv{};
                 gv.original_index = g.originalIndex;
                 gv.blob_offset = blob_off;
                 gv.blob_size = static_cast<uint32_t>(geo_bytes.size());
@@ -325,7 +325,7 @@ namespace exporters
 
             struct TableBlob
             {
-                SceneV2TableType type;
+                SceneTableType type;
                 const void *data;
                 uint32_t size;
                 uint32_t stride;
@@ -335,42 +335,42 @@ namespace exporters
             std::vector<TableBlob> blobs;
             blobs.reserve(12);
 
-            auto push_blob = [&](SceneV2TableType t, const void *ptr, uint32_t size, uint32_t stride, uint32_t align)
+            auto push_blob = [&](SceneTableType t, const void *ptr, uint32_t size, uint32_t stride, uint32_t align)
             {
                 if (size == 0)
                     return;
                 blobs.push_back({ t, ptr, size, stride, align });
             };
 
-            push_blob(SceneV2TableType::NameTable, name_table_bytes.data(), static_cast<uint32_t>(name_table_bytes.size()), 0, 16);
-            push_blob(SceneV2TableType::NodeTable, nodes.data(), static_cast<uint32_t>(nodes.size() * sizeof(PackedNodeV2)), sizeof(PackedNodeV2), 16);
-            push_blob(SceneV2TableType::NodePrimIndex, node_prim_index.data(), static_cast<uint32_t>(node_prim_index.size() * sizeof(int32_t)), sizeof(int32_t), 16);
-            push_blob(SceneV2TableType::NodeChildIndex, node_child_index.data(), static_cast<uint32_t>(node_child_index.size() * sizeof(int32_t)), sizeof(int32_t), 16);
-            push_blob(SceneV2TableType::RootIndex, root_index.data(), static_cast<uint32_t>(root_index.size() * sizeof(int32_t)), sizeof(int32_t), 16);
+            push_blob(SceneTableType::NameTable, name_table_bytes.data(), static_cast<uint32_t>(name_table_bytes.size()), 0, 16);
+            push_blob(SceneTableType::NodeTable, nodes.data(), static_cast<uint32_t>(nodes.size() * sizeof(PackedNode)), sizeof(PackedNode), 16);
+            push_blob(SceneTableType::NodePrimIndex, node_prim_index.data(), static_cast<uint32_t>(node_prim_index.size() * sizeof(int32_t)), sizeof(int32_t), 16);
+            push_blob(SceneTableType::NodeChildIndex, node_child_index.data(), static_cast<uint32_t>(node_child_index.size() * sizeof(int32_t)), sizeof(int32_t), 16);
+            push_blob(SceneTableType::RootIndex, root_index.data(), static_cast<uint32_t>(root_index.size() * sizeof(int32_t)), sizeof(int32_t), 16);
             const auto packed_trs_v2 = MakePackedTRS(data.trsTable);
-            push_blob(SceneV2TableType::TRSTable, packed_trs_v2.data(), static_cast<uint32_t>(packed_trs_v2.size() * sizeof(PackedTRSFlat)), sizeof(PackedTRSFlat), 16);
-            push_blob(SceneV2TableType::MatrixTable, data.matrixTable.data(), static_cast<uint32_t>(data.matrixTable.size() * sizeof(glm::mat4)), sizeof(glm::mat4), 16);
-            push_blob(SceneV2TableType::BoundsTable, packed_bounds.data(), static_cast<uint32_t>(packed_bounds.size() * sizeof(PackedBounds)), sizeof(PackedBounds), 16);
-            push_blob(SceneV2TableType::PrimitiveTable, primitives.data(), static_cast<uint32_t>(primitives.size() * sizeof(PackedPrimitiveV2)), sizeof(PackedPrimitiveV2), 16);
-            push_blob(SceneV2TableType::MaterialTable, materials.data(), static_cast<uint32_t>(materials.size() * sizeof(PackedMaterialV2)), sizeof(PackedMaterialV2), 16);
-            push_blob(SceneV2TableType::GeometryTable, geometries.data(), static_cast<uint32_t>(geometries.size() * sizeof(PackedGeometryV2)), sizeof(PackedGeometryV2), 16);
-            push_blob(SceneV2TableType::StringPool, string_pool.data(), static_cast<uint32_t>(string_pool.size()), 1, 16);
-            push_blob(SceneV2TableType::GeometryViewTable, geometry_views.data(), static_cast<uint32_t>(geometry_views.size() * sizeof(PackedGeometryViewV2)), sizeof(PackedGeometryViewV2), 16);
-            push_blob(SceneV2TableType::GeometryBlob, geometry_blob.buf.data(), static_cast<uint32_t>(geometry_blob.buf.size()), 1, 64);
+            push_blob(SceneTableType::TRSTable, packed_trs_v2.data(), static_cast<uint32_t>(packed_trs_v2.size() * sizeof(PackedTRSFlat)), sizeof(PackedTRSFlat), 16);
+            push_blob(SceneTableType::MatrixTable, data.matrixTable.data(), static_cast<uint32_t>(data.matrixTable.size() * sizeof(glm::mat4)), sizeof(glm::mat4), 16);
+            push_blob(SceneTableType::BoundsTable, packed_bounds.data(), static_cast<uint32_t>(packed_bounds.size() * sizeof(PackedBounds)), sizeof(PackedBounds), 16);
+            push_blob(SceneTableType::PrimitiveTable, primitives.data(), static_cast<uint32_t>(primitives.size() * sizeof(PackedPrimitive)), sizeof(PackedPrimitive), 16);
+            push_blob(SceneTableType::MaterialTable, materials.data(), static_cast<uint32_t>(materials.size() * sizeof(PackedMaterial)), sizeof(PackedMaterial), 16);
+            push_blob(SceneTableType::GeometryTable, geometries.data(), static_cast<uint32_t>(geometries.size() * sizeof(PackedGeometry)), sizeof(PackedGeometry), 16);
+            push_blob(SceneTableType::StringPool, string_pool.data(), static_cast<uint32_t>(string_pool.size()), 1, 16);
+            push_blob(SceneTableType::GeometryViewTable, geometry_views.data(), static_cast<uint32_t>(geometry_views.size() * sizeof(PackedGeometryView)), sizeof(PackedGeometryView), 16);
+            push_blob(SceneTableType::GeometryBlob, geometry_blob.buf.data(), static_cast<uint32_t>(geometry_blob.buf.size()), 1, 64);
 
             std::cout << "[V2 Export] Blobs: " << blobs.size() << " tables\n";
             for (const auto &_b : blobs)
                 std::cout << "[V2 Export]  type=" << static_cast<uint32_t>(_b.type) << " size=" << _b.size << "\n";
 
             ByteStreamBuffer pb;
-            const uint32_t dir_offset = pb.append(nullptr, static_cast<uint32_t>(blobs.size() * sizeof(SceneV2TableDesc)), 4);
+            const uint32_t dir_offset = pb.append(nullptr, static_cast<uint32_t>(blobs.size() * sizeof(SceneTableDesc)), 4);
 
-            std::vector<SceneV2TableDesc> descs;
+            std::vector<SceneTableDesc> descs;
             descs.reserve(blobs.size());
             for (const auto &b : blobs)
             {
                 const uint32_t off = pb.append(b.data, b.size, b.align);
-                SceneV2TableDesc d{};
+                SceneTableDesc d{};
                 d.type = static_cast<uint32_t>(b.type);
                 d.offset = off;
                 d.size = b.size;
@@ -378,9 +378,9 @@ namespace exporters
                 descs.push_back(d);
             }
 
-            std::memcpy(pb.buf.data() + dir_offset, descs.data(), descs.size() * sizeof(SceneV2TableDesc));
+            std::memcpy(pb.buf.data() + dir_offset, descs.data(), descs.size() * sizeof(SceneTableDesc));
 
-            ScenePackV2Header header{};
+            ScenePackHeader header{};
             header.magic = kScenePackV2Magic;
             header.version_major = 2;
             header.version_minor = 0;
@@ -400,10 +400,10 @@ namespace exporters
                       << " primitive_count=" << header.primitive_count
                       << " geometry_count=" << header.geometry_count << "\n";
 
-            if (!builder.add_entry_from_buffer("SceneHeaderV2", &header, static_cast<uint32_t>(sizeof(ScenePackV2Header)), err))
+            if (!builder.add_entry_from_buffer("ScenePackHeader", &header, static_cast<uint32_t>(sizeof(ScenePackHeader)), err))
                 return false;
 
-            if (!builder.add_entry_from_buffer("ScenePayloadV2", pb.buf.data(), static_cast<uint32_t>(pb.buf.size()), err))
+            if (!builder.add_entry_from_buffer("ScenePayload", pb.buf.data(), static_cast<uint32_t>(pb.buf.size()), err))
                 return false;
 
             return true;
@@ -548,7 +548,7 @@ namespace exporters
         }
 
         // V2 block-based layout for low-I/O loading path.
-        if (!WriteScenePackV2Entries(builder, data, filePath.parent_path(), err))
+        if (!WriteScenePackEntries(builder, data, filePath.parent_path(), err))
         { std::cerr << "[Export] pack v2 write fail: " << err << "\n"; return false; }
 
         if (!write_pack(builder, filePath, err))
