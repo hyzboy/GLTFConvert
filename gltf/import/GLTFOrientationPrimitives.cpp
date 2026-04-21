@@ -1,5 +1,6 @@
 ﻿#include <vector>
 #include <string>
+#include <cstring>
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include "gltf/GLTFPrimitive.h"
@@ -11,6 +12,51 @@ namespace gltf
     {
         inline void RotateYUpToZUp(float &x,float &y,float &z)  { float  nx=x; float  ny=-z; float  nz=y; x=nx; y=ny; z=nz; }
         inline void RotateYUpToZUp(double &x,double &y,double &z){ double nx=x; double ny=-z; double nz=y; x=nx; y=ny; z=nz; }
+
+        inline void EnsureTangentHasW(GLTFGeometry::GLTFGeometryAttribute &attr)
+        {
+            if (attr.name != "TANGENT" || attr.data.empty() || attr.count == 0)
+                return;
+
+            if (attr.format == PF_RGB32F)
+            {
+                const auto *src = reinterpret_cast<const float *>(attr.data.data());
+                std::vector<float> dst;
+                dst.resize(attr.count * 4);
+
+                for (uint32_t i = 0; i < attr.count; ++i)
+                {
+                    dst[i * 4 + 0] = src[i * 3 + 0];
+                    dst[i * 4 + 1] = src[i * 3 + 1];
+                    dst[i * 4 + 2] = src[i * 3 + 2];
+                    dst[i * 4 + 3] = 1.0f; // default tangent.w = +1; TODO: compute handedness when tangent basis data is available
+                }
+
+                attr.format = PF_RGBA32F;
+                attr.data.resize(dst.size() * sizeof(float));
+                std::memcpy(attr.data.data(), dst.data(), attr.data.size());
+                return;
+            }
+
+            if (attr.format == PF_RGB64F)
+            {
+                const auto *src = reinterpret_cast<const double *>(attr.data.data());
+                std::vector<double> dst;
+                dst.resize(attr.count * 4);
+
+                for (uint32_t i = 0; i < attr.count; ++i)
+                {
+                    dst[i * 4 + 0] = src[i * 3 + 0];
+                    dst[i * 4 + 1] = src[i * 3 + 1];
+                    dst[i * 4 + 2] = src[i * 3 + 2];
+                    dst[i * 4 + 3] = 1.0; // default tangent.w = +1; TODO: compute handedness when tangent basis data is available
+                }
+
+                attr.format = PF_RGBA64F;
+                attr.data.resize(dst.size() * sizeof(double));
+                std::memcpy(attr.data.data(), dst.data(), attr.data.size());
+            }
+        }
 
         template<typename T>
         inline void RotateTripletArrayYUpToZUp(T* data, std::size_t count, std::size_t stride)
@@ -38,6 +84,9 @@ namespace gltf
                 const std::string &name = attr.name;
                 if (name == "POSITION" || name == "NORMAL" || name == "TANGENT" || name == "BITANGENT")
                 {
+                    if (name == "TANGENT")
+                        EnsureTangentHasW(attr);
+
                     if (attr.data.empty() || attr.count == 0) continue;
 
                     bool isTangent = (name == "TANGENT");

@@ -15,6 +15,50 @@ namespace gltf
 {
     namespace
     {
+        static void EnsureTangentHasW(GLTFGeometry::GLTFGeometryAttribute &a)
+        {
+            if(a.name != "TANGENT" || a.data.empty())
+                return;
+
+            if(a.format == PF_RGB32F)
+            {
+                const size_t count = a.count;
+                const float *src = reinterpret_cast<const float *>(a.data.data());
+                std::vector<std::byte> out(count * sizeof(float) * 4);
+                float *dst = reinterpret_cast<float *>(out.data());
+
+                for(size_t i = 0; i < count; ++i)
+                {
+                    dst[i * 4 + 0] = src[i * 3 + 0];
+                    dst[i * 4 + 1] = src[i * 3 + 1];
+                    dst[i * 4 + 2] = src[i * 3 + 2];
+                    dst[i * 4 + 3] = 1.0f; // default tangent.w = +1; TODO: compute handedness when tangent basis data is available
+                }
+
+                a.data = std::move(out);
+                a.format = PF_RGBA32F;
+            }
+            else
+            if(a.format == PF_RGB64F)
+            {
+                const size_t count = a.count;
+                const double *src = reinterpret_cast<const double *>(a.data.data());
+                std::vector<std::byte> out(count * sizeof(double) * 4);
+                double *dst = reinterpret_cast<double *>(out.data());
+
+                for(size_t i = 0; i < count; ++i)
+                {
+                    dst[i * 4 + 0] = src[i * 3 + 0];
+                    dst[i * 4 + 1] = src[i * 3 + 1];
+                    dst[i * 4 + 2] = src[i * 3 + 2];
+                    dst[i * 4 + 3] = 1.0; // default tangent.w = +1; TODO: compute handedness when tangent basis data is available
+                }
+
+                a.data = std::move(out);
+                a.format = PF_RGBA64F;
+            }
+        }
+
         static bool CopyAccessorToBytes(const fastgltf::Asset &asset,
                                         const fastgltf::Accessor &accessor,
                                         std::vector<std::byte> &out)
@@ -74,6 +118,7 @@ namespace gltf
                     a.format=FastGLTFAccessorTypeToVkFormat(acc.type,acc.componentType);
                     a.accessorIndex=attr.accessorIndex;
                     if(!CopyAccessorToBytes(asset,acc,a.data)) a.data.clear();
+                    EnsureTangentHasW(a);
                     p.geometry.attributes.emplace_back(std::move(a));
                 }
 
