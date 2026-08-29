@@ -129,7 +129,6 @@ namespace gltf
                     if(CopyAccessorToBytes(asset,acc,buf))
                     {
                         // Determine the max index value in the buffer according to original component type
-                        uint64_t maxIndex = 0;
                         const size_t count = acc.count;
                         // Helper lambdas to read values
                         auto read_u32_from_bytes = [&](const std::byte *ptr)->uint32_t { uint32_t v; std::memcpy(&v, ptr, sizeof(uint32_t)); return v; };
@@ -137,73 +136,23 @@ namespace gltf
                         auto read_u8_from_bytes  = [&](const std::byte *ptr)->uint8_t  { uint8_t v;  std::memcpy(&v, ptr, sizeof(uint8_t));  return v; };
 
                         const auto compType = acc.componentType;
-                        if(compType == fastgltf::ComponentType::UnsignedInt)
-                        {
-                            const uint32_t *src = reinterpret_cast<const uint32_t*>(buf.data());
-                            for(size_t i=0;i<count;++i) maxIndex = std::max<uint64_t>(maxIndex, src[i]);
-                        }
-                        else if(compType == fastgltf::ComponentType::UnsignedShort)
-                        {
-                            const uint16_t *src = reinterpret_cast<const uint16_t*>(buf.data());
-                            for(size_t i=0;i<count;++i) maxIndex = std::max<uint64_t>(maxIndex, src[i]);
-                        }
-                        else if(compType == fastgltf::ComponentType::UnsignedByte)
-                        {
-                            const uint8_t *src = reinterpret_cast<const uint8_t*>(buf.data());
-                            for(size_t i=0;i<count;++i) maxIndex = std::max<uint64_t>(maxIndex, src[i]);
-                        }
-                        else
-                        {
-                            // Fallback: treat as u32
-                            const uint32_t *src = reinterpret_cast<const uint32_t*>(buf.data());
-                            for(size_t i=0;i<count;++i) maxIndex = std::max<uint64_t>(maxIndex, src[i]);
-                        }
 
-                        // Decide target index type based on maxIndex
-                        if(maxIndex<=0xFF && GetAllowU8Indices())
+                        // 引擎统一 uint32 索引（U8/U16 已废弃——按原始 stride 读取后展开为 uint32）
+                        std::vector<uint32_t> outU32;
+                        outU32.resize(count);
+                        for(size_t i=0;i<count;++i)
                         {
-                            // Can fit in U8 — use typed vector for clarity
-                            std::vector<uint8_t> outU8;
-                            outU8.resize(count);
-                            for(size_t i=0;i<count;++i)
-                            {
-                                uint32_t v = 0;
-                                if(compType == fastgltf::ComponentType::UnsignedInt) v = read_u32_from_bytes(buf.data() + i*sizeof(uint32_t));
-                                else if(compType == fastgltf::ComponentType::UnsignedShort) v = read_u16_from_bytes(buf.data() + i*sizeof(uint16_t));
-                                else if(compType == fastgltf::ComponentType::UnsignedByte) v = read_u8_from_bytes(buf.data() + i*sizeof(uint8_t));
-                                else v = read_u32_from_bytes(buf.data() + i*sizeof(uint32_t));
-                                outU8[i] = static_cast<uint8_t>(v);
-                            }
-                            // Assign into byte vector
-                            const std::byte *bstart = reinterpret_cast<const std::byte*>(outU8.data());
-                            p.geometry.indices = std::vector<std::byte>(bstart, bstart + outU8.size());
-                            p.geometry.indexType = IndexType::U8;
+                            uint32_t v = 0;
+                            if(compType == fastgltf::ComponentType::UnsignedInt) v = read_u32_from_bytes(buf.data() + i*sizeof(uint32_t));
+                            else if(compType == fastgltf::ComponentType::UnsignedShort) v = read_u16_from_bytes(buf.data() + i*sizeof(uint16_t));
+                            else if(compType == fastgltf::ComponentType::UnsignedByte) v = read_u8_from_bytes(buf.data() + i*sizeof(uint8_t));
+                            else v = read_u32_from_bytes(buf.data() + i*sizeof(uint32_t));
+                            outU32[i] = v;
                         }
-                        else if(maxIndex<=0xFFFF)
-                        {
-                            // Can fit in U16 — use typed vector for clarity
-                            std::vector<uint16_t> outU16;
-                            outU16.resize(count);
-                            for(size_t i=0;i<count;++i)
-                            {
-                                uint32_t v = 0;
-                                if(compType == fastgltf::ComponentType::UnsignedInt) v = read_u32_from_bytes(buf.data() + i*sizeof(uint32_t));
-                                else if(compType == fastgltf::ComponentType::UnsignedShort) v = read_u16_from_bytes(buf.data() + i*sizeof(uint16_t));
-                                else if(compType == fastgltf::ComponentType::UnsignedByte) v = read_u8_from_bytes(buf.data() + i*sizeof(uint8_t));
-                                else v = read_u32_from_bytes(buf.data() + i*sizeof(uint32_t));
-                                outU16[i] = static_cast<uint16_t>(v);
-                            }
-                            const std::byte *bstart = reinterpret_cast<const std::byte*>(outU16.data());
-                            const std::byte *bend = bstart + outU16.size() * sizeof(uint16_t);
-                            p.geometry.indices = std::vector<std::byte>(bstart, bend);
-                            p.geometry.indexType = IndexType::U16;
-                        }
-                        else
-                        {
-                            // Keep as u32 (original or fallback)
-                            p.geometry.indices = std::move(buf);
-                            p.geometry.indexType = FastGLTFComponentTypeToIndexType(acc.componentType);
-                        }
+                        const std::byte *bstart = reinterpret_cast<const std::byte*>(outU32.data());
+                        const std::byte *bend = bstart + outU32.size() * sizeof(uint32_t);
+                        p.geometry.indices = std::vector<std::byte>(bstart, bend);
+                        p.geometry.indexType = IndexType::U32;
 
                         p.geometry.indexCount=acc.count;
                         p.geometry.indicesAccessorIndex=prim.indicesAccessor;

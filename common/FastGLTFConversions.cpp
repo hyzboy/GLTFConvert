@@ -18,8 +18,9 @@ IndexType FastGLTFComponentTypeToIndexType(fastgltf::ComponentType ct)
 {
     switch(ct)
     {
-    case fastgltf::ComponentType::UnsignedByte:  return IndexType::U8;
-    case fastgltf::ComponentType::UnsignedShort: return IndexType::U16;
+    // 引擎统一 uint32 索引（U8/U16 已废弃——数据在导入时展开）
+    case fastgltf::ComponentType::UnsignedByte:
+    case fastgltf::ComponentType::UnsignedShort:
     case fastgltf::ComponentType::UnsignedInt:   return IndexType::U32;
     default: return IndexType::ERR;
     }

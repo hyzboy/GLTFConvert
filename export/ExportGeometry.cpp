@@ -30,13 +30,8 @@ namespace pure
             index_stride=0;
             if(geometry.indices.has_value())
             {
-                if(geometry.indices->indexType==IndexType::U8) index_stride=1; else
-                    if(geometry.indices->indexType==IndexType::U16) index_stride=2; else
-                        if(geometry.indices->indexType==IndexType::U32) index_stride=4; else
-                        {
-                            err="Unsupported index type";
-                            return false;
-                        }
+                // 引擎统一 uint32 索引（U8/U16 已废弃）
+                index_stride=4;
             }
             return true;
         }
