@@ -9,10 +9,13 @@
 #include "gltf/GLTFNode.h"
 #include "gltf/GLTFScene.h"
 #include "gltf/GLTFModel.h"
+#include "common/VertexCompression.h"
 
 namespace gltf
 {
     static bool g_allowU8Indices = false;
+    static pure::NormalExportFormat g_normalExportFormat = pure::NormalExportFormat::V2UN8;
+    static bool g_exportTangent = false;
 
     void SetAllowU8Indices(bool allow)
     {
@@ -22,6 +25,26 @@ namespace gltf
     bool GetAllowU8Indices()
     {
         return g_allowU8Indices;
+    }
+
+    void SetNormalExportFormat(pure::NormalExportFormat fmt)
+    {
+        g_normalExportFormat = fmt;
+    }
+
+    pure::NormalExportFormat GetNormalExportFormat()
+    {
+        return g_normalExportFormat;
+    }
+
+    void SetExportTangent(bool allow)
+    {
+        g_exportTangent = allow;
+    }
+
+    bool GetExportTangent()
+    {
+        return g_exportTangent;
     }
     // Forward declarations (headers removed)
     void ImportMaterials(const fastgltf::Asset &asset,std::vector<GLTFMaterial> &materials);

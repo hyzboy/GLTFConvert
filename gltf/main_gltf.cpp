@@ -21,7 +21,7 @@ namespace exporters
 
 static void PrintUsage()
 {
-    std::cout << "Usage: GLTFConvert [--no-images | --images-only] [--allow-u8-indices] <input.gltf|.glb> [output_dir]\n";
+    std::cout << "Usage: GLTFConvert [--no-images | --images-only] [--allow-u8-indices] [--normal-v2un8 (default) | --normal-v2hf | --normal-v3f] [--with-tangent] <input.gltf|.glb> [output_dir]\n";
 }
 
 int main(int argc,char *argv[])
@@ -50,6 +50,10 @@ int main(int argc,char *argv[])
         if(a=="--no-images") { exportImagesFlag=false; continue; }
         if(a=="--images-only") { imagesOnly=true; continue; }
         if(a=="--allow-u8-indices") { allowU8=true; continue; }
+        if(a=="--normal-v2un8" || a=="--normal-format=v2un8") { gltf::SetNormalExportFormat(pure::NormalExportFormat::V2UN8); continue; }
+        if(a=="--normal-v2hf" || a=="--normal-format=v2hf") { gltf::SetNormalExportFormat(pure::NormalExportFormat::V2HF); continue; }
+        if(a=="--normal-v3f" || a=="--normal-format=v3f") { gltf::SetNormalExportFormat(pure::NormalExportFormat::V3F); continue; }
+        if(a=="--with-tangent") { gltf::SetExportTangent(true); continue; }
         // first non-flag assumed input path
         break;
     }

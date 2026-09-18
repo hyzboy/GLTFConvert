@@ -12,7 +12,7 @@ find_package(Vulkan REQUIRED)
 
 option(USE_STATIC_CRT "Use static C runtime (MSVC: /MT, others: -static-libgcc -static-libstdc++)" ON)
 
-find_path(MINIPACK_WRITER NAMES mini_pack_writer.h)
+find_path(MINIPACK_WRITER NAMES mini_pack_builder.h PATHS "${CMAKE_CURRENT_SOURCE_DIR}/../MiniPack")
 
 add_library(minipack_writer STATIC IMPORTED GLOBAL)
 set_target_properties(minipack_writer PROPERTIES
@@ -45,7 +45,8 @@ set(COMMON_FILES    common/IndexType.h
                     common/PrimitiveType.h
                     common/GeometryAttribute.h
                     common/FastGLTFConversions.h
-                    common/FastGLTFConversions.cpp)
+                    common/FastGLTFConversions.cpp
+                    common/VertexCompression.h)
 SOURCE_GROUP("Common" FILES ${COMMON_FILES})
 
 set(GLTF_FILES
