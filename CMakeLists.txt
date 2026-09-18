@@ -4,6 +4,8 @@ project(GLTFConvert)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_SCAN_FOR_MODULES OFF)
+string(REPLACE "/interface" "" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
 
 find_package(fastgltf QUIET)
 find_package(nlohmann_json REQUIRED)
@@ -220,6 +222,7 @@ set(CORE_FILES
 
 add_library(GLTFConvertCore SHARED ${CORE_FILES})
 add_library(PureModel ALIAS GLTFConvertCore)
+set_target_properties(GLTFConvertCore PROPERTIES CXX_SCAN_FOR_MODULES OFF)
 
 target_compile_definitions(GLTFConvertCore PRIVATE
     GLTFCONVERT_EXPORTS
@@ -288,6 +291,15 @@ if (MSVC)
         set_property(TARGET meshoptimizer PROPERTY MSVC_RUNTIME_LIBRARY "MultiThreadedDLL$<$<CONFIG:Debug>:Debug>")
     endif()
 endif()
+
+add_subdirectory(gui)
+
+set(GLTFCONVERT_FOLDER "CM/Tools/Model")
+foreach(_t GLTFConvertCore GLTFConvert GLTFConvertQt)
+    if(TARGET ${_t})
+        set_target_properties(${_t} PROPERTIES FOLDER "${GLTFCONVERT_FOLDER}")
+    endif()
+endforeach()
 
 target_compile_options(GLTFConvertCore PRIVATE
     $<$<CXX_COMPILER_ID:MSVC>:/arch:AVX2 /fp:fast /openmp:llvm>
