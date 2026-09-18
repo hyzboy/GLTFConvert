@@ -3,6 +3,8 @@
 
 namespace texconv
 {
+    // Set explicit .ini configuration file before detection
+    void SetCustomConfigFile(const std::filesystem::path &cfgPath);
     // Perform one-time detection; returns true if TexConv executable exists beside current program.
     bool Initialize(std::filesystem::path *outPath=nullptr);
     // Returns true if TexConv is available (will trigger detection on first call).

@@ -204,39 +204,25 @@ set(EXPORT_FILES
 )
 SOURCE_GROUP("export" FILES ${EXPORT_FILES})
 
-set(PURE_MODEL_FILES
+set(CORE_FILES
     ${MATH_FILES}
     ${COMMON_FILES}
     ${PURE_GEOM_FILES}
     ${EXPORT_FILES}
-)
-
-add_library(PureModel STATIC ${PURE_MODEL_FILES})
-
-target_compile_definitions(PureModel PRIVATE
-    GLM_FORCE_DEFAULT_ALIGNED_GENTYPES
-    GLM_FORCE_INTRINSICS
-    NOMINMAX
-)
-
-target_link_libraries(PureModel
-    nlohmann_json::nlohmann_json
-    meshoptimizer
-)
-target_include_directories(PureModel PUBLIC
-    "${CMAKE_CURRENT_SOURCE_DIR}/meshoptimizer/src"
-    "${GLTF_GLM_INCLUDE_DIR}"
-)
-
-add_executable(GLTFConvert
-    gltf/main_gltf.cpp
-    TexConv.cpp
     ${GLTF_FILES}
     ${GLTF_IMPORT_FILES}
     ${CONVERT_FILES}
+    TexConv.h
+    TexConv.cpp
+    include/GLTFConvertCore.h
+    core/GLTFConvertCore.cpp
 )
 
-target_compile_definitions(GLTFConvert PRIVATE
+add_library(GLTFConvertCore SHARED ${CORE_FILES})
+add_library(PureModel ALIAS GLTFConvertCore)
+
+target_compile_definitions(GLTFConvertCore PRIVATE
+    GLTFCONVERT_EXPORTS
     GLM_FORCE_DEFAULT_ALIGNED_GENTYPES
     GLM_FORCE_INTRINSICS
     NOMINMAX
@@ -245,21 +231,47 @@ target_compile_definitions(GLTFConvert PRIVATE
 if(ULRE_GLTF_CONFIG_FILE)
     file(TO_CMAKE_PATH "${ULRE_GLTF_CONFIG_FILE}" _gltf_config_file)
     message(STATUS "GLTFConvert runtime configuration: ${_gltf_config_file}")
-    target_compile_definitions(GLTFConvert PRIVATE
+    target_compile_definitions(GLTFConvertCore PRIVATE
         "GLTF_CONFIG_FILE=\"${_gltf_config_file}\""
     )
 endif()
 
-# Prevent FBX SDK headers from injecting 'using namespace' globally when included in these targets
-# (FBX SDK namespace macros not forced here)
+target_include_directories(GLTFConvertCore PUBLIC
+    "${CMAKE_CURRENT_SOURCE_DIR}/include"
+    "${CMAKE_CURRENT_SOURCE_DIR}"
+    "${CMAKE_CURRENT_SOURCE_DIR}/meshoptimizer/src"
+    "${GLTF_GLM_INCLUDE_DIR}"
+)
 
 if (MINIPACK_WRITER)
     message(STATUS "Found mini_pack_writer.h: ${MINIPACK_WRITER}")
-    target_include_directories(PureModel PRIVATE "${MINIPACK_WRITER}")
+    target_include_directories(GLTFConvertCore PRIVATE "${MINIPACK_WRITER}")
 else()
     message(FATAL_ERROR "mini_pack_writer.h not found. Please ensure the MiniPack library is available.")
 endif()
 
+target_link_libraries(GLTFConvertCore PRIVATE
+    fastgltf::fastgltf
+    nlohmann_json::nlohmann_json
+    meshoptimizer
+    minipack_writer
+)
+
+add_executable(GLTFConvert
+    cli/main.cpp
+)
+
+target_compile_definitions(GLTFConvert PRIVATE
+    NOMINMAX
+)
+
+target_include_directories(GLTFConvert PRIVATE
+    "${CMAKE_CURRENT_SOURCE_DIR}/include"
+)
+
+target_link_libraries(GLTFConvert PRIVATE
+    GLTFConvertCore
+)
 
 # FBX SDK support and FBXConvert target removed per project configuration.
 # To re-enable FBX support, restore the original detection and target creation logic.
@@ -267,24 +279,24 @@ endif()
 if (MSVC)
     if(USE_STATIC_CRT)
         message(STATUS "Using static runtime on MSVC toolchain")
+        set_property(TARGET GLTFConvertCore PROPERTY MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
         set_property(TARGET GLTFConvert PROPERTY MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
-        set_property(TARGET PureModel PROPERTY MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
         set_property(TARGET meshoptimizer PROPERTY MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
     else()
+        set_property(TARGET GLTFConvertCore PROPERTY MSVC_RUNTIME_LIBRARY "MultiThreadedDLL$<$<CONFIG:Debug>:Debug>")
         set_property(TARGET GLTFConvert PROPERTY MSVC_RUNTIME_LIBRARY "MultiThreadedDLL$<$<CONFIG:Debug>:Debug>")
-        set_property(TARGET PureModel PROPERTY MSVC_RUNTIME_LIBRARY "MultiThreadedDLL$<$<CONFIG:Debug>:Debug>")
         set_property(TARGET meshoptimizer PROPERTY MSVC_RUNTIME_LIBRARY "MultiThreadedDLL$<$<CONFIG:Debug>:Debug>")
     endif()
 endif()
 
-target_compile_options(GLTFConvert PRIVATE
+target_compile_options(GLTFConvertCore PRIVATE
     $<$<CXX_COMPILER_ID:MSVC>:/arch:AVX2 /fp:fast /openmp:llvm>
     $<$<AND:$<CXX_COMPILER_ID:MSVC>,$<CONFIG:Debug>>:/Zi /Od /RTC1>
     $<$<AND:$<CXX_COMPILER_ID:MSVC>,$<CONFIG:Release>>:/O2 /Oi /Ot>
     $<$<OR:$<CXX_COMPILER_ID:GNU>,$<CXX_COMPILER_ID:Clang>>:-mavx2 -O3 -ffast-math -fopenmp>
 )
 
-target_compile_options(PureModel PRIVATE
+target_compile_options(GLTFConvert PRIVATE
     $<$<CXX_COMPILER_ID:MSVC>:/arch:AVX2 /fp:fast /openmp:llvm>
     $<$<AND:$<CXX_COMPILER_ID:MSVC>,$<CONFIG:Debug>>:/Zi /Od /RTC1>
     $<$<AND:$<CXX_COMPILER_ID:MSVC>,$<CONFIG:Release>>:/O2 /Oi /Ot>
@@ -312,9 +324,3 @@ if (Vulkan_FOUND)
         endif()
     endif()
 endif()
-
-target_link_libraries(GLTFConvert PRIVATE
-    PureModel
-    fastgltf::fastgltf
-    minipack_writer
-)

@@ -15,6 +15,7 @@ namespace texconv
         std::once_flag g_once;
         bool g_available=false;
         std::filesystem::path g_texconvPath; // full path to TexConv.exe if available
+        std::filesystem::path g_customConfigFile;
 
         bool IsIniSpace(const char ch)
         {
@@ -121,6 +122,8 @@ namespace texconv
             std::filesystem::path cwd    = std::filesystem::current_path();
 
             std::vector<std::filesystem::path> configFiles;
+            if(!g_customConfigFile.empty())
+                configFiles.push_back(g_customConfigFile);
             configFiles.push_back(exeDir / "GLTFConvert.ini");
             if(cwd != exeDir)
                 configFiles.push_back(cwd / "GLTFConvert.ini");
@@ -165,6 +168,11 @@ namespace texconv
             if(cwd!=exeDir) std::cout << ", " << cwd.string();
             std::cout << "\n";
         }
+    }
+
+    void SetCustomConfigFile(const std::filesystem::path &cfgPath)
+    {
+        g_customConfigFile = cfgPath;
     }
 
     // Initialize detection, returns true if TexConv executable exists alongside current program.
