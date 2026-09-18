@@ -11,6 +11,7 @@
 #include "math/BoundingVolumes.h"
 #include "common/GeometryAttribute.h"
 #include "pure/GeometryIndicesMeta.h"
+#include "pure/Meshlet.h"
 
 namespace pure
 {
@@ -26,6 +27,8 @@ namespace pure
         std::optional<GeometryIndicesMeta>      indices;                                            // metadata for indices
 
         std::optional<std::vector<glm::vec3>>   positions;                                          // Optional decoded POSITION data (local space, stored as float precision)
+
+        std::optional<MeshletData>              meshlets;                                           // Optional meshlet data
 
         std::optional<int32_t>                  material;                                           // index into Model::materials
     };

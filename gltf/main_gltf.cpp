@@ -21,7 +21,7 @@ namespace exporters
 
 static void PrintUsage()
 {
-    std::cout << "Usage: GLTFConvert [--no-images | --images-only] [--allow-u8-indices] [--normal-v2un8 (default) | --normal-v2hf | --normal-v3f] [--with-tangent] <input.gltf|.glb> [output_dir]\n";
+    std::cout << "Usage: GLTFConvert [--no-images | --images-only] [--allow-u8-indices] [--normal-v2un8 (default) | --normal-v2hf | --normal-v3f] [--with-tangent] [--meshlet (default) | --no-meshlet] <input.gltf|.glb> [output_dir]\n";
 }
 
 int main(int argc,char *argv[])
@@ -54,6 +54,8 @@ int main(int argc,char *argv[])
         if(a=="--normal-v2hf" || a=="--normal-format=v2hf") { gltf::SetNormalExportFormat(pure::NormalExportFormat::V2HF); continue; }
         if(a=="--normal-v3f" || a=="--normal-format=v3f") { gltf::SetNormalExportFormat(pure::NormalExportFormat::V3F); continue; }
         if(a=="--with-tangent") { gltf::SetExportTangent(true); continue; }
+        if(a=="--meshlet" || a=="--enable-meshlet") { gltf::SetBuildMeshlets(true); continue; }
+        if(a=="--no-meshlet" || a=="--disable-meshlet") { gltf::SetBuildMeshlets(false); continue; }
         // first non-flag assumed input path
         break;
     }

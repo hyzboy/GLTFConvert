@@ -25,6 +25,11 @@ set_target_properties(minipack_writer PROPERTIES
 
 include_directories(${CMAKE_CURRENT_SOURCE_DIR})
 
+set(MESHOPT_BUILD_DEMO OFF CACHE BOOL "" FORCE)
+set(MESHOPT_BUILD_GLTFPACK OFF CACHE BOOL "" FORCE)
+set(MESHOPT_INSTALL OFF CACHE BOOL "" FORCE)
+add_subdirectory(meshoptimizer)
+
 set(MATH_FILES  math/AABB.h
                 math/BoundingVolumes.h
                 math/BoundingVolumes.cpp
@@ -103,6 +108,7 @@ set(PURE_GEOM_FILES
     pure/BoundsIndex.h
     pure/GeometryIndicesMeta.h
     pure/Geometry.h
+    pure/Meshlet.h
     pure/Material.h
     pure/PBRMaterial.h
     pure/PBRMaterial.cpp
@@ -190,7 +196,9 @@ target_compile_definitions(PureModel PRIVATE
 target_link_libraries(PureModel
     glm::glm
     nlohmann_json::nlohmann_json
+    meshoptimizer
 )
+target_include_directories(PureModel PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/meshoptimizer/src")
 
 add_executable(GLTFConvert
     gltf/main_gltf.cpp
@@ -223,9 +231,11 @@ if (MSVC)
         message(STATUS "Using static runtime on MSVC toolchain")
         set_property(TARGET GLTFConvert PROPERTY MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
         set_property(TARGET PureModel PROPERTY MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
+        set_property(TARGET meshoptimizer PROPERTY MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
     else()
         set_property(TARGET GLTFConvert PROPERTY MSVC_RUNTIME_LIBRARY "MultiThreadedDLL$<$<CONFIG:Debug>:Debug>")
         set_property(TARGET PureModel PROPERTY MSVC_RUNTIME_LIBRARY "MultiThreadedDLL$<$<CONFIG:Debug>:Debug>")
+        set_property(TARGET meshoptimizer PROPERTY MSVC_RUNTIME_LIBRARY "MultiThreadedDLL$<$<CONFIG:Debug>:Debug>")
     endif()
 endif()
 

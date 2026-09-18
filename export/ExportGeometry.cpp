@@ -191,6 +191,41 @@ namespace pure
             return builder.add_entry_from_buffer("indices",geometry.indicesData->data(),static_cast<std::uint32_t>(geometry.indicesData->size()),err);
         }
 
+        bool add_meshlet_entries(MiniPackBuilder &builder, const Geometry &geometry, std::string &err)
+        {
+            if(!geometry.meshlets.has_value() || geometry.meshlets->descriptors.empty())
+            {
+                return true;
+            }
+
+            const auto &md = *geometry.meshlets;
+
+            // 1) meshlets (array of MeshletDescriptor, 16 bytes each)
+            const uint32_t descriptors_bytes = static_cast<uint32_t>(md.descriptors.size() * sizeof(MeshletDescriptor));
+            if(!builder.add_entry_from_buffer("meshlets", md.descriptors.data(), descriptors_bytes, err))
+                return false;
+
+            // 2) meshlet_vertices (array of uint32_t)
+            const uint32_t vertices_bytes = static_cast<uint32_t>(md.vertices.size() * sizeof(uint32_t));
+            if(!builder.add_entry_from_buffer("meshlet_vertices", md.vertices.data(), vertices_bytes, err))
+                return false;
+
+            // 3) meshlet_triangles (array of u8vec3 / 3 bytes each)
+            const uint32_t triangles_bytes = static_cast<uint32_t>(md.triangles.size() * sizeof(uint8_t));
+            if(!builder.add_entry_from_buffer("meshlet_triangles", md.triangles.data(), triangles_bytes, err))
+                return false;
+
+            // 4) meshlet_bounds (array of MeshletBounds)
+            if(!md.bounds.empty())
+            {
+                const uint32_t bounds_bytes = static_cast<uint32_t>(md.bounds.size() * sizeof(MeshletBounds));
+                if(!builder.add_entry_from_buffer("meshlet_bounds", md.bounds.data(), bounds_bytes, err))
+                    return false;
+            }
+
+            return true;
+        }
+
         bool write_pack(MiniPackBuilder &builder,const std::string &filename,std::string &err)
         {
             auto writer=create_file_writer(filename);
@@ -255,6 +290,11 @@ namespace pure
             return false;
         }
         if(!add_indices_entry(builder,geometry,index_stride,err))
+        {
+            std::cerr<<"Error: "<<err<<std::endl;
+            return false;
+        }
+        if(!add_meshlet_entries(builder,geometry,err))
         {
             std::cerr<<"Error: "<<err<<std::endl;
             return false;

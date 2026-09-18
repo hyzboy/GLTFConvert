@@ -6,6 +6,7 @@
 #include "gltf/convert/UniqueGeometryMapping.h"
 #include "common/VertexCompression.h"
 #include "gltf/import/GLTFImporter.h"
+#include <meshoptimizer.h>
 
 namespace gltf
 {
@@ -151,6 +152,98 @@ namespace gltf
             {
                 pg.indices = pure::GeometryIndicesMeta{ *g.indexCount, g.indexType };
             }
+
+            // Build Meshlets if enabled and valid mesh data present
+            if (GetBuildMeshlets() && pg.positions.has_value() && !pg.positions->empty() && pg.indicesData.has_value() && pg.indices.has_value())
+            {
+                const size_t vertex_count = pg.positions->size();
+                const size_t index_count = pg.indices->count;
+
+                if (index_count >= 3 && pg.indices->indexType == IndexType::U32)
+                {
+                    const uint32_t *indices = reinterpret_cast<const uint32_t*>(pg.indicesData->data());
+                    const float *positions = reinterpret_cast<const float*>(pg.positions->data());
+
+                    constexpr size_t max_vertices = 64;
+                    constexpr size_t max_triangles = 124;
+                    constexpr float cone_weight = 0.5f;
+
+                    const size_t max_meshlets = meshopt_buildMeshletsBound(index_count, max_vertices, max_triangles);
+
+                    std::vector<meshopt_Meshlet> opt_meshlets(max_meshlets);
+                    std::vector<unsigned int> meshlet_vertices(index_count);
+                    std::vector<unsigned char> meshlet_triangles(index_count);
+
+                    const size_t meshlet_count = meshopt_buildMeshlets(
+                        opt_meshlets.data(),
+                        meshlet_vertices.data(),
+                        meshlet_triangles.data(),
+                        indices,
+                        index_count,
+                        positions,
+                        vertex_count,
+                        sizeof(glm::vec3),
+                        max_vertices,
+                        max_triangles,
+                        cone_weight);
+
+                    if (meshlet_count > 0)
+                    {
+                        pure::MeshletData md;
+                        md.descriptors.reserve(meshlet_count);
+                        md.bounds.reserve(meshlet_count);
+
+                        const auto &last_meshlet = opt_meshlets[meshlet_count - 1];
+                        const size_t total_meshlet_vertices = last_meshlet.vertex_offset + last_meshlet.vertex_count;
+                        const size_t total_meshlet_triangles = last_meshlet.triangle_offset + last_meshlet.triangle_count * 3;
+
+                        md.vertices.assign(meshlet_vertices.begin(), meshlet_vertices.begin() + total_meshlet_vertices);
+                        md.triangles.assign(meshlet_triangles.begin(), meshlet_triangles.begin() + total_meshlet_triangles);
+
+                        for (size_t mi = 0; mi < meshlet_count; ++mi)
+                        {
+                            const auto &om = opt_meshlets[mi];
+                            pure::MeshletDescriptor desc{};
+                            desc.vertex_offset = om.vertex_offset;
+                            desc.triangle_offset = om.triangle_offset / 3; // Index in u8vec3 / triangle units
+                            desc.vertex_count = static_cast<uint8_t>(om.vertex_count);
+                            desc.triangle_count = static_cast<uint8_t>(om.triangle_count);
+                            desc.reserved16 = 0;
+                            desc.reserved32 = 0;
+                            md.descriptors.push_back(desc);
+
+                            meshopt_Bounds b = meshopt_computeMeshletBounds(
+                                &meshlet_vertices[om.vertex_offset],
+                                &meshlet_triangles[om.triangle_offset],
+                                om.triangle_count,
+                                positions,
+                                vertex_count,
+                                sizeof(glm::vec3));
+
+                            pure::MeshletBounds mb{};
+                            mb.center[0] = b.center[0];
+                            mb.center[1] = b.center[1];
+                            mb.center[2] = b.center[2];
+                            mb.radius = b.radius;
+                            mb.cone_apex[0] = b.cone_apex[0];
+                            mb.cone_apex[1] = b.cone_apex[1];
+                            mb.cone_apex[2] = b.cone_apex[2];
+                            mb.cone_axis[0] = b.cone_axis[0];
+                            mb.cone_axis[1] = b.cone_axis[1];
+                            mb.cone_axis[2] = b.cone_axis[2];
+                            mb.cone_cutoff = b.cone_cutoff;
+                            mb.cone_axis_s8[0] = b.cone_axis_s8[0];
+                            mb.cone_axis_s8[1] = b.cone_axis_s8[1];
+                            mb.cone_axis_s8[2] = b.cone_axis_s8[2];
+                            mb.cone_cutoff_s8 = b.cone_cutoff_s8;
+                            md.bounds.push_back(mb);
+                        }
+
+                        pg.meshlets = std::move(md);
+                    }
+                }
+            }
+
             dstGeometry.push_back(std::move(pg));
         }
     }

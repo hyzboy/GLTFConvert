@@ -16,6 +16,7 @@ namespace gltf
     static bool g_allowU8Indices = false;
     static pure::NormalExportFormat g_normalExportFormat = pure::NormalExportFormat::V2UN8;
     static bool g_exportTangent = false;
+    static bool g_buildMeshlets = true;
 
     void SetAllowU8Indices(bool allow)
     {
@@ -45,6 +46,16 @@ namespace gltf
     bool GetExportTangent()
     {
         return g_exportTangent;
+    }
+
+    void SetBuildMeshlets(bool enable)
+    {
+        g_buildMeshlets = enable;
+    }
+
+    bool GetBuildMeshlets()
+    {
+        return g_buildMeshlets;
     }
     // Forward declarations (headers removed)
     void ImportMaterials(const fastgltf::Asset &asset,std::vector<GLTFMaterial> &materials);

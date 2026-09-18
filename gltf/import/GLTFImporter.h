@@ -16,4 +16,7 @@ namespace gltf
 
     void SetExportTangent(bool allow);
     bool GetExportTangent();
+
+    void SetBuildMeshlets(bool enable);
+    bool GetBuildMeshlets();
 }//namespace gltf
