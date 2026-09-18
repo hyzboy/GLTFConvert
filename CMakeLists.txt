@@ -5,23 +5,48 @@ project(GLTFConvert)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-find_package(glm REQUIRED)
 find_package(fastgltf QUIET)
 find_package(nlohmann_json REQUIRED)
 find_package(Vulkan REQUIRED)
+
+set(GLTF_VULKAN_SDK_DIR "" CACHE PATH "Vulkan SDK root directory used by GLTFConvert")
+if(NOT GLTF_VULKAN_SDK_DIR AND DEFINED ENV{VULKAN_SDK})
+    set(GLTF_VULKAN_SDK_DIR "$ENV{VULKAN_SDK}")
+endif()
+
+set(GLTF_GLM_INCLUDE_DIR "")
+foreach(_gltf_vulkan_sdk_include_dir Include include)
+    if(EXISTS "${GLTF_VULKAN_SDK_DIR}/${_gltf_vulkan_sdk_include_dir}/glm/glm.hpp")
+        set(GLTF_GLM_INCLUDE_DIR "${GLTF_VULKAN_SDK_DIR}/${_gltf_vulkan_sdk_include_dir}")
+        break()
+    endif()
+endforeach()
+
+if(NOT GLTF_GLM_INCLUDE_DIR)
+    message(FATAL_ERROR
+        "GLM was not found in the Vulkan SDK. "
+        "Set VULKAN_SDK or GLTF_VULKAN_SDK_DIR to a valid Vulkan SDK root."
+    )
+endif()
+
+message(STATUS "Using Vulkan SDK GLM: ${GLTF_GLM_INCLUDE_DIR}")
 
 option(USE_STATIC_CRT "Use static C runtime (MSVC: /MT, others: -static-libgcc -static-libstdc++)" ON)
 
 find_path(MINIPACK_WRITER NAMES mini_pack_builder.h PATHS "${CMAKE_CURRENT_SOURCE_DIR}/../MiniPack")
 
-add_library(minipack_writer STATIC IMPORTED GLOBAL)
-set_target_properties(minipack_writer PROPERTIES
-    IMPORTED_LOCATION_DEBUG         "${MINIPACK_WRITER}/Debug/minipack_writer.lib"
-    IMPORTED_LOCATION_RELEASE       "${MINIPACK_WRITER}/Release/minipack_writer.lib"
-    IMPORTED_LOCATION_RELWITHDEBINFO "${MINIPACK_WRITER}/RelWithDebInfo/minipack_writer.lib"
-    IMPORTED_LOCATION_MINSIZEREL    "${MINIPACK_WRITER}/MinSizeRel/minipack_writer.lib"
-    INTERFACE_INCLUDE_DIRECTORIES   "${MINIPACK_WRITER}"
-)
+if(TARGET minipack_writer)
+    message(STATUS "Using existing minipack_writer target")
+else()
+    add_library(minipack_writer STATIC IMPORTED GLOBAL)
+    set_target_properties(minipack_writer PROPERTIES
+        IMPORTED_LOCATION_DEBUG         "${MINIPACK_WRITER}/Debug/minipack_writer.lib"
+        IMPORTED_LOCATION_RELEASE       "${MINIPACK_WRITER}/Release/minipack_writer.lib"
+        IMPORTED_LOCATION_RELWITHDEBINFO "${MINIPACK_WRITER}/RelWithDebInfo/minipack_writer.lib"
+        IMPORTED_LOCATION_MINSIZEREL    "${MINIPACK_WRITER}/MinSizeRel/minipack_writer.lib"
+        INTERFACE_INCLUDE_DIRECTORIES   "${MINIPACK_WRITER}"
+    )
+endif()
 
 include_directories(${CMAKE_CURRENT_SOURCE_DIR})
 
@@ -191,14 +216,17 @@ add_library(PureModel STATIC ${PURE_MODEL_FILES})
 target_compile_definitions(PureModel PRIVATE
     GLM_FORCE_DEFAULT_ALIGNED_GENTYPES
     GLM_FORCE_INTRINSICS
+    NOMINMAX
 )
 
 target_link_libraries(PureModel
-    glm::glm
     nlohmann_json::nlohmann_json
     meshoptimizer
 )
-target_include_directories(PureModel PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/meshoptimizer/src")
+target_include_directories(PureModel PUBLIC
+    "${CMAKE_CURRENT_SOURCE_DIR}/meshoptimizer/src"
+    "${GLTF_GLM_INCLUDE_DIR}"
+)
 
 add_executable(GLTFConvert
     gltf/main_gltf.cpp
@@ -211,7 +239,17 @@ add_executable(GLTFConvert
 target_compile_definitions(GLTFConvert PRIVATE
     GLM_FORCE_DEFAULT_ALIGNED_GENTYPES
     GLM_FORCE_INTRINSICS
+    NOMINMAX
 )
+
+if(ULRE_GLTF_CONFIG_FILE)
+    file(TO_CMAKE_PATH "${ULRE_GLTF_CONFIG_FILE}" _gltf_config_file)
+    message(STATUS "GLTFConvert runtime configuration: ${_gltf_config_file}")
+    target_compile_definitions(GLTFConvert PRIVATE
+        "GLTF_CONFIG_FILE=\"${_gltf_config_file}\""
+    )
+endif()
+
 # Prevent FBX SDK headers from injecting 'using namespace' globally when included in these targets
 # (FBX SDK namespace macros not forced here)
 

@@ -1,6 +1,8 @@
 ﻿#include <filesystem>
 #include <iostream>
 #include <mutex>
+#include <cstdio>
+#include <cstring>
 #include <cstdlib>
 #ifdef _WIN32
     #include <windows.h>
@@ -13,6 +15,88 @@ namespace texconv
         std::once_flag g_once;
         bool g_available=false;
         std::filesystem::path g_texconvPath; // full path to TexConv.exe if available
+
+        bool IsIniSpace(const char ch)
+        {
+            return ch == ' ' || ch == '\t' || ch == '\r' || ch == '\n';
+        }
+
+        char *TrimIni(char *text)
+        {
+            while(*text && IsIniSpace(*text))
+                ++text;
+
+            char *end = text + std::strlen(text);
+            while(end > text && IsIniSpace(end[-1]))
+                --end;
+            *end = 0;
+            return text;
+        }
+
+        bool ReadTexConvDirFromIni(const std::filesystem::path &configPath,
+                                   std::filesystem::path &texconvDir)
+        {
+#ifdef _WIN32
+            FILE *file = nullptr;
+            if(_wfopen_s(&file, configPath.c_str(), L"rb") != 0 || !file)
+                return false;
+#else
+            FILE *file = std::fopen(configPath.string().c_str(), "rb");
+            if(!file)
+                return false;
+#endif
+
+            bool sawSection = false;
+            bool inGLTFConvertSection = false;
+            char line[4096];
+            while(std::fgets(line, sizeof(line), file))
+            {
+                char *text = TrimIni(line);
+                if(!*text || *text == ';' || *text == '#')
+                    continue;
+
+                if(*text == '[')
+                {
+                    char *sectionEnd = std::strchr(text + 1, ']');
+                    if(!sectionEnd)
+                        continue;
+
+                    *sectionEnd = 0;
+                    const char *section = TrimIni(text + 1);
+                    sawSection = true;
+                    inGLTFConvertSection = std::strcmp(section, "GLTFConvert") == 0;
+                    continue;
+                }
+
+                char *separator = std::strchr(text, '=');
+                if(!separator || (sawSection && !inGLTFConvertSection))
+                    continue;
+
+                *separator = 0;
+                char *key = TrimIni(text);
+                char *value = TrimIni(separator + 1);
+                if(std::strcmp(key, "TexConvDir") != 0 || !*value)
+                    continue;
+
+                const size_t valueLength = std::strlen(value);
+                if(valueLength >= 2 &&
+                   ((value[0] == '"' && value[valueLength - 1] == '"') ||
+                    (value[0] == '\'' && value[valueLength - 1] == '\'')))
+                {
+                    value[valueLength - 1] = 0;
+                    ++value;
+                }
+
+                texconvDir = std::filesystem::path(value);
+                if(texconvDir.is_relative())
+                    texconvDir = configPath.parent_path() / texconvDir;
+                std::fclose(file);
+                return true;
+            }
+
+            std::fclose(file);
+            return false;
+        }
 
         std::filesystem::path GetExecutableDirectory()
         {
@@ -36,8 +120,24 @@ namespace texconv
             std::filesystem::path exeDir = GetExecutableDirectory();
             std::filesystem::path cwd    = std::filesystem::current_path();
 
-            // candidate list: executable directory then current working directory (avoid duplicate if same)
+            std::vector<std::filesystem::path> configFiles;
+            configFiles.push_back(exeDir / "GLTFConvert.ini");
+            if(cwd != exeDir)
+                configFiles.push_back(cwd / "GLTFConvert.ini");
+#ifdef GLTF_CONFIG_FILE
+            configFiles.emplace_back(GLTF_CONFIG_FILE);
+#endif
+
+            std::filesystem::path configuredTexConvDir;
+            for(const auto &configFile : configFiles)
+            {
+                if(ReadTexConvDirFromIni(configFile, configuredTexConvDir))
+                    break;
+            }
+
             std::vector<std::filesystem::path> searchDirs;
+            if(!configuredTexConvDir.empty())
+                searchDirs.push_back(configuredTexConvDir);
             searchDirs.push_back(exeDir);
             if(cwd != exeDir) searchDirs.push_back(cwd);
 
