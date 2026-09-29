@@ -29,7 +29,7 @@ namespace exporters
             glm::mat4 worldM     = worldMatrices[originalNode];
             ne.worldMatrixIndex  = GetOrAddMatrix(outData.matrixTable, worldM);
 
-            if (src.transform.isTRS())
+            if (!src.transform.trs.empty())
                 ne.trsIndex = GetOrAddTRS(outData.trsTable, src.transform.trs);
 
             if (src.mesh && *src.mesh >= 0 && *src.mesh < static_cast<int32_t>(model.meshes.size()))

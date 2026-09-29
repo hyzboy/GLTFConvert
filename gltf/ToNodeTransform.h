@@ -15,8 +15,8 @@
  *     于是全链路恰好应用一次 R：M'·v' = R·(M·v)；
  *  2. 镜像感知的仿射分解：负缩放（det<0）保留在缩放分量里，不被静默丢弃。
  *
- * @return true  = 节点变换已无损分解为 TRS，out_transform 可直接使用（NodeTransform 内部会自动
- *                 把单位变换收敛为 Type::None）；
+ * @return true  = 节点变换已无损分解为 TRS，out_transform 可直接使用（单位变换会保留为空 TRS，
+ *                 由 TRS::empty() 判断）；
  *         false = 该节点局部变换**无法用 TRS 表示**（含剪切 / 两轴以上退化）——调用方必须中止
  *                 转换（fail-fast），不要带半成品继续。失败原因与节点名已打印到 stderr。
  *

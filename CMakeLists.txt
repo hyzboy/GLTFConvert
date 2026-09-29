@@ -65,7 +65,6 @@ set(MATH_FILES  math/AABB.h
                 math/TRS.h
                 math/TRS.cpp
                 math/NodeTransform.h
-                math/NodeTransform.cpp
                 math/OBB.cpp
                 math/OBB.h)
 SOURCE_GROUP("Math" FILES ${MATH_FILES})
