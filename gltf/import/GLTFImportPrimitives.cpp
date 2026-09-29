@@ -59,6 +59,14 @@ namespace gltf
             }
         }
 
+        /// 把 accessor 的数据拷成**紧凑**缓冲（每元素 elemSize 字节，元素间无填充）。
+        ///
+        /// glTF 允许一个 bufferView 里交错存放多个属性：此时 `byteStride > elemSize`，
+        /// 且 POSITION 往往不从 view 起点开始（`accessor.byteOffset`）。**必须按 stride 取元素**——
+        /// 按 `elemSize` 连续读会把邻居属性的字节当成顶点数据（实测 `BoxInterleaved` /
+        /// `InterpolationTest` / `ClearCoatTest` / `AnisotropyStrengthTest` 等 7 个官方样本
+        /// 顶点数据整体读错，世界 AABB 差 0.5~4.2）。索引 accessor 按 glTF 规范不带 stride，
+        /// `value_or(elemSize)` 自然退化为紧凑读取。
         static bool CopyAccessorToBytes(const fastgltf::Asset &asset,
                                         const fastgltf::Accessor &accessor,
                                         std::vector<std::byte> &out)
@@ -67,33 +75,42 @@ namespace gltf
             const auto &bv=asset.bufferViews[*accessor.bufferViewIndex];
             if(bv.bufferIndex>=asset.buffers.size()) return false;
             const auto &buf=asset.buffers[bv.bufferIndex];
-            size_t elemSize=fastgltf::getElementByteSize(accessor.type,accessor.componentType);
-            size_t totalBytes=elemSize*accessor.count;
+            const size_t elemSize=fastgltf::getElementByteSize(accessor.type,accessor.componentType);
+            const size_t stride=bv.byteStride.value_or(elemSize);
+            const size_t totalBytes=elemSize*accessor.count;
+            const size_t startByte=bv.byteOffset+accessor.byteOffset;
+            // 交错时"最后一个元素"也要完整落在 buffer 内
+            const size_t needed=accessor.count?(startByte+(accessor.count-1)*stride+elemSize):0;
+
             bool ok=false;
+            auto copy_from=[&](const std::byte *base,size_t size) -> bool
+            {
+                if(needed>size) return false;
+                out.resize(totalBytes);
+                const std::byte *src=base+startByte;
+                if(stride==elemSize)
+                {
+                    std::memcpy(out.data(),src,totalBytes);             // 紧凑：整段拷
+                }
+                else
+                {
+                    for(size_t i=0;i<accessor.count;++i)                // 交错：逐元素摘出来
+                        std::memcpy(out.data()+i*elemSize,src+i*stride,elemSize);
+                }
+                return true;
+            };
             std::visit(fastgltf::visitor{
                 [&](const fastgltf::sources::Vector &vec)
                        {
-                           if(bv.byteOffset+accessor.byteOffset+totalBytes>vec.bytes.size()) return;
-                           const std::byte *src=vec.bytes.data()+bv.byteOffset+accessor.byteOffset;
-                           out.resize(totalBytes);
-                           std::memcpy(out.data(),src,totalBytes);
-                           ok=true;
+                           ok=copy_from(vec.bytes.data(),vec.bytes.size());
                        },
                        [&](const fastgltf::sources::Array &arr)
                        {
-                           if(bv.byteOffset+accessor.byteOffset+totalBytes>arr.bytes.size()) return;
-                           const std::byte *src=arr.bytes.data()+bv.byteOffset+accessor.byteOffset;
-                           out.resize(totalBytes);
-                           std::memcpy(out.data(),src,totalBytes);
-                           ok=true;
+                           ok=copy_from(arr.bytes.data(),arr.bytes.size());
                        },
                        [&](const fastgltf::sources::ByteView &bvw)
                        {
-                           if(bv.byteOffset+accessor.byteOffset+totalBytes>bvw.bytes.size()) return;
-                           const std::byte *src=bvw.bytes.data()+bv.byteOffset+accessor.byteOffset;
-                           out.resize(totalBytes);
-                           std::memcpy(out.data(),src,totalBytes);
-                           ok=true;
+                           ok=copy_from(bvw.bytes.data(),bvw.bytes.size());
                        },
                        [&](const auto &) {}
                        },buf.data);
