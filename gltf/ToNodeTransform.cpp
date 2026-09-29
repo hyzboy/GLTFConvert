@@ -22,11 +22,28 @@ namespace
         return m;
     }
 
+    /// 取源 rotation 并**归一化**。
+    ///
+    /// glTF 规范要求 rotation 是单位四元数，但现实资产里存在非单位值（实测
+    /// `IridescentDishWithOlives` 的 `Camera001`：`|q|=0.9995879`，是小数位被截断的产物）。
+    /// `glm::mat3_cast` 对非单位四元数**不是**"旋转 × 比例"——对角项 `1-2(y²+z²)` 与交叉项
+    /// `2(xy+zw)` 的缩放不一致，矩阵会带进 ~(1-|q|²) 的**各向异性**（该节点实测列间 |dot|=3.67e-04、
+    /// 列模长 0.99918/0.99991/0.99918），于是矩阵真的不是 TRS 可表示的 ⇒ 保真自检残差 3.78e-04 > 1e-4
+    /// ⇒ **整个资产被 fail-fast 误拒**。归一化后往返残差回到 1e-7 量级。
+    /// （全零四元数是非法输入，退化为单位旋转；真正的畸形矩阵仍会被保真自检拦住。）
+    inline glm::quat NormalizedRotation(const fastgltf::TRS &src)
+    {
+        const glm::quat q(src.rotation.w(), src.rotation.x(), src.rotation.y(), src.rotation.z());
+        if (glm::dot(q, q) < 1e-12f)
+            return glm::quat(1.0f, 0.0f, 0.0f, 0.0f);
+        return glm::normalize(q);
+    }
+
     /// fastgltf TRS → glm 矩阵。注意 glTF 数组序是 [x,y,z,w]，glm 构造函数要 w 在前。
     inline glm::mat4 FastTRSToGlmMat4(const fastgltf::TRS &src)
     {
         const glm::vec3 t(src.translation.x(), src.translation.y(), src.translation.z());
-        const glm::quat q(src.rotation.w(), src.rotation.x(), src.rotation.y(), src.rotation.z());
+        const glm::quat q = NormalizedRotation(src);
         const glm::vec3 s(src.scale.x(), src.scale.y(), src.scale.z());
 
         return glm::translate(glm::mat4(1.0f), t)
