@@ -83,6 +83,8 @@ ctest --test-dir build/src/Tools/GLTFConvert -C Debug -R GLTFConvertTransformCha
 
 ## 输入预筛
 
+- **多场景资产**：导出只包含**默认场景**（glTF `scene` 字段，缺省 0）可达的节点；其它场景的节点不进导出。
+  检查脚本据此把"非默认场景的节点"跳过而不是判失败（可达却缺失才报错）。
 - **只支持 glTF 2.0**：先校验 `asset.version`，1.x 直接报错（不喂给转换器）。
 - **`extensionsRequired` 非空 ⇒ `[SKIP]`**：转换器用的是裸 `fastgltf::Parser{}`（无 `enableExtensions`），
   这类资产在解析阶段就失败，**而且失败路径不干净**（实测挂住 >120s 或 abort rc=3，且不打印

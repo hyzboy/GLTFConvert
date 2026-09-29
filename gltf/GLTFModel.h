@@ -20,6 +20,7 @@ struct GLTFModel
     std::vector<GLTFMesh> meshes;
     std::vector<GLTFNode> nodes;
     std::vector<GLTFScene> scenes;
+    int32_t default_scene { 0 };      // glTF 的 `scene` 字段（默认场景索引）
     std::vector<GLTFMaterial> materials;
     std::vector<GLTFImage> images; // imported images
     std::vector<GLTFTexture> textures; // imported texture infos (texture to image mapping)

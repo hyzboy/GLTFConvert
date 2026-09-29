@@ -30,6 +30,7 @@ namespace gltf
 
         gltf::CopyMaterials(dst.materials, src.materials, dst);
         gltf::CopyScenes(dst.scenes, src.scenes);
+        dst.defaultScene = src.default_scene;
         gltf::CopyNodes(dst.nodes, src.nodes);
 
         auto uniqueMap = gltf::BuildUniqueGeometryMapping(src.primitives);

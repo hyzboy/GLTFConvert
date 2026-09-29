@@ -20,6 +20,7 @@ namespace pure
         std::string model_source;
         std::vector<std::unique_ptr<Material>> materials;
         std::vector<Scene> scenes;
+        int32_t defaultScene { 0 };     // glTF 的 `scene` 字段：导出时优先取它，而不是写死 0
         std::vector<Node> nodes;        // nodes
         std::vector<Mesh> meshes;       // meshes (list of primitive indices)
         std::vector<Geometry> geometry; // unique geometry buffers

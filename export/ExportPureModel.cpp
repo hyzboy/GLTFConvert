@@ -23,6 +23,19 @@ namespace exporters
         return p.stem().string();
     }
 
+    /// 选择要导出的场景：优先用 glTF 的默认场景（`scene` 字段，规范要求客户端优先使用它）。
+    /// 此前写死 0 ⇒ 多场景资产导出的是**非默认场景**（实测 `MultipleScenes`：`scene=1`，
+    /// 却导出了 scene 0 的节点/网格）。越界或未设置时回落到 0。
+    static std::size_t SelectDefaultScene(const pure::Model &model)
+    {
+        if (model.scenes.empty())
+            return 0;
+        const int32_t ds = model.defaultScene;
+        if (ds < 0 || ds >= static_cast<int32_t>(model.scenes.size()))
+            return 0;
+        return static_cast<std::size_t>(ds);
+    }
+
     // New extended version with flags
     bool ExportPureModel(pure::Model &sm,const std::filesystem::path &outDir,bool exportImagesFlag,bool imagesOnly)
     {
@@ -37,7 +50,7 @@ namespace exporters
         std::filesystem::path targetDir=baseDir/(baseName+".StaticMesh");
         std::filesystem::create_directories(targetDir,ec);
 
-        const std::size_t sceneIndex=0; // first scene only
+        const std::size_t sceneIndex = SelectDefaultScene(sm);
 
         // Collect indices for scene export when scenes are present. If there are
         // no scenes, we still want to export materials / geometries / meshes / images

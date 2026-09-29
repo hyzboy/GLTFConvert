@@ -56,12 +56,13 @@ namespace exporters
         ComputeBounds(model, worldMatrices, data);
 
         // 8. Primitives / Materials / Geometries
-        BuildPrimitivesExport(collected, geometryBaseName, data);
+        BuildPrimitivesExport(collected, data);
         BuildMaterials(model, collected, nameToIndex, data);
-        BuildGeometries(collected, geometryBaseName, data);
+        BuildGeometries(collected, geometryBaseName, static_cast<int32_t>(model.geometry.size()), data);
 
         // 9. Link primitive -> scene-local geometryIndex and materialIndex.
         //    BuildPrimitivesExport can't do this itself (no model access), so we patch here.
+        //    几何文件名一并取自几何表（单一真源 ⇒ 包内名字必然等于磁盘上的文件）。
         {
             std::unordered_map<int32_t, int32_t> geoOrigToLocal;
             geoOrigToLocal.reserve(data.geometries.size());
@@ -75,7 +76,10 @@ namespace exporters
                     const auto &mp = model.primitives[pe.originalIndex];
                     const auto geoIt = geoOrigToLocal.find(mp.geometry);
                     if (geoIt != geoOrigToLocal.end())
+                    {
                         pe.geometryIndex = geoIt->second;
+                        pe.geometryFile  = data.geometries[geoIt->second].file;
+                    }
                     if (mp.material.has_value())
                     {
                         const auto matIt = remap.materialRemap.find(*mp.material);

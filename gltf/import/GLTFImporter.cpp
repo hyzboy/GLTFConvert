@@ -109,6 +109,7 @@ namespace gltf
             return false;
         }
         ImportScenes(asset,outModel.scenes);
+        outModel.default_scene=static_cast<int32_t>(asset.defaultScene.value_or(0));
         ImportImages(asset,outModel.images);
         ImportTextures(asset,outModel.textures);
         ImportSamplers(asset,outModel.samplers);

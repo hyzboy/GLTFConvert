@@ -389,11 +389,32 @@ def check_good_scene(name, gltf, exe, work, tolerance, bounds_tol, config, dname
     exp_nodes, exp_json = load_export_nodes(jpath)
     by_index = {e["index"]: e for e in exp_nodes}
 
+    # 源节点可达性：导出只包含**默认场景**（glTF `scene` 字段）可达的节点，
+    # 多场景资产里其它场景的节点**不会**出现在导出中（`MultipleScenes` 就是这种）。
+    # 不可达的源节点跳过而不是失败；可达却缺失才是 bug。
+    scenes = doc.get("scenes", [])
+    scene_idx = doc.get("scene", 0)
+    reachable = set()
+    if scenes and 0 <= scene_idx < len(scenes):
+        stack = list(scenes[scene_idx].get("nodes", []))
+    else:
+        stack = list(range(len(raw)))                    # 无场景信息：按"全部可达"处理（保守）
+    while stack:
+        i = stack.pop()
+        if i in reachable or i < 0 or i >= len(raw):
+            continue
+        reachable.add(i)
+        stack.extend(doc["nodes"][i].get("children", []))
+
     worst_a = worst_b = worst_q = 0.0
     loser = ""
     no_xform = no_xform_residual = 0
+    unreachable = 0
 
     for i, rn in enumerate(raw):
+        if scenes and i not in reachable:                # 非默认场景的节点：本就不导出
+            unreachable += 1
+            continue
         e = by_index.get(i)
         if e is None:
             raise Failure("节点 %d (%s) 未出现在导出节点表中" % (i, rn["name"]))
@@ -491,7 +512,7 @@ def check_good_scene(name, gltf, exe, work, tolerance, bounds_tol, config, dname
 
     return {"nodes": len(raw), "leaf_bounds": checked, "bounds_skipped": skipped,
             "bounds_shared_skipped": shared_skipped, "no_xform": no_xform,
-            "no_xform_residual": no_xform_residual,
+            "no_xform_residual": no_xform_residual, "nodes_unreachable": unreachable,
             "worst_A": worst_a, "worst_B": worst_b, "worst_C": worst_c, "worst_q": worst_q,
             "worst_node": loser}
 
