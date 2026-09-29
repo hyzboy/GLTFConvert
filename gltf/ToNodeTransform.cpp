@@ -148,7 +148,25 @@ bool ToNodeTransform(const std::variant<fastgltf::TRS, fastgltf::math::fmat4x4> 
         return false;
     }
 
-    // 4) 保真自检：TRS 能表达的范围 = 无剪切 + 最多单轴退化。
+    // 4) 恒等规约（带容差）：源文件里"没有变换键"的节点，经共轭 R·M·R⁻¹ + 分解后会留下 **1 ULP**
+    //    的 scale 残差（实测 |s−1| = 1.19e-07 = 2⁻²³，t/r 精确为 0），而 `TRS::empty()` 是**精确比较**
+    //    ⇒ 判不出单位变换 ⇒ 每个这种节点白占一行 trsTable（官方样本实测 120/120 个无变换节点全占行），
+    //    且引擎侧拿到的是"几乎单位"的局部矩阵而非精确单位矩阵。
+    //    eps=1e-6：远离 1.19e-07 的 ULP 噪声，又远小于真实几何尺度差异（不会把真变换误判成恒等）。
+    //    ⚠ 这里只收敛"矩阵本身就是单位变换"的情况；不要引入状态枚举来标记它（`empty()` 是唯一出口）。
+    constexpr float kIdentityEps = 1e-6f;
+    if (std::fabs(t.x) <= kIdentityEps && std::fabs(t.y) <= kIdentityEps && std::fabs(t.z) <= kIdentityEps
+        && std::fabs(s.x - 1.0f) <= kIdentityEps && std::fabs(s.y - 1.0f) <= kIdentityEps
+        && std::fabs(s.z - 1.0f) <= kIdentityEps
+        && std::fabs(q.x) <= kIdentityEps && std::fabs(q.y) <= kIdentityEps && std::fabs(q.z) <= kIdentityEps
+        && std::fabs(std::fabs(q.w) - 1.0f) <= kIdentityEps)
+    {
+        t = glm::vec3(0.0f);
+        q = glm::quat(1.0f, 0.0f, 0.0f, 0.0f);
+        s = glm::vec3(1.0f);
+    }
+
+    // 5) 保真自检：TRS 能表达的范围 = 无剪切 + 最多单轴退化。
     //    剪切是**结构性不可表示**的（TRS 结构里没有这一自由度），因此这里 fail-fast：
     //    宁可转换失败，也不产出一个"看起来对、实际与源文件不一致"的模型。
     const glm::mat4 rebuilt = glm::translate(glm::mat4(1.0f), t)
