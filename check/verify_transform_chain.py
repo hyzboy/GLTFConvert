@@ -44,9 +44,11 @@ import subprocess
 import sys
 import tempfile
 
-DEFAULT_TOLERANCE = 1e-5          # 节点矩阵逐元素容差（实测 float32 末位约 1e-6）
-DEFAULT_BOUNDS_TOLERANCE = 1e-3   # 顶点级 AABB 容差（bounds 由转换器内部计算）
+DEFAULT_TOLERANCE = 1e-5          # 节点矩阵逐元素容差（绝对项；相对项按数值量级缩放，见 tolerance_for）
+DEFAULT_BOUNDS_TOLERANCE = 1e-3   # 顶点级 AABB 容差（绝对项）
+DEFAULT_REL_TOLERANCE = 1e-5      # 相对容差：float32 在 |x| 量级上的分辨率 ≈ 1.2e-7·|x|
 QUATERNION_TOLERANCE = 1e-3       # |q| 与 1 的容差
+MAX_CHECK_POINTS = 4000000        # 顶点级检查的顶点数上限：超过则**跳过**（不允许采样，采样会让 AABB 失真）
 
 SYNTH_VERTICES = [(0.0, 0.0, 0.0), (1.0, 0.0, 0.0), (0.0, 2.0, 0.0)]
 
@@ -260,10 +262,25 @@ def load_raw_nodes(gltf_path):
     return out, doc, buffers
 
 
-def node_positions(doc, buffers, raw_node, max_count=4096):
+def m_mag(m):
+    """矩阵元素最大绝对值。绝对容差必须按它缩放：float32 在 |x|≈751 处的分辨率就是 9e-5，
+    对城市/大尺度资产（VirtualCity 节点平移 751.4）用固定 1e-5 判误差只会得到假阳性。"""
+    return max(abs(m[c][r]) for c in range(4) for r in range(4))
+
+
+def tolerance_for(abs_tol, rel_tol, *vals):
+    """绝对 + 相对容差：tol = abs_tol + rel_tol · max|vals|（vals 为参与比较的量）"""
+    return abs_tol + rel_tol * max([abs(v) for v in vals] + [0.0])
+
+
+def node_positions(doc, buffers, raw_node, max_count=MAX_CHECK_POINTS):
     """节点自身网格第一个 primitive 的 POSITION（FLOAT VEC3）。不支持的类型返回 None（跳过检查）。
 
-    只对“单一 primitive、无子节点”的节点做顶点级检查，避免 bounds 是子树并集时误判。
+    只对"单一 primitive、无子节点"的节点做顶点级检查，避免 bounds 是子树并集时误判。
+    **蒙皮网格（JOINTS_0/WEIGHTS_0）返回 None**：蒙皮顶点由图元 skin 矩阵驱动，
+    与节点自己的世界矩阵无关（RecursiveSkeletons 就是这种情况）。
+    **不采样**：只读全量顶点，超过 max_count 直接跳过——截断顶点集会让 AABB 缺极值，
+    表现为"世界 AABB 对不上"的假阳性（ABeautifulGame King_B 28901 点只读 4096 点即差 3.2e-3）。
     """
     if raw_node.get("mesh") is None or raw_node.get("has_children"):
         return None
@@ -272,7 +289,11 @@ def node_positions(doc, buffers, raw_node, max_count=4096):
     if len(mesh.get("primitives", [])) != 1:
         return None
 
-    acc_idx = mesh["primitives"][0].get("attributes", {}).get("POSITION")
+    attrs = mesh["primitives"][0].get("attributes", {})
+    if "JOINTS_0" in attrs or "WEIGHTS_0" in attrs:
+        return None                                                  # 蒙皮：不受节点世界矩阵支配
+
+    acc_idx = attrs.get("POSITION")
     if acc_idx is None:
         return None
 
@@ -281,16 +302,15 @@ def node_positions(doc, buffers, raw_node, max_count=4096):
         return None                                                  # 只支持 FLOAT VEC3
     if "sparse" in acc:
         return None
+    if acc["count"] > max_count:
+        return None                                                  # 超大网格：跳过（不采样）
 
     bv = doc["bufferViews"][acc["bufferView"]]
     buf = buffers[bv.get("buffer", 0)]
     stride = bv.get("byteStride") or 12
     off = bv.get("byteOffset", 0) + acc.get("byteOffset", 0)
 
-    pts = []
-    for i in range(min(acc["count"], max_count)):
-        pts.append(struct.unpack_from("<3f", buf, off + i * stride))
-    return pts
+    return [struct.unpack_from("<3f", buf, off + i * stride) for i in range(acc["count"])]
 
 
 def load_export_nodes(json_path):
@@ -321,6 +341,19 @@ def safe_name(s):
     return "".join(ch if (ch.isalnum() or ch in "._-") else "_" for ch in s)
 
 
+def required_extensions(gltf):
+    """源文件的 extensionsRequired（转换器 `GLTFImporter.cpp:73` 是裸 `fastgltf::Parser{}`，
+    没有 `enableExtensions` ⇒ 非空即解析失败）。而该失败路径**不干净**：实测进程会挂住
+    （>120s 后需外部 kill，rc=124）或 abort（rc=3），且从不打印主程序的
+    `[Error] Conversion failed:` 行。所以检查前先跳过，避免每次白等 300s 超时。
+    参考：官方样本 142 个资产里 14 个带 required 扩展，全都属于这一类。"""
+    try:
+        _raw, doc, _bufs = load_raw_nodes(gltf)
+    except Exception:
+        return []
+    return list(doc.get("extensionsRequired", []))
+
+
 def find_scene_json(outdir, src_name):
     """产物路径：<outdir>/<模型名>/<模型名>.StaticMesh/<场景名>.Scene.json（**场景名**决定文件名）"""
     cands = []
@@ -339,7 +372,8 @@ class Failure(Exception):
     pass
 
 
-def check_good_scene(name, gltf, exe, work, tolerance, bounds_tol, config, dname, timeout):
+def check_good_scene(name, gltf, exe, work, tolerance, bounds_tol, config, dname, timeout,
+                     rel_tolerance=DEFAULT_REL_TOLERANCE):
     # 先校验源文件（可读 + glTF 2.0），再转换：避免把"不支持的输入"变成一次几分钟的挂起
     raw, doc, buffers = load_raw_nodes(gltf)
 
@@ -357,6 +391,7 @@ def check_good_scene(name, gltf, exe, work, tolerance, bounds_tol, config, dname
 
     worst_a = worst_b = worst_q = 0.0
     loser = ""
+    no_xform = no_xform_residual = 0
 
     for i, rn in enumerate(raw):
         e = by_index.get(i)
@@ -366,18 +401,38 @@ def check_good_scene(name, gltf, exe, work, tolerance, bounds_tol, config, dname
         expect = conj_zup(rn["M"])
         actual = e.get("trsM") or e["localM"]
 
-        a = m_maxdiff(expect, actual)                      # [A]
+        tol_a = tolerance_for(tolerance, rel_tolerance, m_mag(expect))          # [A]
+        a = m_maxdiff(expect, actual)
         if a > worst_a:
             worst_a, loser = a, rn["name"]
-        if a > tolerance:
-            raise Failure("[A] 节点 %d (%s) 局部变换误差 %.3e > %.1e（旧实现就是在这里歪掉）"
-                          % (i, rn["name"], a, tolerance))
+        if a > tol_a:
+            raise Failure("[A] 节点 %d (%s) 局部变换误差 %.3e > %.1e（容差随 |M|max=%.4g 缩放）"
+                          "（旧实现就是在这里歪掉）"
+                          % (i, rn["name"], a, tol_a, m_mag(expect)))
 
         b = m_maxdiff(e["localM"], actual)                 # [B]
         worst_b = max(worst_b, b)
-        if b > tolerance:
-            raise Failure("[B] 节点 %d (%s) 的 matrixTable 与 TRS 展开不一致：%.3e"
-                          % (i, rn["name"], b))
+        tol_b = tolerance_for(tolerance, rel_tolerance, m_mag(e["localM"]))
+        if b > tol_b:
+            raise Failure("[B] 节点 %d (%s) 的 matrixTable 与 TRS 展开不一致：%.3e > %.1e"
+                          % (i, rn["name"], b, tol_b))
+
+        if rn["kind"] == "none":                            # [F] 源文件无任何变换键的节点
+            no_xform += 1
+            if "trs" in e:
+                # 允许"仅剩数值残差"的 TRS：导入边界的共轭 R·M·R⁻¹ + 分解会引入 ~1 ULP 误差
+                # （实测 120/120 个无变换节点的 |s-1| = 1.19e-07 = 2^-23，t 与 r 精确为 0），
+                # 使**精确比较**的 TRS::empty() 判不出单位变换 ⇒ 本该零成本的节点仍占 trsTable 一行。
+                # 这里只要求它确实是单位变换（残差在容差内），并把这类节点计数出来。
+                no_xform_residual += 1
+                resid = m_maxdiff(e["trsM"], m_ident())
+                if resid > tolerance:
+                    raise Failure("[F] 节点 %d (%s) 源文件无任何变换键，但导出 TRS 与单位矩阵差 "
+                                  "%.3e > %.1e（不是数值残差，是真错）" % (i, rn["name"], resid, tolerance))
+            d_id = m_maxdiff(e["localM"], m_ident())
+            if d_id > tolerance:
+                raise Failure("[F] 节点 %d (%s) 源文件无任何变换键，导出 localM 不是单位矩阵（差 %.3e）"
+                              % (i, rn["name"], d_id))
 
         if "quat_len" in e:                                # [D]
             d = abs(e["quat_len"] - 1.0)
@@ -393,12 +448,21 @@ def check_good_scene(name, gltf, exe, work, tolerance, bounds_tol, config, dname
 
     # [C] 顶点级：节点自身网格的顶点 × R 再乘世界矩阵，与 boundsTable 的 AABB 对拍
     #     （同时证明顶点只被旋转了一次、且世界矩阵与顶点同坐标系）
+    #     前提：该 bounds 条目是"本节点的世界 AABB"。同一 boundsIndex 被多个节点共享时前提不成立 ⇒ 跳过。
+    bcount = {}
+    for e in exp_nodes:
+        if e.get("boundsIndex") is not None:
+            bcount[e["boundsIndex"]] = bcount.get(e["boundsIndex"], 0) + 1
+
     worst_c = 0.0
-    checked = skipped = 0
+    checked = skipped = shared_skipped = 0
     for i, rn in enumerate(raw):
         e = by_index.get(i)
         if e is None or e.get("boundsIndex") is None or e.get("worldM") is None \
                 or e.get("has_children"):
+            continue
+        if bcount.get(e["boundsIndex"], 0) > 1:
+            shared_skipped += 1
             continue
 
         raw_pts = node_positions(doc, buffers, rn)
@@ -417,13 +481,17 @@ def check_good_scene(name, gltf, exe, work, tolerance, bounds_tol, config, dname
         b = exp_json["boundsTable"][e["boundsIndex"]]
         d = max(max(abs(b["aabbMin"][k] - lo[k]) for k in range(3)),
                 max(abs(b["aabbMax"][k] - hi[k]) for k in range(3)))
+        tol_c = tolerance_for(bounds_tol, rel_tolerance,
+                              max(abs(x) for x in list(b["aabbMin"]) + list(b["aabbMax"])))
         worst_c = max(worst_c, d)
         checked += 1
-        if d > bounds_tol:
-            raise Failure("[C] 节点 %d (%s) 的世界 AABB 与 worldM·(R·v) 不符：%.3e"
-                          % (e["index"], e["name"], d))
+        if d > tol_c:
+            raise Failure("[C] 节点 %d (%s) 的世界 AABB 与 worldM·(R·v) 不符：%.3e > %.1e"
+                          % (e["index"], e["name"], d, tol_c))
 
     return {"nodes": len(raw), "leaf_bounds": checked, "bounds_skipped": skipped,
+            "bounds_shared_skipped": shared_skipped, "no_xform": no_xform,
+            "no_xform_residual": no_xform_residual,
             "worst_A": worst_a, "worst_B": worst_b, "worst_C": worst_c, "worst_q": worst_q,
             "worst_node": loser}
 
@@ -463,6 +531,8 @@ def main():
     ap.add_argument("--config", default=None, help="传给转换器的 --config=<ini>")
     ap.add_argument("--tolerance", type=float, default=DEFAULT_TOLERANCE)
     ap.add_argument("--bounds-tolerance", type=float, default=DEFAULT_BOUNDS_TOLERANCE)
+    ap.add_argument("--rel-tolerance", type=float, default=DEFAULT_REL_TOLERANCE,
+                    help="相对容差（容差 = 绝对项 + 相对项·max|量级|），默认 %g" % DEFAULT_REL_TOLERANCE)
     ap.add_argument("--report", default=None, help="把机器可读结果写到该 JSON 文件")
     ap.add_argument("--timeout", type=int, default=300, help="单次转换的超时秒数（默认 300）")
     args = ap.parse_args()
@@ -493,18 +563,28 @@ def main():
     print("GLTFConvert transform-chain check")
     print("  exe      : %s" % exe)
     print("  work     : %s%s" % (work, "" if args.keep else "  (临时，结束即删；--keep 保留)"))
-    print("  容差     : 节点 %.1e / AABB %.1e / |q| %.1e" %
-          (args.tolerance, args.bounds_tolerance, QUATERNION_TOLERANCE))
+    print("  容差     : 节点 %.1e(+%.1e·|M|) / AABB %.1e(+相对) / |q| %.1e" %
+          (args.tolerance, args.rel_tolerance, args.bounds_tolerance, QUATERNION_TOLERANCE))
     print("=" * 78)
 
-    report, failed = {}, []
+    report, failed, skipped_cases = {}, [], []
     for name, path, kind, expect, dname in cases:
         try:
+            req = required_extensions(path) if kind == "good" else []
+            if req:
+                print("  [SKIP] %-26s required 扩展未在转换器中启用：%s" % (name, ", ".join(req)))
+                report[name] = {"result": "skip", "extensions": req}
+                skipped_cases.append(name)
+                continue
             if kind == "good":
                 r = check_good_scene(name, path, exe, work, args.tolerance,
-                                     args.bounds_tolerance, args.config, dname, args.timeout)
-                print("  [PASS] %-28s 节点=%-3d 顶点级AABB=%-3d(跳过%d) max[A]=%.2e max[B]=%.2e max[C]=%.2e max||q|-1|=%.2e"
-                      % (name, r["nodes"], r["leaf_bounds"], r.get("bounds_skipped", 0),
+                                     args.bounds_tolerance, args.config, dname, args.timeout,
+                                     rel_tolerance=args.rel_tolerance)
+                print("  [PASS] %-26s 节点=%-3d 无变换=%-3d(残差占行%d) AABB=%-3d(跳过%d/共享%d) "
+                      "max[A]=%.2e max[B]=%.2e max[C]=%.2e max||q|-1|=%.2e"
+                      % (name, r["nodes"], r.get("no_xform", 0), r.get("no_xform_residual", 0),
+                         r["leaf_bounds"], r.get("bounds_skipped", 0),
+                         r.get("bounds_shared_skipped", 0),
                          r["worst_A"], r["worst_B"], r["worst_C"], r["worst_q"]))
             else:
                 r = check_bad_scene(name, path, exe, work, expect, args.config, dname, args.timeout)
@@ -516,10 +596,12 @@ def main():
             print("  [FAIL] %-28s %s" % (name, f))
 
     print("-" * 78)
+    n_pass = len(cases) - len(failed) - len(skipped_cases)
+    tail = "，跳过 %d：%s" % (len(skipped_cases), ", ".join(skipped_cases)) if skipped_cases else ""
     if failed:
-        print("CHECK RESULT: FAIL (%d/%d) -> %s" % (len(failed), len(cases), ", ".join(failed)))
+        print("CHECK RESULT: FAIL (%d/%d) -> %s%s" % (len(failed), n_pass, ", ".join(failed), tail))
     else:
-        print("CHECK RESULT: PASS (%d/%d)  判据 M' = R·M_raw·R⁻¹" % (len(cases), len(cases)))
+        print("CHECK RESULT: PASS (%d/%d)%s  判据 M' = R·M_raw·R⁻¹" % (n_pass, n_pass, tail))
 
     if args.report:
         with open(args.report, "w", encoding="utf-8") as f:
