@@ -10,7 +10,6 @@ namespace exporters
     void BuildNodes(const pure::Model &model,
                     const CollectedIndices &ci,
                     const RemapTables &remap,
-                    const std::vector<glm::mat4> &worldMatrices,
                     std::unordered_map<std::string, int32_t> &nameToIndex,
                     SceneExportData &outData)
     {
@@ -24,11 +23,8 @@ namespace exporters
             ne.originalIndex     = originalNode;
             ne.nameIndex         = GetOrAddName(nameToIndex, outData.nameTable, src.name);
 
-            glm::mat4 localM     = src.transform.rawMat4();
-            ne.localMatrixIndex  = GetOrAddMatrix(outData.matrixTable, localM);
-            glm::mat4 worldM     = worldMatrices[originalNode];
-            ne.worldMatrixIndex  = GetOrAddMatrix(outData.matrixTable, worldM);
-
+            // 节点的局部变换只存 TRS（唯一真源）；不写 trs 行 ⇒ 单位变换
+            // （消费者从 TRS 组合出 world 矩阵，见 example/Geometry/LoadScene/LoadStaticMesh.cpp）
             if (!src.transform.trs.empty())
                 ne.trsIndex = GetOrAddTRS(outData.trsTable, src.transform.trs);
 

@@ -26,14 +26,13 @@ namespace exporters
             NodeChildIndex = 4,
             RootIndex      = 5,
             TRSTable       = 6,
-            MatrixTable    = 7,
-            BoundsTable    = 8,
-            PrimitiveTable = 9,
-            MaterialTable  = 10,
-            GeometryTable  = 11,
-            StringPool     = 12,
-            GeometryViewTable = 13,
-            GeometryBlob      = 14,
+            BoundsTable    = 7,
+            PrimitiveTable = 8,
+            MaterialTable  = 9,
+            GeometryTable  = 10,
+            StringPool     = 11,
+            GeometryViewTable = 12,
+            GeometryBlob      = 13,
         };
 
 #pragma pack(push, 1)
@@ -69,9 +68,7 @@ namespace exporters
         {
             int32_t original_index;
             int32_t name_index;
-            int32_t local_matrix_index;
-            int32_t world_matrix_index;
-            int32_t trs_index;
+            int32_t trs_index;          // 局部 TRS 表下标；<0 = 单位变换（产物不存矩阵）
             int32_t bounds_index;
             int32_t first_primitive;
             int32_t primitive_count;
@@ -186,8 +183,6 @@ namespace exporters
                 PackedNode pn{};
                 pn.original_index = n.originalIndex;
                 pn.name_index = n.nameIndex;
-                pn.local_matrix_index = n.localMatrixIndex;
-                pn.world_matrix_index = n.worldMatrixIndex;
                 pn.trs_index = n.trsIndex;
                 pn.bounds_index = n.boundsIndex;
 
@@ -349,7 +344,6 @@ namespace exporters
             push_blob(SceneTableType::RootIndex, root_index.data(), static_cast<uint32_t>(root_index.size() * sizeof(int32_t)), sizeof(int32_t), 16);
             const auto packed_trs_v2 = MakePackedTRS(data.trsTable);
             push_blob(SceneTableType::TRSTable, packed_trs_v2.data(), static_cast<uint32_t>(packed_trs_v2.size() * sizeof(PackedTRSFlat)), sizeof(PackedTRSFlat), 16);
-            push_blob(SceneTableType::MatrixTable, data.matrixTable.data(), static_cast<uint32_t>(data.matrixTable.size() * sizeof(glm::mat4)), sizeof(glm::mat4), 16);
             push_blob(SceneTableType::BoundsTable, packed_bounds.data(), static_cast<uint32_t>(packed_bounds.size() * sizeof(PackedBounds)), sizeof(PackedBounds), 16);
             push_blob(SceneTableType::PrimitiveTable, primitives.data(), static_cast<uint32_t>(primitives.size() * sizeof(PackedPrimitive)), sizeof(PackedPrimitive), 16);
             push_blob(SceneTableType::MaterialTable, materials.data(), static_cast<uint32_t>(materials.size() * sizeof(PackedMaterial)), sizeof(PackedMaterial), 16);
@@ -454,9 +448,7 @@ namespace exporters
             {
                 nodeStream.push_back(n.originalIndex);
                 nodeStream.push_back(n.nameIndex);
-                nodeStream.push_back(n.localMatrixIndex);
-                nodeStream.push_back(n.worldMatrixIndex);
-                nodeStream.push_back(n.trsIndex);
+                nodeStream.push_back(n.trsIndex);       // 局部变换的唯一表示（无 = 单位）
                 nodeStream.push_back(n.boundsIndex);
                 nodeStream.push_back(static_cast<int32_t>(n.primitives.size()));
                 for (int32_t pm : n.primitives) nodeStream.push_back(pm);
@@ -473,13 +465,6 @@ namespace exporters
             const auto packed_trs_v1 = MakePackedTRS(data.trsTable);
             if (!builder.add_entry_from_buffer("TRSTable", packed_trs_v1.data(), static_cast<std::uint32_t>(packed_trs_v1.size() * sizeof(PackedTRSFlat)), err))
             { std::cerr << "[Export] pack TRS table fail: " << err << "\n"; return false; }
-        }
-
-        // Matrix table
-        if (!data.matrixTable.empty())
-        {
-            if (!builder.add_entry_from_buffer("MatrixTable", data.matrixTable.data(), static_cast<std::uint32_t>(data.matrixTable.size() * sizeof(glm::mat4)), err))
-            { std::cerr << "[Export] pack matrix table fail: " << err << "\n"; return false; }
         }
 
         // Bounds table

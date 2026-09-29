@@ -51,12 +51,6 @@ namespace exporters
             }
             j["trsTable"] = std::move(trsArr);
         }
-        if (!data.matrixTable.empty())
-        {
-            nlohmann::json mats = nlohmann::json::array();
-            for (const auto &m : data.matrixTable) mats.push_back(SerializeMat4(m));
-            j["matrixTable"] = std::move(mats);
-        }
         if (!data.boundsTable.empty())
         {
             nlohmann::json bts = nlohmann::json::array();
@@ -73,9 +67,7 @@ namespace exporters
             nlohmann::json jn;
             jn["index"] = n.originalIndex;
             if (n.nameIndex >= 0) jn["nameIndex"] = n.nameIndex;
-            jn["localM"] = n.localMatrixIndex;
-            jn["worldM"] = n.worldMatrixIndex;
-            if (n.trsIndex >= 0) jn["trs"] = n.trsIndex;
+            if (n.trsIndex >= 0) jn["trs"] = n.trsIndex;      // 局部变换的唯一表示（无 = 单位）
             if (n.boundsIndex >= 0) jn["boundsIndex"] = n.boundsIndex;
             if (!n.primitives.empty()) jn["primitives"] = n.primitives;
             if (!n.children.empty()) jn["children"] = n.children;

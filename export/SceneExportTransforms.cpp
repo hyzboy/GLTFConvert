@@ -8,20 +8,6 @@
 
 namespace exporters
 {
-    int32_t GetOrAddMatrix(std::vector<glm::mat4> &table, const glm::mat4 &m)
-    {
-        for (int32_t i = 0; i < static_cast<int32_t>(table.size()); ++i)
-        {
-            bool same = true;
-            for (int c = 0; c < 4 && same; ++c)
-                for (int r = 0; r < 4; ++r)
-                    if (table[i][c][r] != m[c][r]) { same = false; break; }
-            if (same) return i;
-        }
-        table.push_back(m);
-        return static_cast<int32_t>(table.size()) - 1;
-    }
-
     int32_t GetOrAddTRS(std::vector<TRS> &table, const TRS &t)
     {
         for (int32_t i = 0; i < static_cast<int32_t>(table.size()); ++i)
@@ -30,6 +16,7 @@ namespace exporters
         return static_cast<int32_t>(table.size()) - 1;
     }
 
+    // 仅导出内部使用（world AABB）；产物只存 TRS
     std::vector<glm::mat4> ComputeWorldMatrices(const pure::Model &model, const pure::Scene &scene)
     {
         std::vector<glm::mat4> world(model.nodes.size(), glm::mat4(1.0f));

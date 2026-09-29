@@ -16,7 +16,6 @@ namespace exporters
     void BuildNodes(const pure::Model &model,
                     const CollectedIndices &ci,
                     const RemapTables &remap,
-                    const std::vector<glm::mat4> &worldMatrices,
                     std::unordered_map<std::string, int32_t> &nameToIndex,
                     SceneExportData &outData);
 }

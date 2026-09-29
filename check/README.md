@@ -59,11 +59,10 @@ ctest --test-dir build/src/Tools/GLTFConvert -C Debug -R GLTFConvertTransformCha
 | 项 | 内容 | 默认容差 |
 |---|---|---|
 | [A] | 导出 TRS 展开 vs `R·M_raw·R⁻¹`（逐元素） | `--tolerance` = 1e-5 |
-| [B] | `matrixTable` 的 `localM` vs 同节点 TRS 展开（导出自洽） | 同上 |
-| [C] | 叶子节点 `boundsTable` AABB vs `worldM·(R·v)`（证明顶点只被旋转一次） | `--bounds-tolerance` = 1e-3 |
+| [C] | 叶子节点 `boundsTable` AABB vs `worldM·(R·v)`（证明顶点只被旋转一次）；`worldM` 由局部 TRS 沿层级组合 | `--bounds-tolerance` = 1e-3 |
 | [D] | 导出 TRS 的 `\|q\| ≈ 1`（非单位四元数 = 分解出错） | 1e-3 |
 | [E] | 镜像用例导出后仍 `det < 0`（镜像没被静默丢弃） | 精确判定 |
-| [F] | 源节点无任何变换键 ⇒ 导出不得有 trs 条目，**或**该条目在容差内等于单位矩阵；且 `localM` 必须是单位矩阵 | `--tolerance` |
+| [F] | 源节点无任何变换键 ⇒ 导出不得有 trs 条目，**或**该条目在容差内等于单位矩阵 | `--tolerance` |
 
 **容差 = 绝对项 + 相对项·max\|量级\|**（`--rel-tolerance`，默认 1e-5）。
 真实资产里必须这样：`VirtualCity` 的节点平移达 **751.4**，float32 在该量级的分辨率就是 **9.0e-05**，
@@ -98,7 +97,8 @@ ctest --test-dir build/src/Tools/GLTFConvert -C Debug -R GLTFConvertTransformCha
 
 ## 导出格式约定（写检查代码时容易踩）
 
-- `matrixTable[i]`：**列主序** 16 个浮点（`m[c][r]` → `flat[c*4+r]`）。
+- **节点变换只有 TRS**：`nodes[i].trs` = `trsTable` 下标（缺省 = 单位变换）；**没有** `matrixTable`/`localM`/`worldM`
+  （T5 起产物不存矩阵）。节点 local = 该 TRS 展开，world 由父链组合：`world = 父world × local`。
 - `trsTable[i].r`：**`[w, x, y, z]`** —— 与 glTF 文件里的 `[x, y, z, w]` **相反**，读的时候必须换序。
 - 产物路径：`<outdir>/<模型名>/<模型名>.StaticMesh/<场景名>.Scene.json`
   （**场景名**决定 json/scene 文件名，与输入文件名不一定相同）。
@@ -106,12 +106,12 @@ ctest --test-dir build/src/Tools/GLTFConvert -C Debug -R GLTFConvertTransformCha
 
 ## 已知的"正常差异"（不要当回归）
 
-- `trsTable`/`matrixTable`/AABB 允许 float32 末位差（实测 ≤1e-6；大尺度资产按量级放大）。
+- `trsTable`/AABB 允许 float32 末位差（实测 ≤1e-6；大尺度资产按量级放大）。
 - `*.Scene.json` 的**字节数与文本**可能变化（浮点十进制表示长度不同），键集合与元素数应一致。
 - **OBB 轴向量**在旋转对称形状（cone/cylinder）上可以大幅不同：垂直于对称轴的平面内存在
   规范自由度（对称轴分量逐位相同、`obbHalf` 只有末位差即可确认）。
 - **转换器输出不是逐次确定的**：同一二进制度连跑两次同一模型，20 个产物文件里**7 个不同**。
-  稳定的是 `trsTable`/`matrixTable`/`nodes`/`rootNodes`/AABB/`sphere`/`obbHalf` 与顶点数据；
+  稳定的是 `trsTable`/`nodes`/`rootNodes`/AABB/`sphere`/`obbHalf` 与顶点数据；
   不稳定的是 `boundsTable` 的 **OBB 轴**（Δ 最大 2.0）与 `obbCenter`（~1e-6，`math/OBB.cpp`
   的并行穷举朝向搜索在平面/对称形状上大量 tie，赢家由线程写入顺序决定），并连带
   `*.geometry`（内嵌 BoundingVolumes）与 `*.scene` 的字节。

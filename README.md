@@ -311,12 +311,14 @@ struct PBRMaterial : Material {
 
 ### `.json` 场景格式（调试可读）
 
+节点变换**只有 TRS**（唯一真源，无 `matrixTable`/局部/世界矩阵）：`nodes[i].trsIndex` 指向 `trsTable`，
+**缺省（无该键）= 单位变换**；节点的 local 由该 TRS 展开、world 由父链组合（`world = 父world × local`）。
+
 ```json
 {
   "sceneNameIndex": 0,
   "nameTable": ["Scene", "RootNode", ...],
   "trsTable": [{ "t": [0,0,0], "r": [1,0,0,0], "s": [1,1,1] }, ...],
-  "matrixTable": [[...16 floats...]],
   "boundsTable": [{
     "aabbMin": [...], "aabbMax": [...],
     "sphere": [...],
@@ -325,7 +327,6 @@ struct PBRMaterial : Material {
   "rootNodes": [0],
   "nodes": [{
     "originalIndex": 0, "nameIndex": 1,
-    "localMatrixIndex": 0, "worldMatrixIndex": 0,
     "trsIndex": 0, "boundsIndex": 0,
     "primitives": [0], "children": [1, 2]
   }],
@@ -389,7 +390,7 @@ struct ScenePackHeader
 ```cpp
 struct TableDesc
 {
-  uint32_t type;      // NodeTable / MatrixTable / GeometryBlob ...
+  uint32_t type;      // NodeTable / TRSTable / GeometryBlob ...
   uint32_t flags;
   uint64_t offset;    // 相对文件起始
   uint64_t size;

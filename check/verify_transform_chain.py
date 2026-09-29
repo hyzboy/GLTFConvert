@@ -25,8 +25,8 @@ verify_transform_chain.py —— GLTFConvert 变换链检查（节点局部变�
 
 每个成功用例检查四层：
     [A] 节点局部：导出 TRS 展开 vs R·M_raw·R⁻¹
-    [B] 导出自洽：matrixTable 的 localM vs 同节点的 TRS 展开
     [C] 顶点级  ：叶子节点 boundsTable 的 AABB vs worldM·(R·v)（证明顶点只被旋转一次）
+                 其中 worldM 由**局部 TRS 沿层级组合**得出（产物不存矩阵，T5）
     [D] 四元数  ：导出 TRS 的 |q| 必须 ≈ 1（非单位四元数 = 分解出错）
 另外 [E]：镜像用例必须**保留镜像**（导出缩放的 det<0），否则是"镜像被静默丢弃"。
 
@@ -315,18 +315,21 @@ def node_positions(doc, buffers, raw_node, max_count=MAX_CHECK_POINTS):
 
 
 def load_export_nodes(json_path):
-    """导出 JSON 的字段约定：matrixTable[i] = 列主序 16 浮点；trsTable 的 r = [w,x,y,z]。"""
+    """导出 JSON 的字段约定：`trsTable` 的 r = [w,x,y,z]；节点只有 `trs`（局部 TRS 下标，缺 = 单位）。
+
+    产物**不存矩阵**（T5）⇒ 节点的 local 由 TRS 展开、world 由本函数按层级组合（父 world × 子 local）。
+    """
     j = json.load(open(json_path, encoding="utf-8"))
     names = j.get("nameTable", [])
-    trs_tbl, mat_tbl = j.get("trsTable", []), j.get("matrixTable", [])
+    trs_tbl = j.get("trsTable", [])
     out = []
     for n in j.get("nodes", []):
         e = {"index": n["index"],
              "name": names[n["nameIndex"]] if "nameIndex" in n else "",
              "has_children": bool(n.get("children")),
              "boundsIndex": n.get("boundsIndex"),
-             "localM": m_from_flat(mat_tbl[n["localM"]]) if "localM" in n else None,
-             "worldM": m_from_flat(mat_tbl[n["worldM"]]) if "worldM" in n else None}
+             "children": n.get("children", []),
+             "trsM": m_ident()}
         if "trs" in n:
             t = trs_tbl[n["trs"]]
             rw = t["r"]                                              # [w,x,y,z]
@@ -334,6 +337,20 @@ def load_export_nodes(json_path):
             e["trsM"] = m_trs(t["t"], (rw[1], rw[2], rw[3], rw[0]), t["s"])
             e["quat_len"] = math.sqrt(sum(v * v for v in rw))
         out.append(e)
+
+    # world：从根沿 children 组合（world = 父world × 本节点 local TRS）
+    by_index = {e["index"]: e for e in out}
+    parent = {}
+    for e in out:
+        for c in e["children"]:
+            parent[c] = e["index"]
+    for e in out:
+        e["localM"] = e["trsM"]
+        w, p = e["trsM"], parent.get(e["index"])
+        while p is not None and p in by_index:
+            w = m_mul(by_index[p]["trsM"], w)
+            p = parent.get(p)
+        e["worldM"] = w
     return out, j
 
 
@@ -430,7 +447,7 @@ def check_good_scene(name, gltf, exe, work, tolerance, bounds_tol, config, dname
 
     total = {"nodes": len(raw), "scenes_exported": len(jpaths),
              "leaf_bounds": 0, "bounds_skipped": 0, "bounds_shared_skipped": 0,
-             "worst_A": 0.0, "worst_B": 0.0, "worst_C": 0.0, "worst_q": 0.0,
+             "worst_A": 0.0, "worst_C": 0.0, "worst_q": 0.0,
              "worst_node": ""}
     no_xform, no_xform_residual = set(), set()
     for jp in jpaths:
@@ -438,7 +455,7 @@ def check_good_scene(name, gltf, exe, work, tolerance, bounds_tol, config, dname
                                     tolerance, bounds_tol, rel_tolerance)
         for k in ("leaf_bounds", "bounds_skipped", "bounds_shared_skipped"):
             total[k] += st[k]
-        for k in ("worst_A", "worst_B", "worst_C", "worst_q"):
+        for k in ("worst_A", "worst_C", "worst_q"):
             if st[k] > total[k]:
                 total[k] = st[k]
                 if k == "worst_A":
@@ -488,7 +505,7 @@ def check_exports_of_scene(jpath, raw, doc, buffers, scene_idx, tolerance, bound
         reachable.add(i)
         stack.extend(doc["nodes"][i].get("children", []))
 
-    worst_a = worst_b = worst_q = 0.0
+    worst_a = worst_q = 0.0
     loser = ""
     no_xform_nodes, no_xform_residual_nodes = [], []
 
@@ -500,7 +517,7 @@ def check_exports_of_scene(jpath, raw, doc, buffers, scene_idx, tolerance, bound
             raise Failure("节点 %d (%s) 未出现在导出节点表中" % (i, rn["name"]))
 
         expect = conj_zup(rn["M"])
-        actual = e.get("trsM") or e["localM"]
+        actual = e["trsM"]                                  # 局部变换的唯一来源就是 TRS
 
         tol_a = tolerance_for(tolerance, rel_tolerance, m_mag(expect))          # [A]
         a = m_maxdiff(expect, actual)
@@ -510,13 +527,6 @@ def check_exports_of_scene(jpath, raw, doc, buffers, scene_idx, tolerance, bound
             raise Failure("[A] 节点 %d (%s) 局部变换误差 %.3e > %.1e（容差随 |M|max=%.4g 缩放）"
                           "（旧实现就是在这里歪掉）"
                           % (i, rn["name"], a, tol_a, m_mag(expect)))
-
-        b = m_maxdiff(e["localM"], actual)                 # [B]
-        worst_b = max(worst_b, b)
-        tol_b = tolerance_for(tolerance, rel_tolerance, m_mag(e["localM"]))
-        if b > tol_b:
-            raise Failure("[B] 节点 %d (%s) 的 matrixTable 与 TRS 展开不一致：%.3e > %.1e"
-                          % (i, rn["name"], b, tol_b))
 
         if rn["kind"] == "none":                            # [F] 源文件无任何变换键的节点
             no_xform_nodes.append(i)
@@ -530,9 +540,9 @@ def check_exports_of_scene(jpath, raw, doc, buffers, scene_idx, tolerance, bound
                 if resid > tolerance:
                     raise Failure("[F] 节点 %d (%s) 源文件无任何变换键，但导出 TRS 与单位矩阵差 "
                                   "%.3e > %.1e（不是数值残差，是真错）" % (i, rn["name"], resid, tolerance))
-            d_id = m_maxdiff(e["localM"], m_ident())
+            d_id = m_maxdiff(e["trsM"], m_ident())
             if d_id > tolerance:
-                raise Failure("[F] 节点 %d (%s) 源文件无任何变换键，导出 localM 不是单位矩阵（差 %.3e）"
+                raise Failure("[F] 节点 %d (%s) 源文件无任何变换键，导出 TRS 不是单位变换（差 %.3e）"
                               % (i, rn["name"], d_id))
 
         if "quat_len" in e:                                # [D]
@@ -593,7 +603,7 @@ def check_exports_of_scene(jpath, raw, doc, buffers, scene_idx, tolerance, bound
     return {"leaf_bounds": checked, "bounds_skipped": skipped,
             "bounds_shared_skipped": shared_skipped,
             "no_xform_nodes": no_xform_nodes, "no_xform_residual_nodes": no_xform_residual_nodes,
-            "worst_A": worst_a, "worst_B": worst_b, "worst_C": worst_c, "worst_q": worst_q,
+            "worst_A": worst_a, "worst_C": worst_c, "worst_q": worst_q,
             "worst_node": loser}
 
 
@@ -685,11 +695,11 @@ def main():
                                      args.bounds_tolerance, args.config, dname, args.timeout,
                                      rel_tolerance=args.rel_tolerance)
                 print("  [PASS] %-26s 节点=%-3d 无变换=%-3d(残差占行%d) AABB=%-3d(跳过%d/共享%d) "
-                      "max[A]=%.2e max[B]=%.2e max[C]=%.2e max||q|-1|=%.2e"
+                      "max[A]=%.2e max[C]=%.2e max||q|-1|=%.2e"
                       % (name, r["nodes"], r.get("no_xform", 0), r.get("no_xform_residual", 0),
                          r["leaf_bounds"], r.get("bounds_skipped", 0),
                          r.get("bounds_shared_skipped", 0),
-                         r["worst_A"], r["worst_B"], r["worst_C"], r["worst_q"]))
+                         r["worst_A"], r["worst_C"], r["worst_q"]))
             else:
                 r = check_bad_scene(name, path, exe, work, expect, args.config, dname, args.timeout)
                 print("  [PASS] %-28s fail-fast 生效（rc=%d，错误信息点名 %s）" % (name, r["rc"], expect))

@@ -17,9 +17,7 @@ namespace exporters
     {
         int32_t originalIndex { -1 };
         int32_t nameIndex { -1 };
-        int32_t localMatrixIndex { -1 };
-        int32_t worldMatrixIndex { -1 };
-        int32_t trsIndex { -1 };
+        int32_t trsIndex { -1 };                 // 局部变换的**唯一**表示（无 trs 行 = 单位变换）
         int32_t boundsIndex { -1 };
         std::vector<int32_t> primitives;   // remapped scene-local primitive indices
         std::vector<int32_t> children;     // remapped scene-local node indices
@@ -50,8 +48,7 @@ namespace exporters
         std::vector<std::string> nameTable;
         int32_t sceneNameIndex { -1 };
 
-        std::vector<TRS>       trsTable;
-        std::vector<glm::mat4> matrixTable;
+        std::vector<TRS>       trsTable;         // 唯一的变换表（局部 TRS）
 
         std::vector<BoundingVolumes> boundsTable;
         int32_t sceneBoundsIndex { -1 };

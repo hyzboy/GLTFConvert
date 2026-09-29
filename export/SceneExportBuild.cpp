@@ -30,19 +30,16 @@ namespace exporters
         // 2. Remap tables
         RemapTables remap = BuildRemapTables(collected);
 
-        // 3. World matrices
+        // 3. World matrices（仅导出内部：算 world AABB；产物只存 TRS）
         std::vector<glm::mat4> worldMatrices = ComputeWorldMatrices(model, scene);
 
-        // 4. Name table + scene name
+        // 4. 名字表 + 场景名
         std::unordered_map<std::string,int32_t> nameToIndex;
         nameToIndex.reserve(collected.nodes.size() + collected.materials.size() + 1);
         data.sceneNameIndex = GetOrAddName(nameToIndex, data.nameTable, scene.name);
 
-        // 5. Identity matrix entry (optional convenience)
-        GetOrAddMatrix(data.matrixTable, glm::mat4(1.0f));
-
-        // 6. Nodes
-        BuildNodes(model, collected, remap, worldMatrices, nameToIndex, data);
+        // 4. 节点（局部变换只写 TRS；world 矩阵由消费者从 TRS 组合，产物不存矩阵）
+        BuildNodes(model, collected, remap, nameToIndex, data);
 
         // 6b. Root nodes (scene.nodes remapped to scene-local indices)
         for (int32_t original : scene.nodes)
