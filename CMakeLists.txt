@@ -106,6 +106,8 @@ set(GLTF_IMPORT_FILES
     gltf/import/GLTFImportTextures.cpp
     gltf/import/GLTFImportSamplers.cpp
     gltf/import/GLTFOrientationPrimitives.cpp
+    gltf/import/GLTFExtensions.cpp
+    gltf/import/GLTFExtensions.h
     gltf/import/GLTFImporter.cpp
     gltf/import/GLTFImporter.h
     gltf/import/GLTF2Pure.cpp

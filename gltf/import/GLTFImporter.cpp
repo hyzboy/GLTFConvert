@@ -9,6 +9,7 @@
 #include "gltf/GLTFNode.h"
 #include "gltf/GLTFScene.h"
 #include "gltf/GLTFModel.h"
+#include "gltf/import/GLTFExtensions.h"
 #include "common/VertexCompression.h"
 
 namespace gltf
@@ -70,7 +71,24 @@ namespace gltf
 
     bool ImportFastGLTF(const std::filesystem::path &inputPath,GLTFModel &outModel)
     {
-        fastgltf::Parser parser{};
+        // 先自己预筛必需扩展：fastgltf 的"必需扩展未启用"失败路径在本项目里不干净
+        // （实测：打一行错误后进程挂住 >120s 或被 abort、rc=3，且不打印主程序的
+        // `[Error] Conversion failed:`）⇒ 这类输入绝不交给它。
+        // 启用/拒绝清单见 gltf/import/GLTFExtensions.cpp；"能解析但效果未实现"的给明确告警（不静默降级）。
+        const ExtensionCheck extCheck=CheckRequiredExtensions(inputPath);
+        if(!extCheck.ok)
+        {
+            std::cerr<<"[Import] 错误：源文件要求的扩展无法转换 —— "<<extCheck.error
+                     <<"；请在 DCC 中关闭该扩展（或预处理）后重新导出\n";
+            return false;
+        }
+        for(const auto &name:extCheck.unhandled)
+        {
+            std::cerr<<"[Import] 警告：源文件要求扩展 "<<name
+                     <<"，转换器已启用解析但**未实现其效果**，导出结果不含该效果\n";
+        }
+
+        fastgltf::Parser parser{EnabledExtensions()};
         auto dataRes=fastgltf::GltfDataBuffer::FromPath(inputPath);
 
         if(dataRes.error()!=fastgltf::Error::None)
