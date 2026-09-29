@@ -5,7 +5,7 @@
 
 namespace gltf
 {
-    void ImportNodes(const fastgltf::Asset &asset,std::vector<GLTFNode> &nodes)
+    bool ImportNodes(const fastgltf::Asset &asset,std::vector<GLTFNode> &nodes)
     {
         nodes.resize(asset.nodes.size());
         for(std::size_t i=0; i<asset.nodes.size(); ++i)
@@ -15,7 +15,13 @@ namespace gltf
             if(!n.name.empty()) on.name.assign(n.name.begin(),n.name.end());
             if(n.meshIndex) on.mesh=*n.meshIndex;
             on.children.assign(n.children.begin(),n.children.end());
-            on.transform = ToNodeTransform(n.transform);
+
+            // fail-fast：局部变换无法用 TRS 表示（剪切/两轴以上退化）时中止导入，
+            // 不产出"半成品模型"（错误信息由 ToNodeTransform 打印，含节点名与残差）
+            if(!ToNodeTransform(n.transform,i,on.name,on.transform))
+                return false;
         }
+
+        return true;
     }
 } // namespace gltf

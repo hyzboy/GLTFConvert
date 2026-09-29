@@ -106,7 +106,6 @@ set(GLTF_IMPORT_FILES
     gltf/import/GLTFImportImages.cpp
     gltf/import/GLTFImportTextures.cpp
     gltf/import/GLTFImportSamplers.cpp
-    gltf/import/GLTFOrientationNodes.cpp
     gltf/import/GLTFOrientationPrimitives.cpp
     gltf/import/GLTFImporter.cpp
     gltf/import/GLTFImporter.h
@@ -275,6 +274,42 @@ target_include_directories(GLTFConvert PRIVATE
 target_link_libraries(GLTFConvert PRIVATE
     GLTFConvertCore
 )
+
+# ── 变换链检查（节点局部变换 + Y-up→Z-up，见 check/verify_transform_chain.py）──
+# 脚本本身是独立的（只用 Python stdlib + 一个 GLTFConvert.exe），下面只是两种接入方式：
+#
+#   1) 自定义目标（推荐；VS 解决方案里可见，无需 ctest）：
+#        cmake --build build --config Debug --target GLTFConvertTransformCheck
+#      注：**不要**依赖根级 ctest —— ULRE 根没有调用 enable_testing()，根目录的
+#      `ctest` 看不到任何测试（既有状态，src/ecs 下的 add_test 同样如此）。
+#   2) ctest（需打开选项，且要在本目录跑）：
+#        cmake -DGLTF_BUILD_TRANSFORM_CHECK=ON ...
+#        ctest --test-dir build/src/Tools/GLTFConvert -C Debug -R GLTFConvertTransformChain
+find_package(Python3 COMPONENTS Interpreter QUIET)
+
+if(Python3_Interpreter_FOUND)
+    add_custom_target(GLTFConvertTransformCheck
+        COMMAND ${Python3_EXECUTABLE} "${CMAKE_CURRENT_SOURCE_DIR}/check/verify_transform_chain.py"
+                --exe "$<TARGET_FILE:GLTFConvert>" --quick
+        DEPENDS GLTFConvert
+        WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
+        COMMENT "检查节点局部变换与 Y-up→Z-up 转换（M' = R·M_raw·R⁻¹）"
+        VERBATIM)
+    set_target_properties(GLTFConvertTransformCheck PROPERTIES FOLDER "${GLTFCONVERT_FOLDER}")
+
+    option(GLTF_BUILD_TRANSFORM_CHECK "Register check/verify_transform_chain.py as a ctest test" OFF)
+    if(GLTF_BUILD_TRANSFORM_CHECK)
+        enable_testing()
+        add_test(NAME GLTFConvertTransformChain
+                 COMMAND ${Python3_EXECUTABLE}
+                         "${CMAKE_CURRENT_SOURCE_DIR}/check/verify_transform_chain.py"
+                         --exe "$<TARGET_FILE:GLTFConvert>" --quick)
+        set_tests_properties(GLTFConvertTransformChain PROPERTIES LABELS "gltf;transform")
+        message(STATUS "GLTFConvert transform-chain check registered (ctest -R GLTFConvertTransformChain)")
+    endif()
+else()
+    message(STATUS "Python3 未找到：跳过 GLTFConvertTransformCheck 目标（仍可直接用 python 运行该脚本）")
+endif()
 
 # FBX SDK support and FBXConvert target removed per project configuration.
 # To re-enable FBX support, restore the original detection and target creation logic.

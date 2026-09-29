@@ -61,10 +61,9 @@ namespace gltf
     void ImportMaterials(const fastgltf::Asset &asset,std::vector<GLTFMaterial> &materials);
     void ImportPrimitives(const fastgltf::Asset &asset,std::vector<GLTFPrimitive> &primitives);
     void ImportMeshes(const fastgltf::Asset &asset,std::vector<GLTFMesh> &meshes);
-    void ImportNodes(const fastgltf::Asset &asset,std::vector<GLTFNode> &nodes);
+    bool ImportNodes(const fastgltf::Asset &asset,std::vector<GLTFNode> &nodes);
     void ImportScenes(const fastgltf::Asset &asset,std::vector<GLTFScene> &scenes);
     void RotatePrimitivesYUpToZUp(std::vector<GLTFPrimitive> &primitives);
-    void RotateNodeLocalTransformsYUpToZUp(std::vector<GLTFNode> &nodes);
     void ImportImages(const fastgltf::Asset &asset,std::vector<GLTFImage> &images);
     void ImportTextures(const fastgltf::Asset &asset,std::vector<GLTFTexture> &textures);
     void ImportSamplers(const fastgltf::Asset &asset,std::vector<GLTFSampler> &samplers);
@@ -84,7 +83,6 @@ namespace gltf
 
         constexpr fastgltf::Options options=fastgltf::Options::LoadExternalBuffers
             |fastgltf::Options::LoadGLBBuffers
-            |fastgltf::Options::DecomposeNodeMatrices
             |fastgltf::Options::GenerateMeshIndices;
 
         auto parent=inputPath.parent_path();
@@ -105,13 +103,18 @@ namespace gltf
         outModel.primitives.reserve([&] { std::size_t c=0; for(auto &m:asset.meshes) c+=m.primitives.size(); return c; }());
         ImportPrimitives(asset,outModel.primitives);
         ImportMeshes(asset,outModel.meshes);
-        ImportNodes(asset,outModel.nodes);
+        if(!ImportNodes(asset,outModel.nodes))
+        {
+            std::cerr<<"[Import] 转换中止：节点局部变换无法用 TRS 表示（原因见上），已放弃本次转换\n";
+            return false;
+        }
         ImportScenes(asset,outModel.scenes);
         ImportImages(asset,outModel.images);
         ImportTextures(asset,outModel.textures);
         ImportSamplers(asset,outModel.samplers);
 
-        RotateNodeLocalTransformsYUpToZUp(outModel.nodes);
+        // 节点局部变换的 Y-up→Z-up 转换与镜像感知分解在 ToNodeTransform() 内完成
+        // （见 gltf/ToNodeTransform.cpp）；这里只转换图元顶点。
         RotatePrimitivesYUpToZUp(outModel.primitives);
         return true;
     }
