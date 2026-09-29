@@ -218,6 +218,21 @@ namespace
                 return volume;
             };
 
+        // 并行归约的比较必须是**全序**（严格全序下 min 与归约顺序无关）。
+        // 此前四处都用 `vol < bestVol`（只比体积、严格小于）：平面/旋转对称形状上大量朝向的体积
+        // **完全相等**（tie），赢家就取决于哪个线程先进入 critical ⇒ 同一二进制度连跑两次得到不同
+        // 朝向（实测 obbAxis* 最大 Δ=2.0、obbCenter ~1e-6，并让 *.geometry / *.scene 的字节随运行变化）。
+        // 体积相等时按 (yaw,pitch,roll) 字典序决胜 —— 与线程数、分块、到达顺序全部无关；
+        // 串行分支也用同一判据，保证 OpenMP ON/OFF 结果一致。
+        auto better=[](float volA,float yawA,float pitchA,float rollA,
+                       float volB,float yawB,float pitchB,float rollB) -> bool
+        {
+            if(volA!=volB) return volA<volB;
+            if(yawA!=yawB) return yawA<yawB;
+            if(pitchA!=pitchB) return pitchA<pitchB;
+            return rollA<rollB;
+        };
+
         int yawSteps=static_cast<int>(360.0f/coarseStepDeg)+1;
         int pitchSteps=static_cast<int>(180.0f/coarseStepDeg)+1;
         int rollSteps=static_cast<int>(360.0f/coarseStepDeg)+1;
@@ -245,11 +260,11 @@ namespace
                 float roll=-180.0f+iroll*coarseStepDeg;
                 glm::mat3 R=makeR(yaw,pitch,roll);
                 float vol=evalOrientation(R,localTmp);
-                if(vol<localBestVol) { localBestVol=vol; localBestBox=localTmp; localYaw=yaw; localPitch=pitch; localRoll=roll; }
+                if(better(vol,yaw,pitch,roll,localBestVol,localYaw,localPitch,localRoll)) { localBestVol=vol; localBestBox=localTmp; localYaw=yaw; localPitch=pitch; localRoll=roll; }
             }
         #pragma omp critical
             {
-                if(localBestVol<bestVol) { bestVol=localBestVol; bestTmp=localBestBox; bestYaw=localYaw; bestPitch=localPitch; bestRoll=localRoll; }
+                if(better(localBestVol,localYaw,localPitch,localRoll,bestVol,bestYaw,bestPitch,bestRoll)) { bestVol=localBestVol; bestTmp=localBestBox; bestYaw=localYaw; bestPitch=localPitch; bestRoll=localRoll; }
             }
         }
     #else
@@ -264,7 +279,7 @@ namespace
                     float roll=-180.0f+iroll*coarseStepDeg;
                     glm::mat3 R=makeR(yaw,pitch,roll);
                     float vol=evalOrientation(R,tmp);
-                    if(vol<bestVol) { bestVol=vol; bestTmp=tmp; bestYaw=yaw; bestPitch=pitch; bestRoll=roll; }
+                    if(better(vol,yaw,pitch,roll,bestVol,bestYaw,bestPitch,bestRoll)) { bestVol=vol; bestTmp=tmp; bestYaw=yaw; bestPitch=pitch; bestRoll=roll; }
                 }
             }
         }
@@ -292,11 +307,11 @@ namespace
                     float dr=-rangeDeg+ir*stepDeg;
                     glm::mat3 R=makeR(y0+dy,p0+dp,r0+dr);
                     OBB tmpLocal; float vol=evalOrientation(R,tmpLocal);
-                    if(vol<localBestVol) { localBestVol=vol; localBest=tmpLocal; localYaw=y0+dy; localPitch=p0+dp; localRoll=r0+dr; }
+                    if(better(vol,y0+dy,p0+dp,r0+dr,localBestVol,localYaw,localPitch,localRoll)) { localBestVol=vol; localBest=tmpLocal; localYaw=y0+dy; localPitch=p0+dp; localRoll=r0+dr; }
                 }
             #pragma omp critical
                 {
-                    if(localBestVol<bestVol) { bestVol=localBestVol; best=localBest; bestYaw=localYaw; bestPitch=localPitch; bestRoll=localRoll; }
+                    if(better(localBestVol,localYaw,localPitch,localRoll,bestVol,bestYaw,bestPitch,bestRoll)) { bestVol=localBestVol; best=localBest; bestYaw=localYaw; bestPitch=localPitch; bestRoll=localRoll; }
                 }
             }
             #else
@@ -308,7 +323,7 @@ namespace
                         {
                             glm::mat3 R=makeR(y0+dy,p0+dp,r0+dr);
                             float vol=evalOrientation(R,tmp);
-                            if(vol<bestVol) { bestVol=vol; best=tmp; bestYaw=y0+dy; bestPitch=p0+dp; bestRoll=r0+dr; }
+                            if(better(vol,y0+dy,p0+dp,r0+dr,bestVol,bestYaw,bestPitch,bestRoll)) { bestVol=vol; best=tmp; bestYaw=y0+dy; bestPitch=p0+dp; bestRoll=r0+dr; }
                         }
                     }
                 }
