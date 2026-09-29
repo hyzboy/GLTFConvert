@@ -38,6 +38,7 @@ import base64
 import json
 import math
 import os
+import re
 import shutil
 import struct
 import subprocess
@@ -341,30 +342,63 @@ def safe_name(s):
     return "".join(ch if (ch.isalnum() or ch in "._-") else "_" for ch in s)
 
 
-def required_extensions(gltf):
-    """源文件的 extensionsRequired（转换器 `GLTFImporter.cpp:73` 是裸 `fastgltf::Parser{}`，
-    没有 `enableExtensions` ⇒ 非空即解析失败）。而该失败路径**不干净**：实测进程会挂住
-    （>120s 后需外部 kill，rc=124）或 abort（rc=3），且从不打印主程序的
-    `[Error] Conversion failed:` 行。所以检查前先跳过，避免每次白等 300s 超时。
-    参考：官方样本 142 个资产里 14 个带 required 扩展，全都属于这一类。"""
+# ── 与转换器 `gltf/import/GLTFExtensions.cpp` 的清单保持一致 ────────────────────
+# 转换器会启用解析的必需扩展（"能消费或可安全忽略"）
+ENABLED_EXT = {
+    "KHR_texture_transform", "KHR_materials_unlit", "KHR_materials_ior",
+    "KHR_materials_specular", "KHR_materials_iridescence", "KHR_materials_volume",
+    "KHR_materials_transmission", "KHR_materials_clearcoat",
+    "KHR_materials_emissive_strength", "KHR_materials_sheen",
+    "KHR_materials_anisotropy", "KHR_materials_dispersion",
+    "KHR_materials_diffuse_transmission", "KHR_materials_variants",
+    "KHR_lights_punctual", "KHR_mesh_quantization", "EXT_texture_webp",
+    "KHR_texture_basisu", "MSFT_texture_dds", "GODOT_single_root",
+}
+# 其中转换器**真正实现**了效果的（其余会打印"效果未实现"告警）
+HANDLED_EXT = {"KHR_materials_unlit", "KHR_mesh_quantization",
+               "KHR_materials_variants", "GODOT_single_root"}
+
+
+def classify_required(gltf):
+    """返回 (会被拒的必需扩展, 启用但效果未实现的必需扩展)。空 ⇒ 可转换。"""
     try:
         _raw, doc, _bufs = load_raw_nodes(gltf)
     except Exception:
-        return []
-    return list(doc.get("extensionsRequired", []))
+        return [], []
+    req = list(doc.get("extensionsRequired", []))
+    rejected = [e for e in req if e not in ENABLED_EXT]
+    unhandled = [e for e in req if e in ENABLED_EXT and e not in HANDLED_EXT]
+    return rejected, unhandled
 
 
-def find_scene_json(outdir, src_name):
-    """产物路径：<outdir>/<模型名>/<模型名>.StaticMesh/<场景名>.Scene.json（**场景名**决定文件名）"""
-    cands = []
+def find_scene_jsons(outdir):
+    """产物里**全部**场景 JSON：`<outdir>/<模型名>/<模型名>.StaticMesh/<场景名>.json`。
+
+    A4 起转换器把源文件的**每个场景**都导出（多场景命名 `scene<N>`，单场景沿用源场景名），
+    所以这里返回列表；用"含 nodes/geometries"判定是不是场景文件（贴图清单等 json 排除）。
+    """
+    out = []
     for dp, _dns, fns in os.walk(outdir):
         for f in fns:
-            if f.endswith(".json"):
-                cands.append(os.path.join(dp, f))
-    for c in cands:
-        if c.endswith(".Scene.json"):
-            return c
-    return cands[0] if cands else None
+            if not f.endswith(".json"):
+                continue
+            p = os.path.join(dp, f)
+            try:
+                with open(p, encoding="utf-8") as fp:
+                    j = json.load(fp)
+            except Exception:
+                continue
+            if isinstance(j, dict) and "nodes" in j and ("boundsTable" in j or "geometries" in j):
+                out.append(p)
+    return sorted(out)
+
+
+def scene_index_of(jpath, doc):
+    """导出文件 → 源场景序号。多场景命名是 `<base>.scene<N>` ⇒ N；
+    单场景命名沿用源场景名 ⇒ 视为源文件的默认场景（glTF `scene` 字段）。"""
+    stem = os.path.splitext(os.path.basename(jpath))[0]
+    m = re.search(r"scene(\d+)$", stem)
+    return int(m.group(1)) if m else doc.get("scene", 0)
 
 
 # ──────────────────────────────────────────────────────────────── 检查用例 ──
@@ -382,18 +416,66 @@ def check_good_scene(name, gltf, exe, work, tolerance, bounds_tol, config, dname
     if rc != 0:
         raise Failure("转换应成功但 rc=%d\n%s" % (rc, log[-1500:]))
 
-    jpath = find_scene_json(outdir, os.path.splitext(os.path.basename(gltf))[0])
-    if not jpath:
+    jpaths = find_scene_jsons(outdir)
+    if not jpaths:
         raise Failure("找不到导出 JSON（%s）" % outdir)
 
+    scenes = doc.get("scenes", [])
+    if scenes:
+        # A4：源文件的**每个**场景都必须有一份产物（多场景命名 `scene<N>`），缺一即失败
+        got = sorted(scene_index_of(p, doc) for p in jpaths)
+        if len(jpaths) != len(scenes) or got != list(range(len(scenes))):
+            raise Failure("[场景] 导出场景数 %d ≠ 源场景数 %d（导出序号 %s）"
+                          % (len(jpaths), len(scenes), got))
+
+    total = {"nodes": len(raw), "scenes_exported": len(jpaths),
+             "leaf_bounds": 0, "bounds_skipped": 0, "bounds_shared_skipped": 0,
+             "worst_A": 0.0, "worst_B": 0.0, "worst_C": 0.0, "worst_q": 0.0,
+             "worst_node": ""}
+    no_xform, no_xform_residual = set(), set()
+    for jp in jpaths:
+        st = check_exports_of_scene(jp, raw, doc, buffers, scene_index_of(jp, doc),
+                                    tolerance, bounds_tol, rel_tolerance)
+        for k in ("leaf_bounds", "bounds_skipped", "bounds_shared_skipped"):
+            total[k] += st[k]
+        for k in ("worst_A", "worst_B", "worst_C", "worst_q"):
+            if st[k] > total[k]:
+                total[k] = st[k]
+                if k == "worst_A":
+                    total["worst_node"] = st["worst_node"]
+        no_xform |= set(st["no_xform_nodes"])
+        no_xform_residual |= set(st["no_xform_residual_nodes"])
+
+    total["no_xform"] = len(no_xform)
+    total["no_xform_residual"] = len(no_xform_residual)
+    total["nodes_unreachable"] = (len(raw) - len(reachable_union(raw, doc, scenes))) if scenes else 0
+    return total
+
+
+def reachable_union(raw, doc, scenes):
+    """所有场景可达节点的**并集**（报告用：避免多场景逐场景重复计数）"""
+    if not scenes:
+        return set(range(len(raw)))
+    seen = set()
+    for s in scenes:
+        stack = list(s.get("nodes", []))
+        while stack:
+            i = stack.pop()
+            if i in seen or i < 0 or i >= len(raw):
+                continue
+            seen.add(i)
+            stack.extend(doc["nodes"][i].get("children", []))
+    return seen
+
+
+def check_exports_of_scene(jpath, raw, doc, buffers, scene_idx, tolerance, bounds_tol, rel_tolerance):
+    """校验**单个**导出场景：该场景可达的源节点逐个对拍 [A]–[F]，再对拍 [C] 世界 AABB。"""
     exp_nodes, exp_json = load_export_nodes(jpath)
     by_index = {e["index"]: e for e in exp_nodes}
 
-    # 源节点可达性：导出只包含**默认场景**（glTF `scene` 字段）可达的节点，
-    # 多场景资产里其它场景的节点**不会**出现在导出中（`MultipleScenes` 就是这种）。
-    # 不可达的源节点跳过而不是失败；可达却缺失才是 bug。
+    # 源节点可达性：**本场景**可达的节点必须都在这份产物里；其它场景的节点不在本文件里 ⇒ 跳过。
+    # 可达却缺失才是 bug。
     scenes = doc.get("scenes", [])
-    scene_idx = doc.get("scene", 0)
     reachable = set()
     if scenes and 0 <= scene_idx < len(scenes):
         stack = list(scenes[scene_idx].get("nodes", []))
@@ -408,12 +490,10 @@ def check_good_scene(name, gltf, exe, work, tolerance, bounds_tol, config, dname
 
     worst_a = worst_b = worst_q = 0.0
     loser = ""
-    no_xform = no_xform_residual = 0
-    unreachable = 0
+    no_xform_nodes, no_xform_residual_nodes = [], []
 
     for i, rn in enumerate(raw):
-        if scenes and i not in reachable:                # 非默认场景的节点：本就不导出
-            unreachable += 1
+        if scenes and i not in reachable:                # 非本场景可达：不在这份产物里
             continue
         e = by_index.get(i)
         if e is None:
@@ -439,13 +519,13 @@ def check_good_scene(name, gltf, exe, work, tolerance, bounds_tol, config, dname
                           % (i, rn["name"], b, tol_b))
 
         if rn["kind"] == "none":                            # [F] 源文件无任何变换键的节点
-            no_xform += 1
+            no_xform_nodes.append(i)
             if "trs" in e:
                 # 允许"仅剩数值残差"的 TRS：导入边界的共轭 R·M·R⁻¹ + 分解会引入 ~1 ULP 误差
                 # （实测 120/120 个无变换节点的 |s-1| = 1.19e-07 = 2^-23，t 与 r 精确为 0），
                 # 使**精确比较**的 TRS::empty() 判不出单位变换 ⇒ 本该零成本的节点仍占 trsTable 一行。
                 # 这里只要求它确实是单位变换（残差在容差内），并把这类节点计数出来。
-                no_xform_residual += 1
+                no_xform_residual_nodes.append(i)
                 resid = m_maxdiff(e["trsM"], m_ident())
                 if resid > tolerance:
                     raise Failure("[F] 节点 %d (%s) 源文件无任何变换键，但导出 TRS 与单位矩阵差 "
@@ -510,9 +590,9 @@ def check_good_scene(name, gltf, exe, work, tolerance, bounds_tol, config, dname
             raise Failure("[C] 节点 %d (%s) 的世界 AABB 与 worldM·(R·v) 不符：%.3e > %.1e"
                           % (e["index"], e["name"], d, tol_c))
 
-    return {"nodes": len(raw), "leaf_bounds": checked, "bounds_skipped": skipped,
-            "bounds_shared_skipped": shared_skipped, "no_xform": no_xform,
-            "no_xform_residual": no_xform_residual, "nodes_unreachable": unreachable,
+    return {"leaf_bounds": checked, "bounds_skipped": skipped,
+            "bounds_shared_skipped": shared_skipped,
+            "no_xform_nodes": no_xform_nodes, "no_xform_residual_nodes": no_xform_residual_nodes,
             "worst_A": worst_a, "worst_B": worst_b, "worst_C": worst_c, "worst_q": worst_q,
             "worst_node": loser}
 
@@ -591,12 +671,15 @@ def main():
     report, failed, skipped_cases = {}, [], []
     for name, path, kind, expect, dname in cases:
         try:
-            req = required_extensions(path) if kind == "good" else []
-            if req:
-                print("  [SKIP] %-26s required 扩展未在转换器中启用：%s" % (name, ", ".join(req)))
-                report[name] = {"result": "skip", "extensions": req}
+            rejected, unhandled = classify_required(path) if kind == "good" else ([], [])
+            if rejected:
+                print("  [SKIP] %-26s 转换器无法转换的必需扩展：%s" % (name, ", ".join(rejected)))
+                report[name] = {"result": "skip", "extensions": rejected}
                 skipped_cases.append(name)
                 continue
+            note = None
+            if unhandled:
+                note = "        %-26s ⚠ 效果未实现（已启用解析）：%s" % ("", ", ".join(unhandled))
             if kind == "good":
                 r = check_good_scene(name, path, exe, work, args.tolerance,
                                      args.bounds_tolerance, args.config, dname, args.timeout,
@@ -610,6 +693,8 @@ def main():
             else:
                 r = check_bad_scene(name, path, exe, work, expect, args.config, dname, args.timeout)
                 print("  [PASS] %-28s fail-fast 生效（rc=%d，错误信息点名 %s）" % (name, r["rc"], expect))
+            if note:
+                print(note)
             report[name] = {"result": "pass", **r}
         except Failure as f:
             failed.append(name)

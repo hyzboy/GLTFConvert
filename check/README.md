@@ -83,12 +83,17 @@ ctest --test-dir build/src/Tools/GLTFConvert -C Debug -R GLTFConvertTransformCha
 
 ## 输入预筛
 
-- **多场景资产**：导出只包含**默认场景**（glTF `scene` 字段，缺省 0）可达的节点；其它场景的节点不进导出。
-  检查脚本据此把"非默认场景的节点"跳过而不是判失败（可达却缺失才报错）。
+- **多场景资产**：**每个场景**都会导出（`scene<N>` 命名；单场景沿用源场景名）。
+  检查脚本逐场景校验，并断言"导出场景数 == 源场景数、序号覆盖 0..N-1"。
+  非本场景可达的节点不在这份产物里（跳过），本场景可达却缺失才是失败。
 - **只支持 glTF 2.0**：先校验 `asset.version`，1.x 直接报错（不喂给转换器）。
-- **`extensionsRequired` 非空 ⇒ `[SKIP]`**：转换器用的是裸 `fastgltf::Parser{}`（无 `enableExtensions`），
-  这类资产在解析阶段就失败，**而且失败路径不干净**（实测挂住 >120s 或 abort rc=3，且不打印
-  `[Error] Conversion failed:`）。官方样本 142 个里有 14 个属于这一类，跳过它们可避免每次白等 300s。
+- **`extensionsRequired` 按转换器的清单分类**（A3 起）：转换器**自己预筛**必需扩展 ——
+  **能启用解析**的照常转换（其中"效果未实现"的会打印告警，本脚本同步打印 ⚠ 行），
+  **只能拒绝**的（`KHR_draco_mesh_compression` / `EXT_meshopt_compression`、`EXT_mesh_gpu_instancing`、
+  `KHR_accessor_float64`、`KHR_materials_pbrSpecularGlossiness`、`MSFT_packing_*`）才 `[SKIP]`。
+  本脚本的 `ENABLED_EXT` / `HANDLED_EXT` 必须与 `gltf/import/GLTFExtensions.cpp` 保持一致。
+  历史（A3 之前）：转换器用的是裸 `fastgltf::Parser{}`（无扩展），任何非空 `extensionsRequired` 都会让解析失败，
+  **而且失败路径不干净**（实测挂住 >120s 或 abort rc=3，且不打印 `[Error] Conversion failed:`）。
 
 
 ## 导出格式约定（写检查代码时容易踩）
