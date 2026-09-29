@@ -1,4 +1,5 @@
 ﻿#include <filesystem>
+#include <algorithm>
 #include <string>
 #include <vector>
 #include <fstream>
@@ -52,14 +53,25 @@ namespace exporters
 
         const std::size_t sceneIndex = SelectDefaultScene(sm);
 
-        // Collect indices for scene export when scenes are present. If there are
-        // no scenes, we still want to export materials / geometries / meshes / images
-        // so do not early-out here. Use an empty CollectedIndices when no scene is
-        // available so downstream callers behave reasonably.
+        // 场景集合：多场景时**全部**导出（A4），所以图像过滤要取**所有场景**的并集 ——
+        // 否则"只被非默认场景引用的贴图"会被漏掉，那个场景的产物就会缺贴图。
         CollectedIndices collected;
         if (!sm.scenes.empty())
         {
-            collected = CollectSceneIndices(sm, sm.scenes[sceneIndex]);
+            auto merge=[&](std::vector<int32_t> &dst, const std::vector<int32_t> &src)
+            {
+                dst.insert(dst.end(), src.begin(), src.end());
+                std::sort(dst.begin(), dst.end());
+                dst.erase(std::unique(dst.begin(), dst.end()), dst.end());
+            };
+            for (const auto &scene : sm.scenes)
+            {
+                const CollectedIndices one = CollectSceneIndices(sm, scene);
+                merge(collected.nodes, one.nodes);
+                merge(collected.primitives, one.primitives);
+                merge(collected.materials, one.materials);
+                merge(collected.geometries, one.geometries);
+            }
         }
 
         // Gather used texture / image / sampler indices (still needed for image export filtering)
@@ -97,16 +109,26 @@ namespace exporters
 
         if(!sm.scenes.empty())
         {
-            std::string sceneName=SanitizeName(sm.scenes[sceneIndex].name);
-            if(sceneName.empty()) sceneName="scene"+std::to_string(sceneIndex);
+            // 多场景：逐个导出，命名 `<base>.scene<N>.json/.scene`（用户拍板口径 `sceneN`）；
+            // 单场景：保持既有命名（`SanitizeName(name)`，无名时 SanitizeName 内部返回 "unnamed"）
+            //         ⇒ 现有产物文件名零变动。
+            // ⚠ 必须自己判"源名是否为空"来决定用 sceneN：`SanitizeName("")` 会返回 "unnamed"
+            //   （SanitizeName.cpp:21），多个无名场景会因此撞成同一个文件名（实测 `MultipleScenes`）。
+            const bool multiScene = sm.scenes.size() > 1;
+            for(std::size_t si=0; si<sm.scenes.size(); ++si)
+            {
+                const std::string sceneName = multiScene
+                                            ? ("scene" + std::to_string(si))
+                                            : SanitizeName(sm.scenes[si].name);
 
-            auto data=BuildSceneExportData(sm,sceneIndex,baseName);
+                auto data=BuildSceneExportData(sm,si,baseName);
 
-            auto jsonPath=targetDir/MakeSceneJsonFileName(baseName,sceneName);
-            if(!WriteSceneJson(data,jsonPath)) return false;
+                auto jsonPath=targetDir/MakeSceneJsonFileName(baseName,sceneName);
+                if(!WriteSceneJson(data,jsonPath)) return false;
 
-            auto packPath=targetDir/MakeScenePackFileName(baseName,sceneName);
-            if(!WriteScenePack(data,packPath)) return false;
+                auto packPath=targetDir/MakeScenePackFileName(baseName,sceneName);
+                if(!WriteScenePack(data,packPath)) return false;
+            }
         }
 
         return true;
