@@ -24,7 +24,7 @@ namespace exporters
             ne.nameIndex         = GetOrAddName(nameToIndex, outData.nameTable, src.name);
 
             // 节点的局部变换只存 TRS（唯一真源）；不写 trs 行 ⇒ 单位变换
-            // （消费者从 TRS 组合出 world 矩阵，见 example/Geometry/LoadScene/LoadStaticMesh.cpp）
+            // （消费者从 TRS 组合出 world 矩阵，见 example/Geometry/Shared/LoadStaticMesh.cpp）
             if (!src.transform.trs.empty())
                 ne.trsIndex = GetOrAddTRS(outData.trsTable, src.transform.trs);
 
