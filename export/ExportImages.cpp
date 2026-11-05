@@ -6,6 +6,7 @@
 #include <unordered_set>
 #include <cstdlib>
 #include "ExportFileNames.h"
+#include "NativeMaterialExport.h" // shared image naming with recipe writer
 #include "ImageMime.h" // added
 #include "ImageUsage.h" // new usage inference
 #include "TexConv.h" // texconv availability
@@ -54,20 +55,7 @@ namespace exporters
                 continue;
 
             const auto &img = model.images[i];
-            std::string ext = GuessImageExtension(img.mimeType);
-            std::string fileName = MakeImageFileName(baseName, img.name, static_cast<int32_t>(i), ext);
-            // if image has no name, optionally inject usage before extension for readability
-            if(img.name.empty())
-            {
-                const char *usageStr = ImageUsageToString(usages[i]);
-                if(usages[i] != ImageUsage::Unknown)
-                {
-                    // baseName.image.index.ext -> baseName.image.index.usage.ext
-                    auto pos = fileName.rfind(ext);
-                    if(pos!=std::string::npos)
-                        fileName.insert(pos, std::string(".") + usageStr);
-                }
-            }
+            const std::string fileName = MakeExportedImageFileName(model, i, baseName, usages);
             auto outPath = targetDir / fileName;
 
             if (img.data && !img.data->empty())
@@ -82,6 +70,15 @@ namespace exporters
                 ofs.write(reinterpret_cast<const char *>(img.data->data()), static_cast<std::streamsize>(img.data->size()));
                 ofs.close();
                 std::cout << "[Export] Wrote embedded image: " << outPath << " (" << ImageUsageToString(usages[i]) << ")\n";
+                // 内嵌贴图也走 TexConv 直出 .Tex2D（配方引用的是 .Tex2D 资产名）
+                if (texconv::Convert(outPath, outPath))
+                {
+                    // 与外部 URI 分支口径一致：成功转换后不留中间原图
+                    std::error_code tec;
+                    std::filesystem::remove(outPath, tec);
+                }
+                else
+                    std::cout << "[Export] TexConv unavailable/failed; embedded image kept as-is (run TexConv manually).\n";
                 continue;
             }
             else if (img.uri && !img.uri->empty())

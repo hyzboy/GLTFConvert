@@ -6,7 +6,7 @@
 #include <iostream>
 #include <unordered_set>
 
-#include "MaterialExporter.h"
+#include "NativeMaterialExport.h"
 #include "pure/Model.h"
 #include "SceneExportData.h"
 #include "SceneExportCollect.h"
@@ -94,7 +94,9 @@ namespace exporters
             return true; // done
         }
 
-        if(!ExportMaterials(sm,targetDir)) return false;
+        // 阶段四：废弃 .material JSON 逐材质落盘，改为原生 recipe.toml + material_data.toml。
+        // .scene MaterialTable(tag 9) 仍写 .material 文件名字符串 —— 引擎靠它承载材质名。
+        if(!ExportNativeMaterials(sm,targetDir)) return false;
         ExportGeometries(&sm,targetDir);
         if(!ExportMeshes(sm,targetDir)) return false;
 

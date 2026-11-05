@@ -187,8 +187,8 @@ set(EXPORT_FILES
     export/SceneExportBuild.cpp
     export/SceneExportJson.cpp
     export/SceneExportPack.cpp
-    export/MaterialExporter.cpp
-    export/MaterialExporter.h
+    export/NativeMaterialExport.cpp
+    export/NativeMaterialExport.h
     export/MeshExporter.cpp
     export/MeshExporter.h
     export/ExportFileNames.h

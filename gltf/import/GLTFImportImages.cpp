@@ -54,6 +54,37 @@ namespace gltf
                 const auto &bv=std::get<fastgltf::sources::BufferView>(im.data);
                 oi.mimeType=MimeTypeToString(bv.mimeType);
                 oi.bufferViewIndex=bv.bufferViewIndex;
+                // GLB 内嵌图：LoadGLBBuffers 已把 BIN chunk 读进 asset.buffers，
+                // 这里按 bufferView 的 offset/length 把字节拷出来，下游才能落盘/TexConv。
+                if(bv.bufferViewIndex<asset.bufferViews.size())
+                {
+                    const auto &view=asset.bufferViews[bv.bufferViewIndex];
+                    if(view.bufferIndex<asset.buffers.size())
+                    {
+                        const auto &buf=asset.buffers[view.bufferIndex];
+                        std::visit(fastgltf::visitor{
+                            [&](const fastgltf::sources::Vector &vec)
+                            {
+                                if(view.byteOffset+view.byteLength<=vec.bytes.size())
+                                    oi.data.assign(vec.bytes.begin()+view.byteOffset,
+                                                   vec.bytes.begin()+view.byteOffset+view.byteLength);
+                            },
+                            [&](const fastgltf::sources::Array &arr)
+                            {
+                                if(view.byteOffset+view.byteLength<=arr.bytes.size())
+                                    oi.data.assign(arr.bytes.begin()+view.byteOffset,
+                                                   arr.bytes.begin()+view.byteOffset+view.byteLength);
+                            },
+                            [&](const fastgltf::sources::ByteView &bvw)
+                            {
+                                if(view.byteOffset+view.byteLength<=bvw.bytes.size())
+                                    oi.data.assign(bvw.bytes.begin()+view.byteOffset,
+                                                   bvw.bytes.begin()+view.byteOffset+view.byteLength);
+                            },
+                            [&](const auto &) {}
+                        },buf.data);
+                    }
+                }
             }
             else if(std::holds_alternative<fastgltf::sources::URI>(im.data))
             {
