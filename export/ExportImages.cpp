@@ -18,8 +18,12 @@ namespace exporters
                                        const std::filesystem::path &dstPath,
                                        ImageUsage usage)
     {
+        texconv::ConvertOptions opts;
+        if(usage == ImageUsage::Normal || usage == ImageUsage::ClearcoatNormal)
+            opts.normal_map = true;
+
         // Try TexConv convert first
-        if(texconv::Convert(srcPath, dstPath))
+        if(texconv::Convert(srcPath, dstPath, opts))
         {
             return true;
         }
@@ -71,7 +75,10 @@ namespace exporters
                 ofs.close();
                 std::cout << "[Export] Wrote embedded image: " << outPath << " (" << ImageUsageToString(usages[i]) << ")\n";
                 // 内嵌贴图也走 TexConv 直出 .Tex2D（配方引用的是 .Tex2D 资产名）
-                if (texconv::Convert(outPath, outPath))
+                texconv::ConvertOptions opts;
+                if(usages[i] == ImageUsage::Normal || usages[i] == ImageUsage::ClearcoatNormal)
+                    opts.normal_map = true;
+                if (texconv::Convert(outPath, outPath, opts))
                 {
                     // 与外部 URI 分支口径一致：成功转换后不留中间原图
                     std::error_code tec;

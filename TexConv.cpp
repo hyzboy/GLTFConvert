@@ -1,9 +1,11 @@
-﻿#include <filesystem>
+#include "TexConv.h"
+#include <filesystem>
 #include <iostream>
 #include <mutex>
 #include <cstdio>
 #include <cstring>
 #include <cstdlib>
+#include <vector>
 #ifdef _WIN32
     #include <windows.h>
     #include <process.h>
@@ -144,6 +146,16 @@ namespace texconv
             searchDirs.push_back(exeDir);
             if(cwd != exeDir) searchDirs.push_back(cwd);
 
+            // Tools/TexConv paths (repo-wide tool directory)
+            searchDirs.push_back(cwd / "Tools" / "TexConv");
+            searchDirs.push_back(exeDir / "Tools" / "TexConv");
+            std::filesystem::path p = exeDir;
+            for(int i = 0; i < 4 && p.has_parent_path(); ++i)
+            {
+                p = p.parent_path();
+                searchDirs.push_back(p / "Tools" / "TexConv");
+            }
+
 #ifdef _WIN32
             const std::wstring fileName = L"TexConv.exe";
 #else
@@ -196,7 +208,7 @@ namespace texconv
         return g_texconvPath;
     }
 
-    bool Convert(const std::filesystem::path &src, const std::filesystem::path &dst)
+    bool Convert(const std::filesystem::path &src, const std::filesystem::path &dst, const ConvertOptions &options)
     {
         if(!IsAvailable()) return false;
         auto texconvPath = Path();
@@ -213,26 +225,43 @@ namespace texconv
         // Build arguments for spawn (no quoting needed)
         std::wstring exe = texconvPath.wstring();
         std::wstring argMip = L"/mip";
+        std::wstring argNormal = L"/normal";
         std::wstring argOut = L"/out:" + baseOut.wstring();
         std::wstring argSrc = src.wstring();
-        const wchar_t *argv[] = { exe.c_str(), argMip.c_str(), argOut.c_str(), argSrc.c_str(), nullptr };
-        int ret = _wspawnv(_P_WAIT, exe.c_str(), argv);
+        std::vector<const wchar_t *> argv;
+        argv.push_back(exe.c_str());
+        if(options.gen_mipmaps)
+            argv.push_back(argMip.c_str());
+        if(options.normal_map)
+            argv.push_back(argNormal.c_str());
+        argv.push_back(argOut.c_str());
+        argv.push_back(argSrc.c_str());
+        argv.push_back(nullptr);
+
+        int ret = _wspawnv(_P_WAIT, exe.c_str(), argv.data());
         if(ret==-1)
         {
             std::cerr << "[TexConv] _wspawnv failed, fallback to system.\n";
             // Fallback single string with quotes
-            std::wstring cmd = L"\"" + exe + L"\" " + argMip + L" " + argOut + L" \"" + argSrc + L"\"";
+            std::wstring cmd = L"\"" + exe + L"\"";
+            if(options.gen_mipmaps) cmd += L" " + argMip;
+            if(options.normal_map) cmd += L" " + argNormal;
+            cmd += L" " + argOut + L" \"" + argSrc + L"\"";
             ret = _wsystem(cmd.c_str());
         }
 #else
-        std::string cmd = std::string("\"") + texconvPath.string() + "\" /mip /out:\"" + baseOut.string() + "\" \"" + src.string() + "\"";
+        std::string cmd = std::string("\"") + texconvPath.string() + "\"";
+        if(options.gen_mipmaps) cmd += " /mip";
+        if(options.normal_map) cmd += " /normal";
+        cmd += " /out:\"" + baseOut.string() + "\" \"" + src.string() + "\"";
         int ret = std::system(cmd.c_str());
 #endif
         if(ret==0)
         {
             if(std::filesystem::exists(produced))
             {
-                std::cout << "[TexConv] Converted: " << src << " -> " << produced.string() << "\n";
+                std::cout << "[TexConv] Converted: " << src << " -> " << produced.string()
+                          << (options.normal_map ? " (BC5 normal)" : "") << "\n";
                 return true;
             }
             else
